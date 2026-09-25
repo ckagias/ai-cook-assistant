@@ -32,6 +32,7 @@ def test_js_module_syntax(path):
         input=source,
         capture_output=True,
         text=True,
+        timeout=30,
     )
     assert result.returncode == 0, f"{path.name} failed to parse:\n{result.stderr}"
 
@@ -43,6 +44,7 @@ def test_mjs_suite_passes(path):
         cwd=BACKEND_DIR,
         capture_output=True,
         text=True,
+        timeout=60,
     )
     assert result.returncode == 0, f"{path.name} exited {result.returncode}:\n{result.stdout}\n{result.stderr}"
     assert "all passed" in result.stdout, f"{path.name} did not print 'all passed':\n{result.stdout}"

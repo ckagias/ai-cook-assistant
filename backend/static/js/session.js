@@ -8,10 +8,7 @@ export function createSession({ onTick, onExpired } = {}) {
   let firedFor = null;
 
   function recompute() {
-    if (endsAt === null) {
-      if (onTick) onTick(0, stepIndex);
-      return;
-    }
+    if (endsAt === null) return;
     const remaining = Math.max(0, endsAt - Date.now());
     if (onTick) onTick(remaining, stepIndex);
     if (remaining === 0 && firedFor !== stepIndex) {
@@ -50,16 +47,15 @@ export function createSession({ onTick, onExpired } = {}) {
   }
 
   function goTo(index) {
-    if (!recipe) return;
-    if (index < 0 || index >= recipe.steps.length) return;
+    if (!recipe || index < 0 || index >= recipe.steps.length) return false;
     stepIndex = index;
+    endsAt = null;
+    firedFor = null;
+    return true;
   }
 
   function next() {
-    if (!recipe) return false;
-    if (stepIndex + 1 >= recipe.steps.length) return false;
-    stepIndex += 1;
-    return true;
+    return goTo(stepIndex + 1);
   }
 
   function startTimer(durationSec) {
@@ -72,8 +68,7 @@ export function createSession({ onTick, onExpired } = {}) {
   }
 
   function remainingMs() {
-    if (endsAt === null) return 0;
-    return Math.max(0, endsAt - Date.now());
+    return endsAt === null ? null : Math.max(0, endsAt - Date.now());
   }
 
   return {

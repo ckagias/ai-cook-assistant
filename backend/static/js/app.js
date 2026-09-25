@@ -232,6 +232,7 @@ function announceStep() {
   if (checkBtn) checkBtn.hidden = !step.checkable;
 
   session.clearTimer();
+  el.timer.textContent = "";
   if (step.expected_duration_sec) {
     session.startTimer(step.expected_duration_sec);
   }

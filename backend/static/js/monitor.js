@@ -43,6 +43,9 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
     phase = "calibrating";
     calStart = Date.now();
     calRows = [];
+    baseline = null;
+    sampleWindow = [];
+    votes = [];
     resetFeatures();
   }
 
@@ -68,7 +71,7 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
       errors++;
       if (errors >= MAX_ERRORS) {
         stop();
-        onDisabled(err);
+        onDisabled?.(err);
       }
       return;
     }
@@ -80,7 +83,7 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
     if (phase === "calibrating") {
       calRows.push(row);
       const elapsed = Date.now() - calStart;
-      onTick({ phase, progress: Math.min(1, elapsed / CALIBRATE_MS) });
+      onTick?.({ phase, progress: Math.min(1, elapsed / CALIBRATE_MS) });
       if (elapsed >= CALIBRATE_MS && calRows.length >= 4) {
         setBaseline(calRows);
       }
@@ -95,7 +98,7 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
         z(row, "Acentre") > MOTION_Z &&
         row.Aannulus > baseline.Acentre.mean + MOTION_Z * Math.max(baseline.Acentre.sd, FLOORS.Acentre);
       if (moving) {
-        onTick({ moving: true });
+        onTick?.({ moving: true });
         return;
       }
 
@@ -116,7 +119,7 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
         });
         if (settled) {
           setBaseline(sampleWindow);
-          onTick({ rebaselined: true });
+          onTick?.({ rebaselined: true });
           return;
         }
       }
@@ -126,7 +129,7 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
       if (votes.length > VOTE_WINDOW) votes.shift();
       const agree = votes.filter(Boolean).length;
 
-      onTick(row, { phase, maxZ, agree, changed });
+      onTick?.(row, { phase, maxZ, agree, changed });
 
       const now = Date.now();
       if (votes.length === VOTE_WINDOW && agree >= FIRE_THRESHOLD && now - lastFired > 20000) {
@@ -142,7 +145,7 @@ export function createMonitor({ video, onChange, onTick, onDisabled }) {
             driverZ = zk;
           }
         }
-        onChange({ driver, z: driverZ, row });
+        onChange?.({ driver, z: driverZ, row });
       }
     }
   }

@@ -35,7 +35,7 @@ export function frameQuality(video) {
 
   probeCanvas.width = w;
   probeCanvas.height = h;
-  const ctx = probeCanvas.getContext("2d");
+  const ctx = probeCanvas.getContext("2d", { willReadFrequently: true });
   ctx.drawImage(video, 0, 0, w, h);
 
   const { data } = ctx.getImageData(0, 0, w, h);

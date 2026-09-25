@@ -27,7 +27,7 @@ function registerWakeLockReacquire() {
   // A wake lock is released automatically whenever the page hides - a one-shot
   // request silently stops working the moment a notification steals focus.
   document.addEventListener("visibilitychange", async () => {
-    if (document.visibilityState === "visible" && caps.wakeLock) {
+    if (document.visibilityState === "visible") {
       caps.wakeLock = await acquireWakeLock();
     }
   });
@@ -51,14 +51,18 @@ export async function boot(preferredLang = "el") {
 
   // Camera. "ideal", never "exact" - exact throws OverconstrainedError on a
   // front-camera-only device. Fatal if this fails, since there is no app without it.
-  caps.stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
-  });
-  caps.video = true;
-  const videoTrack = caps.stream.getVideoTracks()[0];
-  const settings = videoTrack ? videoTrack.getSettings() : {};
-  if (settings.facingMode !== "environment") {
-    warnings.push("Could not confirm the rear camera is in use.");
+  try {
+    caps.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
+    });
+    caps.video = true;
+    const videoTrack = caps.stream.getVideoTracks()[0];
+    const settings = videoTrack ? videoTrack.getSettings() : {};
+    if (settings.facingMode && settings.facingMode !== "environment") {
+      warnings.push("Could not confirm the rear camera is in use.");
+    }
+  } catch (err) {
+    throw new Error("Camera access failed: " + err.name);
   }
 
   // Mic. All three constraints OFF or AGC drifts the noise-floor threshold and
@@ -68,6 +72,11 @@ export async function boot(preferredLang = "el") {
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
     caps.audioIn = true;
+    const audioTrack = caps.micStream.getAudioTracks()[0];
+    const audioSettings = audioTrack ? audioTrack.getSettings() : {};
+    if (audioSettings.noiseSuppression || audioSettings.autoGainControl) {
+      warnings.push("Microphone processing could not be fully disabled - sizzle detection may be unreliable.");
+    }
   } catch (err) {
     warnings.push("Microphone access was not granted.");
   }

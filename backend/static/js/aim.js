@@ -4,7 +4,7 @@ const H = 48; // own canvas
 const aimCanvas = document.createElement("canvas");
 aimCanvas.width = W;
 aimCanvas.height = H;
-const aimCtx = aimCanvas.getContext("2d");
+const aimCtx = aimCanvas.getContext("2d", { willReadFrequently: true });
 
 function clamp01(v) {
   return Math.max(0, Math.min(1, v));
@@ -155,6 +155,7 @@ export function guideUntilFramed(aimer, video, maxMs = 3000) {
       const { score } = aimScore(video);
       const elapsed = Date.now() - startedAt;
       if (score >= GOOD_ENOUGH || elapsed >= maxMs) {
+        aimer.stop();
         // Always resolves, never rejects - refusing to take a photo is worse
         // than taking a mediocre one; camera_feedback handles a bad shot.
         resolve({ guided: true, score, timedOut: score < GOOD_ENOUGH });

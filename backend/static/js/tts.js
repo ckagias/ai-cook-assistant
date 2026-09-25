@@ -86,6 +86,10 @@ function buildUtterance(text, lang) {
     // Chrome cuts speech off after ~15s of silence from the tab; a pause/resume
     // keepalive every 10s prevents that.
     keepAlive = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(keepAlive);
+        return;
+      }
       window.speechSynthesis.pause();
       window.speechSynthesis.resume();
     }, 10000);
@@ -104,6 +108,7 @@ function buildUtterance(text, lang) {
 }
 
 export function speak(text, { priority = "checkin", lang = "el" } = {}) {
+  if (!text) return;
   if (priority === "safety" || priority === "command") {
     window.speechSynthesis.cancel();
     speaking = false;

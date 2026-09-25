@@ -63,7 +63,7 @@ def add_reference(recipe_id: str, step_index: int, photo_path: Path) -> int:
     final_quality = None
     for quality in QUALITY_STEPS:
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=quality)
+        img.save(buf, format="JPEG", quality=quality, optimize=True)
         data = buf.getvalue()
         final_bytes = data
         final_quality = quality
@@ -98,7 +98,7 @@ def main() -> int:
     except ValueError:
         print(f"ERROR: step_index must be an integer, got {sys.argv[2]!r}", file=sys.stderr)
         return 1
-    photo_path = Path(sys.argv[3])
+    photo_path = Path(sys.argv[3]).expanduser()
 
     return add_reference(recipe_id, step_index, photo_path)
 

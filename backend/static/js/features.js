@@ -10,12 +10,12 @@ const EPS = 1e-6;
 const colorCanvas = document.createElement("canvas");
 colorCanvas.width = COLOR_W;
 colorCanvas.height = COLOR_H;
-const colorCtx = colorCanvas.getContext("2d");
+const colorCtx = colorCanvas.getContext("2d", { willReadFrequently: true });
 
 const texCanvas = document.createElement("canvas");
 texCanvas.width = TEX_W;
 texCanvas.height = TEX_H;
-const texCtx = texCanvas.getContext("2d");
+const texCtx = texCanvas.getContext("2d", { willReadFrequently: true });
 
 let prevLuma = null;
 

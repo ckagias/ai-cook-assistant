@@ -154,7 +154,7 @@ def _call_anthropic(image_bytes: bytes, ref_bytes: Optional[bytes], user_text: s
         output_format=AnalyzeResponse,
         messages=[{"role": "user", "content": content}],
     )
-    return result.output_parsed
+    return result.parsed_output
 
 
 def _call_openai(image_bytes: bytes, ref_bytes: Optional[bytes], user_text: str) -> AnalyzeResponse:

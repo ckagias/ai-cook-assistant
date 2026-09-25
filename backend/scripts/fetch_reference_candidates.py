@@ -31,7 +31,7 @@ RASTER_EXTENSIONS = (".jpg", ".jpeg", ".png")
 # Not every Commons file is free - only accept a licence that actually matches a reusable pattern.
 # Wikimedia's actual LicenseShortName strings use a space, not a hyphen, between "CC" and "BY"
 # (e.g. "CC BY-SA 4.0"), so the marker below is "cc by", not "cc-by".
-FREE_LICENSE_MARKERS = ("cc0", "cc by", "public domain", "pd-", "attribution")
+FREE_LICENSE_MARKERS = ("cc0", "cc-by", "cc by", "public domain", "pd-", "attribution")
 
 # Targeting the cooking STAGE, not the finished dish.
 SLOTS = {
