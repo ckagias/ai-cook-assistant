@@ -8,6 +8,7 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
+from app.curation.merge import merge_recipe
 from app.curation.staged import get_staged
 from app.curation.workflow import run_curation
 
@@ -38,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     if out_id:
         recipe.id = out_id
 
+    merge_recipe(recipe)
+    print(f"\nMerged recipe into {recipe.id} at {BACKEND_DIR / 'data' / 'recipes.json'}")
     print("\nFINAL RECIPE:")
     print(recipe.model_dump_json(indent=2, ensure_ascii=False))
     return 0
