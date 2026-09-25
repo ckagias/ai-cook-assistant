@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 from typing import Callable, Iterable
 
+from app.curation.dedupe import find_possible_duplicates
 from app.importers.schema import StagedRecipe
 from app.schemas import Recipe, RecipeSource, RecipeStep
 
@@ -177,6 +178,25 @@ def run_curation(staged: StagedRecipe, input_func: Callable[[str], str] = input)
         recipe_steps.append(_collect_group_step(staged, group, input_func, group_index))
 
     recipe_name = {"el": staged.title.get("el", ""), "en": staged.title.get("en", "")}
+
+    # Human review for duplicate candidates before final confirmation.
+    existing = []
+    try:
+        from app import recipes as recipes_module
+        existing = recipes_module.all_recipes()
+    except Exception:
+        existing = []
+    duplicates = find_possible_duplicates(recipe_name, existing)
+    if duplicates:
+        print("\nPossible duplicates found:")
+        for dup in duplicates:
+            print(f"  - {dup.id}: {dup.name}")
+        choice = input_func("Choose: [n]ew recipe, [u]pdate existing, [a]bort: ").strip().lower()
+        if choice == "u":
+            recipe_id = duplicates[0].id
+        elif choice == "a":
+            raise ValueError("Duplicate review aborted by user")
+
     recipe = Recipe(
         id=recipe_id,
         name=recipe_name,
