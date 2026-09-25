@@ -1,1 +1,55 @@
-<!-- placeholder, replaced in Phase 7 -->
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Βοηθός Μαγειρικής</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <section id="gate">
+    <h1>Βοηθός Μαγειρικής</h1>
+    <button id="start" data-action="start">ΞΕΚΙΝΑ</button>
+    <p id="gate-error" role="alert" hidden></p>
+  </section>
+
+  <div id="app" hidden>
+    <div class="viewport">
+      <video id="video" playsinline muted autoplay></video>
+      <div id="busy" hidden>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    </div>
+
+    <div id="status" role="status" aria-live="assertive" aria-atomic="true"></div>
+
+    <div id="controls">
+      <button data-action="identify">Τι είναι αυτό;</button>
+      <button data-action="recipes">Συνταγές</button>
+    </div>
+
+    <div id="recipe-list" hidden></div>
+
+    <div id="stepper" hidden>
+      <button data-action="check">Είναι έτοιμο;</button>
+      <button data-action="repeat">Επανάλαβε</button>
+      <button data-action="next">Επόμενο</button>
+      <button data-action="stop">Διακοπή</button>
+    </div>
+
+    <div id="clarify" hidden>
+      <button data-action="answer-yes">Ναι</button>
+      <button data-action="answer-no">Όχι</button>
+    </div>
+
+    <footer>
+      <span id="timer"></span>
+      <span id="debug"></span>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
