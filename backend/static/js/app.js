@@ -29,6 +29,13 @@ let lastCheck = null; // context for the one clarification round
 
 const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
+// Present only when an operator is pairing this device for the first time - captured
+// once into localStorage, then api.js attaches it as a header on every call after.
+const PAIRING_TOKEN_PARAM = new URLSearchParams(window.location.search).get("token");
+if (PAIRING_TOKEN_PARAM) {
+  api.setPairingToken(PAIRING_TOKEN_PARAM);
+}
+
 function formatTime(ms) {
   const totalSec = Math.ceil(ms / 1000);
   const m = Math.floor(totalSec / 60);
@@ -156,7 +163,11 @@ async function analyze(buildPayload, ackKey = "analyzing") {
     render(res);
   } catch (err) {
     earcon("error");
-    say(t("network_trouble", lang), "command");
+    if (err instanceof api.HttpError && err.status === 401) {
+      say(t("not_paired", lang), "command");
+    } else {
+      say(t("network_trouble", lang), "command");
+    }
   } finally {
     setBusy(false);
   }

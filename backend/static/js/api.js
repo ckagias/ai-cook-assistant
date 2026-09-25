@@ -1,4 +1,5 @@
 const TIMEOUT_MS = 25000; // above the worst observed real latency - lower silently aborts calls about to succeed.
+const PAIRING_TOKEN_KEY = "pairingToken";
 
 export class HttpError extends Error {
   constructor(status, path) {
@@ -9,11 +10,30 @@ export class HttpError extends Error {
   }
 }
 
+export function setPairingToken(token) {
+  try {
+    localStorage.setItem(PAIRING_TOKEN_KEY, token);
+  } catch {
+    // Private browsing / disabled storage - the token just won't persist across reloads.
+  }
+}
+
+function getPairingToken() {
+  try {
+    return localStorage.getItem(PAIRING_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
 async function requestJson(path, init = {}, timeoutMs = TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(path, { ...init, signal: controller.signal });
+    // Sent on every call whether a token is set or not - an empty header is harmless
+    // when the backend has BACKEND_PAIRING_TOKEN unset.
+    const headers = { ...(init.headers || {}), "X-Pairing-Token": getPairingToken() };
+    const res = await fetch(path, { ...init, headers, signal: controller.signal });
     if (!res.ok) {
       throw new HttpError(res.status, path);
     }
