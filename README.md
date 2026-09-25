@@ -116,19 +116,19 @@ GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
   reference-image comparison silently when a file is missing, so this
   degrades gracefully rather than breaking anything.
 - **No demo fixtures are recorded** (`backend/data/demo_fixtures/` is
-  empty). `scripts/record_fixture.py` is implemented and tested, but
-  recording a real fixture means calling a real, configured provider - that
-  hasn't happened in this environment because no provider API key has ever
-  been supplied here. `DEMO_MODE`/`DEMO_STRICT` therefore haven't been
-  exercised against real recorded content, only against fixtures built by
-  the automated test suite (which construct their own throwaway fixtures at
-  test time).
-- **No vision provider has been called with a genuine, valid API key** in
-  this environment. Every provider code path (Anthropic, OpenAI, Gemini) has
-  been exercised for real over the network, but only far enough to confirm
-  correct error handling: missing-credential errors and, for Anthropic and
-  OpenAI, a live 401 against a deliberately invalid key. A real successful
-  `check_doneness` round-trip against a real model has not happened here.
+  empty). `scripts/record_fixture.py` is implemented and tested, but has
+  never actually been run against a real provider response -
+  `check_providers.py` has (see below), `record_fixture.py` hasn't.
+  `DEMO_MODE`/`DEMO_STRICT` therefore still haven't been exercised against
+  real recorded content, only against fixtures the automated test suite
+  builds itself at test time.
+- **Anthropic and OpenAI have not been called with a genuine, valid API
+  key** in this environment - only far enough to confirm correct error
+  handling (a live 401 against a deliberately invalid key). **Gemini has**:
+  a real `check_doneness` round-trip against the pancake reference step
+  succeeded in 14.3s (see `DESIGN.md` #9), including a real exercise of the
+  `GEMINI_MODEL` fallback chain (two models returned a transient 503 before
+  the third succeeded).
 - **Cutlery detection (`cutlery_detection/`) is a standalone script**, not
   wired into `scene_description` mode - see its README for why and the
   ~30-minute follow-up if it's ever needed.

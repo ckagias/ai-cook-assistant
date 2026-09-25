@@ -100,16 +100,26 @@ canned response on a miss instead - required for a genuinely offline run
 of one means "mostly-live but backstopped" and "fully offline" are both
 reachable without a code change.
 
-## 9. Per-model latency: not yet measured here
+## 9. Per-model latency: partially measured now
 
 The plan for this rebuild called for recording measured per-provider
-latency once real providers were tested. That hasn't happened in this
-environment - no real API key for any provider has been available here, so
-every live network call made during this rebuild deliberately used an
-invalid key to verify error handling (`check_providers.py` correctly
-reporting `FAIL` on a real 401, in ~3-5s, which is HTTP round-trip and
-auth-rejection time, not inference time). Whoever runs this with a real key
-should record real `check_doneness` timings here.
+latency once real providers were tested. For most of this rebuild that
+hadn't happened - no real API key for any provider had been available, so
+every live network call deliberately used an invalid key to verify error
+handling (`check_providers.py` correctly reporting `FAIL` on a real 401, in
+~3-5s, which is HTTP round-trip and auth-rejection time, not inference
+time).
+
+**Gemini, now measured**: with a real `GEMINI_API_KEY`,
+`scripts/check_providers.py`'s real `check_doneness` call against the
+pancake reference step completed in **14.3s**. That run also exercised the
+`GEMINI_MODEL` fallback chain (#8/DESIGN's provider-seam design) for real:
+the first two models (`gemini-3.7-flash`, `gemini-3.8-flash`) both returned
+a transient `503 UNAVAILABLE`, and the third (`gemini-3.6-flash`) succeeded
+- confirming the fallback logic in `vision._call_gemini` behaves correctly
+under a real transient-error condition, not just in tests. Anthropic and
+OpenAI timings are still unmeasured - whoever runs this with a real key for
+either should record it here.
 
 ## 10. USB (`adb reverse`) over self-signed HTTPS as the default bring-up path
 

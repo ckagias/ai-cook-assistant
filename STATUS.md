@@ -19,7 +19,13 @@ All 23 phases of the rebuild plan are implemented:
   `features.js`/`aim.js`, not a reimplementation), client-JS checks run
   from pytest.
 - **Tooling**: `setup.sh`, `check_providers.py`,
-  `record_fixture.py`/`add_reference.py`, `fetch_reference_candidates.py`.
+  `record_fixture.py`/`add_reference.py`, `fetch_reference_candidates.py`,
+  `check_dependencies.py` (`pip-audit` wrapper - currently zero findings
+  against `requirements.txt`).
+- **Security**: opt-in pairing-token auth, per-IP rate limiting and request
+  size caps on `/analyze`/`/barcode`, and a heuristic output-injection guard
+  on every vision response (`backend/SECURITY_THREAT_MODEL_network.md`,
+  `backend/SECURITY_THREAT_MODEL_vision.md`, `DESIGN.md` #13 and #15).
 - **Data**: 3 of 5 reference photos installed from Wikimedia Commons (see
   `backend/data/reference_images/SOURCES.md` for the 2 that are still
   missing and why).
@@ -64,14 +70,18 @@ issue that's easy to miss when phases are built one file at a time:
 
 ## What hasn't been tested here
 
-- **No successful live call to a real vision provider.** Every provider
-  code path has been exercised over the real network, but only far enough
-  to confirm error handling - a deliberately invalid key against Anthropic
-  and OpenAI correctly surfaced as a real 401, reported as `FAIL` by
-  `check_providers.py` without crashing the run. No provider API key has
-  been available in this environment, so a genuine successful
-  `check_doneness` round-trip, and therefore any real per-model latency
-  number, hasn't happened yet.
+- **Anthropic and OpenAI still have no successful live call.** Both have
+  only been exercised far enough to confirm error handling - a deliberately
+  invalid key correctly surfaced as a real 401, reported as `FAIL` by
+  `check_providers.py` without crashing the run.
+- **Gemini now does.** With a real `GEMINI_API_KEY`, `check_providers.py`
+  completed a genuine `check_doneness` round-trip against the pancake
+  reference step in 14.3s, and a full `/analyze` request through the
+  running backend (with pairing-token auth enabled) returned a correct,
+  honest low-confidence response for a synthetic test image. That run also
+  exercised the `GEMINI_MODEL` fallback chain for real: the first two
+  models hit a transient 503 before the third succeeded. See `DESIGN.md`
+  #9 for the timing and fallback detail.
 - **No demo fixtures recorded.** `record_fixture.py` is implemented and its
   validation logic (rejects a non-schema-valid response, rejects an empty
   `spoken_response`, correct `{mode}__{recipe}__{step}.json` /
@@ -89,9 +99,9 @@ issue that's easy to miss when phases are built one file at a time:
 
 ## What to test next, in order
 
-1. Configure one real provider API key and run `check_providers.py` for
-   real - this is the first genuine end-to-end signal on model quality and
-   latency.
+1. ~~Configure one real provider API key and run `check_providers.py` for
+   real~~ - done for Gemini (see above). Do the same for Anthropic and
+   OpenAI once a key for either is available.
 2. Record real demo fixtures with `record_fixture.py`, at minimum
    `identify.json` and a `check_doneness` fixture for `scrambled_eggs`/1.
 3. Shoot or fetch the two missing pancake reference photos.
