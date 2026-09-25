@@ -11,6 +11,10 @@ export const STRINGS = {
     en: "I'm having trouble reaching the server. Please try again.",
     el: "Έχω πρόβλημα σύνδεσης με τον διακομιστή. Δοκίμασε ξανά.",
   },
+  not_paired: {
+    en: "This device isn't paired. Open the link with ?token=... once to set it up.",
+    el: "Αυτή η συσκευή δεν είναι συνδεδεμένη. Άνοιξε τον σύνδεσμο με ?token=... μία φορά για να τη ρυθμίσεις.",
+  },
   // Deliberately identical in both slots: it fires precisely when no Greek voice
   // exists, so a Greek rendering of it could never be heard.
   no_greek_voice: {

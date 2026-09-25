@@ -136,3 +136,85 @@ phone/tablet at a pan - that's the whole premise of the app. `aim.js` turns
 framing quality into a pitch/rate-modulated tone (`440 + 440*score` Hz,
 firing at `1.5 + 6.5*score` Hz) instead of an on-screen box, so "am I
 pointed at the right thing" is answerable without looking.
+
+## 13. Output-injection guard as a second, model-independent check
+
+The vision input is a photo, and the model's free-text output
+(`spoken_response`, `evidence`, `clarifying_question`) is spoken directly to
+a user who often can't look at the screen to cross-check it. A printed
+card, phone screen, or sticker in frame could try to steer the model into
+saying something other than what's in the pan. `_apply_protein_safety`/
+`_apply_safety_flag` already run over structured fields the model
+self-reports (#4), but nothing checked the free-text fields before this.
+
+`backend/app/output_guard.py` adds two passes, run on every `/analyze`
+response (fixture and live), before the existing safety rules:
+
+1. `scan_for_injection`/`sanitize_response`: a short, reviewed list of
+   meta-instruction markers ("ignore previous", "you are now", ...). A hit
+   replaces the whole response with the same schema-valid fallback a failed
+   API call already produces, rather than trying to salvage individual
+   fields.
+2. `check_confidence_plausibility`/`apply_plausibility_check`: a softer
+   pass that downgrades (never discards) a response claiming
+   `confidence: "high"` with no evidence, or reassurance language
+   ("safe", "no flame") paired with a doneness claim and no safety flag -
+   the shape of a false-safety-claim injection, and the highest-severity
+   case since a blind user trusts "it's done" without a way to verify it.
+
+Flagged/downgraded events are logged (`log_flagged_response`) with
+investigative context (mode/recipe_id/step_index/language) but never the
+image bytes, so they're visible after the fact without becoming a size or
+privacy liability.
+
+**Residual risk, stated plainly**: these are heuristic checks, not a
+guarantee. A sufficiently novel injection that avoids the marker list and
+produces plausible-looking confidence/evidence will not be caught. See
+`backend/SECURITY_THREAT_MODEL_vision.md` for the threat categories this
+targets. A genuinely stronger defense would be a second model call
+specifically to classify the first model's output for injection/false
+claims, at roughly 2x the cost and latency per analysis - noted here as a
+future option, not built in this pass.
+
+## 15. Opt-in pairing-token auth, sized for a household, not a SaaS
+
+`main.py` has no authentication, no rate limiting, and no request size cap
+by default - a reasonable default for this app's actual deployment shapes
+(`adb reverse`/USB, where traffic never leaves the cable, or `localhost`).
+It stops being reasonable the moment the self-signed-HTTPS-on-a-LAN
+fallback (#10) is reachable by anyone untrusted on that network: they could
+burn API credits via `/analyze` or use `/barcode/{code}` as an open,
+unauthenticated proxy to Open Food Facts. See
+`backend/SECURITY_THREAT_MODEL_network.md` for the full trust-boundary
+writeup.
+
+**`BACKEND_PAIRING_TOKEN`** (`backend/app/auth.py`) is off by default -
+blank/unset leaves every route working exactly as before, same "opt-in,
+never breaks the existing demo/dev flow" shape as `DEMO_MODE` (#8). When
+set, `Depends(require_pairing_token)` gates `/analyze`, `/barcode/{code}`,
+`/recipes`, `/recipes/{recipe_id}`, and `/reference/{recipe_id}/{step_index}`
+behind an `X-Pairing-Token` header matching the configured secret -
+deliberately **not** `/health` (a health check shouldn't need a secret) and
+**not** the static file mount (inert HTML/JS/CSS costs nothing to serve
+unauthenticated). The client (`api.js`/`app.js`) captures a `?token=` query
+param into `localStorage` once, during device pairing, then attaches it as
+a header on every call after.
+
+**Rate limiting** (`backend/app/rate_limit.py`, an in-memory per-key
+sliding window - no new dependency, matches this project's "no Docker, no
+build step" simplicity) caps `/analyze` at 20 requests/hour and
+`/barcode` at 60 requests/hour, per client IP, returning `429` +
+`Retry-After` on rejection.
+
+**Size caps** on `/analyze` reject an oversized `Content-Length` before the
+body is even read (ASGI middleware, 15MB ceiling) and an oversized decoded
+image after base64 decoding (10MB ceiling), so a paid vision-provider call
+is never made against a garbage or oversized payload.
+
+**Explicitly sized for one household's devices, not multi-tenant SaaS**:
+one shared secret, not per-user accounts, OAuth, or anything else that
+would need an identity system. Confirmed the whole `pytest backend/tests`
+suite (104 passed) and a live `uvicorn` run stay green/unchanged with
+`BACKEND_PAIRING_TOKEN` unset, and that setting it correctly rejects a
+missing/wrong header while `/health` and the static mount stay
+unauthenticated either way.

@@ -14,6 +14,18 @@ a person runs it, reviews the output, and nothing it produces is live in the
 app until a human curates it (that curation happens in Plan 2). No
 end-user-facing import UI in this MVP.
 
+> **Security review required before merge.** This plan introduces the
+> first untrusted external content this codebase has ever had to parse
+> (scraped HTML/JSON from a third-party site). Before this branch merges,
+> run this repo's `security-review` skill (or an equivalent manual pass)
+> against it, specifically checking: the HTML/JSON parsing never
+> `eval`s/execs anything from the response, there are no SSRF-shaped
+> fetches (the importer only ever talks to the one documented host), and
+> there is no path-traversal risk in how staged filenames are derived from
+> source data (`source_id` used directly in a file path - confirm it's
+> validated as safe, e.g. digits-only, before ever touching the
+> filesystem). See `plans/PLAN_SECURITY_NETWORK_HARDENING.md` Phase 6.
+
 Each phase below is self-contained: what to build and why, a ready-to-paste
 prompt, and a suggested commit message. Feed one phase's prompt at a time to
 the LLM, review the diff, commit yourself (the LLM should never run `git

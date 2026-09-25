@@ -87,6 +87,26 @@ GET  /barcode/{code}                      -> Open Food Facts proxy, 404 if not f
 GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
 ```
 
+## Security
+
+- **Pairing token**: unauthenticated by default, matching the `adb reverse`
+  bring-up path. If the backend is reachable from more than the USB-tethered
+  tablet (self-signed HTTPS on a LAN), set `BACKEND_PAIRING_TOKEN` in `.env`
+  - see the comment above it in `.env.example` for how to generate one. See
+  `backend/SECURITY_THREAT_MODEL_network.md` for the full trust-boundary
+  writeup.
+- **Rate limits and size caps**: `/analyze` and `/barcode` are rate-limited
+  per client IP, and `/analyze` rejects oversized request bodies before and
+  after base64 decoding. None of this requires configuration.
+- **Dependency vulnerability check**: `python backend/scripts/check_dependencies.py`
+  wraps `pip-audit` against `backend/requirements.txt` and exits non-zero on
+  any known vulnerability (installs `pip-audit` into the current environment
+  if it isn't already present). Run it periodically by hand - there is no CI
+  pipeline in this repo to run it automatically yet.
+- **Prompt-injection defense**: `backend/SECURITY_THREAT_MODEL_vision.md`
+  and `DESIGN.md` #13 cover the heuristic output-injection guard on vision
+  responses.
+
 ## What's still incomplete
 
 - **Two of five reference photos are missing**: `pancake_ready_to_flip.jpg`

@@ -4,11 +4,11 @@ import mimetypes
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import barcode, demo_cache, recipes, vision
+from . import auth, barcode, demo_cache, output_guard, rate_limit, recipes, vision
 from .schemas import AnalyzeRequest, AnalyzeResponse, Recipe
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,22 @@ mimetypes.add_type("text/css", ".css")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
+# Base64 overhead plus a large photo, well above capture.js's own MAX_EDGE/QUALITY-constrained output.
+MAX_ANALYZE_CONTENT_LENGTH = 15 * 1024 * 1024
+# Checked again after decoding, since a pathological base64 string could slip past a
+# Content-Length check depending on how it's encoded.
+MAX_DECODED_IMAGE_BYTES = 10 * 1024 * 1024
+
 app = FastAPI()
+
+
+@app.middleware("http")
+async def _limit_analyze_content_length(request: Request, call_next):
+    if request.url.path == "/analyze":
+        content_length = request.headers.get("content-length")
+        if content_length is not None and int(content_length) > MAX_ANALYZE_CONTENT_LENGTH:
+            return JSONResponse(status_code=413, content={"detail": "request body too large"})
+    return await call_next(request)
 
 THERMOMETER_NOTE = {
     "en": (
@@ -44,6 +59,24 @@ PROVIDER_KEY_ENV = {
     "openai": ("OPENAI_API_KEY",),
     "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
 }
+
+# /analyze is the expensive one (a real vision-provider call); /barcode is cheaper but
+# still an open proxy to a third party, whose own rate limit is a shared resource.
+ANALYZE_RATE_LIMIT = (20, 3600.0)  # (max_requests, window_sec)
+BARCODE_RATE_LIMIT = (60, 3600.0)
+
+
+def _rate_limit_dependency(prefix: str, max_requests: int, window_sec: float):
+    async def dependency(request: Request) -> None:
+        client_ip = request.client.host if request.client else "unknown"
+        if not rate_limit.check_rate_limit(f"{prefix}:{client_ip}", max_requests=max_requests, window_sec=window_sec):
+            raise HTTPException(
+                status_code=429,
+                detail="rate limit exceeded, try again later",
+                headers={"Retry-After": str(int(window_sec))},
+            )
+
+    return dependency
 
 
 def _apply_protein_safety(response: dict, mode: str, language: str, recipe_flagged) -> dict:
@@ -83,8 +116,17 @@ def _apply_safety_flag(response: dict) -> dict:
     return response
 
 
-def _apply_safety_rules(response: dict, mode: str, language: str, recipe_flagged) -> dict:
-    response = _apply_protein_safety(response, mode, language, recipe_flagged)
+def _apply_safety_rules(response: dict, req: AnalyzeRequest, recipe_flagged) -> dict:
+    guard_context = {
+        "mode": req.mode,
+        "language": req.language,
+        "recipe_id": req.recipe_id,
+        "step_index": req.step_index,
+    }
+    # sanitize_response runs first so every path (fixture and live) is covered, not just callers that remember to.
+    response = output_guard.sanitize_response(response, req.language, guard_context)
+    response = output_guard.apply_plausibility_check(response, guard_context)
+    response = _apply_protein_safety(response, req.mode, req.language, recipe_flagged)
     return _apply_safety_flag(response)
 
 
@@ -121,23 +163,33 @@ def health():
     return {"status": "ok", "demo_mode": demo_cache.demo_mode_enabled()}
 
 
-@app.post("/analyze", response_model=AnalyzeResponse)
+@app.post(
+    "/analyze",
+    response_model=AnalyzeResponse,
+    dependencies=[
+        Depends(auth.require_pairing_token),
+        Depends(_rate_limit_dependency("analyze", *ANALYZE_RATE_LIMIT)),
+    ],
+)
 def analyze(req: AnalyzeRequest):
     recipe_flagged = recipes.step_contains_raw_protein(req.recipe_id, req.step_index)
 
     if demo_cache.demo_mode_enabled():
         fixture = demo_cache.load_fixture(req.mode, req.recipe_id, req.step_index)
         if fixture is not None:
-            return _apply_safety_rules(fixture, req.mode, req.language, recipe_flagged)
+            return _apply_safety_rules(fixture, req, recipe_flagged)
         if demo_cache.demo_strict_enabled():
             canned = _canned_demo_miss(req.language)
-            return _apply_safety_rules(canned, req.mode, req.language, recipe_flagged)
+            return _apply_safety_rules(canned, req, recipe_flagged)
         # DEMO_MODE without DEMO_STRICT falls through to a live call on a fixture miss.
 
     try:
         image_bytes = base64.standard_b64decode(req.image_base64)
     except Exception:
         raise HTTPException(status_code=400, detail="invalid base64 image")
+
+    if len(image_bytes) > MAX_DECODED_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="decoded image too large")
 
     context = {
         "mode": req.mode,
@@ -150,15 +202,15 @@ def analyze(req: AnalyzeRequest):
     }
 
     result = vision.analyze_frame(image_bytes, context)
-    return _apply_safety_rules(result, req.mode, req.language, recipe_flagged)
+    return _apply_safety_rules(result, req, recipe_flagged)
 
 
-@app.get("/recipes")
+@app.get("/recipes", dependencies=[Depends(auth.require_pairing_token)])
 def list_recipes():
     return [{"id": r.id, "name": r.name} for r in recipes.all_recipes()]
 
 
-@app.get("/recipes/{recipe_id}", response_model=Recipe)
+@app.get("/recipes/{recipe_id}", response_model=Recipe, dependencies=[Depends(auth.require_pairing_token)])
 def get_recipe_detail(recipe_id: str):
     recipe = recipes.get_recipe(recipe_id)
     if recipe is None:
@@ -166,7 +218,13 @@ def get_recipe_detail(recipe_id: str):
     return recipe
 
 
-@app.get("/barcode/{code}")
+@app.get(
+    "/barcode/{code}",
+    dependencies=[
+        Depends(auth.require_pairing_token),
+        Depends(_rate_limit_dependency("barcode", *BARCODE_RATE_LIMIT)),
+    ],
+)
 async def get_barcode(code: str):
     product = await barcode.lookup_barcode(code)
     if product is None:
@@ -174,7 +232,7 @@ async def get_barcode(code: str):
     return product
 
 
-@app.get("/reference/{recipe_id}/{step_index}")
+@app.get("/reference/{recipe_id}/{step_index}", dependencies=[Depends(auth.require_pairing_token)])
 def get_reference(recipe_id: str, step_index: int):
     rel_path = recipes.reference_image_path(recipe_id, step_index)
     if not rel_path:

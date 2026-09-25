@@ -18,6 +18,17 @@ proposes, and nothing becomes usable by the app until a human has
 confirmed the safety-relevant fields. There is no end-user-facing "browse
 imported recipes" UI in this MVP.
 
+> **Security review required before merge.** This plan (together with
+> `PLAN_IMPORT_AKIS.md`) introduces the first untrusted external content
+> this codebase has ever had to parse. Before this branch merges, run this
+> repo's `security-review` skill (or an equivalent manual pass) against it,
+> specifically checking: the parsing of staged JSON never `eval`s/execs
+> anything from it, there are no SSRF-shaped fetches, and there is no
+> path-traversal risk in how staged filenames are derived from source data
+> (`source_id` used directly in a file path - confirm it's validated as
+> safe, e.g. digits-only, before ever touching the filesystem). See
+> `plans/PLAN_SECURITY_NETWORK_HARDENING.md` Phase 6.
+
 Each phase below is self-contained: what to build and why, a ready-to-paste
 prompt, and a suggested commit message. Feed one phase's prompt at a time to
 the LLM, review the diff, commit yourself (the LLM should never run `git
