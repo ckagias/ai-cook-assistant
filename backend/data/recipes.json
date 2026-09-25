@@ -1,0 +1,143 @@
+[
+  {
+    "id": "pasta",
+    "name": { "en": "Pasta", "el": "Ζυμαρικά" },
+    "aliases": {
+      "en": ["spaghetti", "noodles", "macaroni"],
+      "el": ["μακαρόνια", "σπαγγέτι"]
+    },
+    "ingredients": ["pasta", "water", "salt"],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Bring a large pot of salted water to a boil.",
+          "el": "Βράστε μια μεγάλη κατσαρόλα με αλατισμένο νερό."
+        },
+        "expected_duration_sec": 300,
+        "checkable": true,
+        "check_prompt_hint": "Is the water at a rolling boil?",
+        "reference_image": "pasta_boiling.jpg",
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Add the pasta and cook until tender.",
+          "el": "Προσθέστε τα ζυμαρικά και μαγειρέψτε μέχρι να μαλακώσουν."
+        },
+        "expected_duration_sec": 540,
+        "checkable": true,
+        "check_prompt_hint": "Is the pasta cooked through (al dente)?",
+        "reference_image": "pasta_cooked.jpg",
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Drain the pasta in a colander.",
+          "el": "Στραγγίστε τα ζυμαρικά σε ένα σουρωτήρι."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "pancakes",
+    "name": { "en": "Pancakes", "el": "Τηγανίτες" },
+    "aliases": {
+      "en": ["flapjacks"],
+      "el": ["πανκέικ"]
+    },
+    "ingredients": ["flour", "eggs", "milk", "butter"],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Mix the batter until smooth.",
+          "el": "Ανακατέψτε το μείγμα μέχρι να γίνει ομοιογενές."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Heat the pan over medium heat.",
+          "el": "Ζεστάνετε το τηγάνι σε μέτρια φωτιά."
+        },
+        "expected_duration_sec": 120,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Pour the batter and cook until bubbles form on top.",
+          "el": "Ρίξτε το μείγμα και μαγειρέψτε μέχρι να σχηματιστούν φυσαλίδες στην επιφάνεια."
+        },
+        "expected_duration_sec": 150,
+        "checkable": true,
+        "check_prompt_hint": "Are bubbles forming and the edges set, ready to flip?",
+        "reference_image": "pancake_ready_to_flip.jpg",
+        "contains_raw_protein": false
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Flip and cook the other side until golden.",
+          "el": "Γυρίστε και μαγειρέψτε την άλλη πλευρά μέχρι να ροδίσει."
+        },
+        "expected_duration_sec": 90,
+        "checkable": true,
+        "check_prompt_hint": "Is the second side golden brown?",
+        "reference_image": "pancake_done.jpg",
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "scrambled_eggs",
+    "name": { "en": "Scrambled Eggs", "el": "Αυγά Χτυπητά" },
+    "aliases": {
+      "en": ["eggs"],
+      "el": ["αυγά", "ομελέτα"]
+    },
+    "ingredients": ["eggs", "butter", "salt"],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Crack the eggs into a bowl and whisk.",
+          "el": "Σπάστε τα αυγά σε ένα μπολ και χτυπήστε τα."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Cook over low heat, stirring gently.",
+          "el": "Μαγειρέψτε σε χαμηλή φωτιά, ανακατεύοντας απαλά."
+        },
+        "expected_duration_sec": 180,
+        "checkable": true,
+        "check_prompt_hint": "Are the eggs fully set with no runny parts?",
+        "reference_image": "eggs_done.jpg",
+        "contains_raw_protein": true
+      }
+    ]
+  }
+]
