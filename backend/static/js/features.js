@@ -184,6 +184,7 @@ export function extractFeatures(video) {
   const Aannulus = annulusCount ? annulusAbsSum / annulusCount / (meanY + EPS) : 0;
 
   features.Acentre = Acentre;
+  features.Aannulus = Aannulus; // consumed by monitor.js's motion veto, not itself sigma-tracked
   // Separates "food is doing something" from "someone nudged the pan/tablet" (which churns both regions equally).
   features.boil = Acentre - Aannulus;
   features.veiled = features.Yratio > 1.4 && features.satC < 0.12 && features.E < 0.005; // steam signature
