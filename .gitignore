@@ -1,0 +1,7 @@
+.env
+backend/.env
+__pycache__/
+*.pyc
+.venv/
+*.pem
+backend/data/reference_candidates/
