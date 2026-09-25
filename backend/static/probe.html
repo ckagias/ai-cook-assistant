@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Device Capability Probe</title>
+  <style>
+    :root {
+      --ok: #1a7f37;
+      --warn: #9a6700;
+      --fail: #cf222e;
+      --bg: #f6f8fa;
+      --border: #d0d7de;
+    }
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+      background: var(--bg);
+      color: #1f2328;
+    }
+    h1 { font-size: 1.3em; }
+    h2 { font-size: 1.05em; margin-top: 28px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    .banner { padding: 10px 14px; border-radius: 6px; font-weight: bold; margin-bottom: 16px; }
+    .banner.ok { background: #dafbe1; color: var(--ok); }
+    .banner.fail { background: #ffebe9; color: var(--fail); }
+    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+    th, td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; font-size: 0.9em; }
+    th { background: #eaeef2; }
+    .row { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .row .label { flex: 0 0 220px; }
+    .status { font-weight: bold; flex: 0 0 60px; }
+    .status.ok { color: var(--ok); }
+    .status.warn { color: var(--warn); }
+    .status.fail { color: var(--fail); }
+    .detail { flex: 1; color: #57606a; font-family: ui-monospace, monospace; font-size: 0.85em; word-break: break-word; }
+    button { padding: 8px 14px; margin: 4px 8px 4px 0; cursor: pointer; }
+    video { width: 320px; max-width: 100%; background: #000; }
+    .legend { font-size: 0.85em; color: #57606a; margin-top: 8px; }
+    .legend div { margin-bottom: 2px; }
+    #features-table-wrap { max-height: 320px; overflow-y: auto; }
+    .stat-row { display: flex; gap: 24px; margin-top: 8px; font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Device Capability Probe</h1>
+  <p>Standalone diagnostic page. Independent of the main app - checks the raw browser capabilities and, for the
+     algorithm sections, exercises the actual <code>features.js</code> / <code>aim.js</code> modules the app uses.</p>
+
+  <div id="secure-banner" class="banner"></div>
+
+  <h2>Static capabilities (no gesture required)</h2>
+  <div class="row" id="row-mediadevices"><span class="label">navigator.mediaDevices</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-barcode"><span class="label">BarcodeDetector</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-wakelock"><span class="label">navigator.wakeLock</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-vibrate"><span class="label">navigator.vibrate</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-audiocontext"><span class="label">AudioContext</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-speechsynthesis"><span class="label">speechSynthesis</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-voices"><span class="label">Voice enumeration</span><span class="status"></span><span class="detail"></span></div>
+
+  <h2>Media tests (require a gesture and permission grants)</h2>
+  <button id="run-media-tests">Run media tests</button>
+  <div class="row" id="row-camera"><span class="label">Camera (rear-facing?)</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-enumerate"><span class="label">Device enumeration (post-permission)</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-mic"><span class="label">Microphone (3 flags off honoured?)</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-wakelock-test"><span class="label">Wake lock acquire/release</span><span class="status"></span><span class="detail"></span></div>
+  <div class="row" id="row-audio-test"><span class="label">AudioContext resume + state</span><span class="status"></span><span class="detail"></span></div>
+
+  <h2>Speech</h2>
+  <button id="speak-greek">Speak Greek test phrase</button>
+  <div class="row" id="row-speak-test"><span class="label">Greek voice found?</span><span class="status"></span><span class="detail"></span></div>
+
+  <h2>Vibration</h2>
+  <button id="vibrate-test">Vibrate test</button>
+  <div class="row" id="row-vibrate-test"><span class="label">Motor felt?</span><span class="status"></span><span class="detail"></span></div>
+
+  <h2>Live features (real features.js + aim.js, not a reimplementation)</h2>
+  <video id="probe-video" playsinline muted autoplay></video>
+  <div>
+    <button id="start-live-features">Live features</button>
+    <button id="stop-live-features" disabled>Stop</button>
+    <button id="toggle-aim-tone" disabled>Start aiming tone</button>
+    <button id="copy-results">Copy results</button>
+  </div>
+  <div class="stat-row">
+    <span>Aim score: <strong id="aim-score">-</strong></span>
+    <span>Peak brownRB: <strong id="peak-brownrb">-</strong></span>
+    <span>Min brownRB: <strong id="min-brownrb">-</strong></span>
+    <span>referenceOk: <strong id="reference-ok-flag">-</strong></span>
+    <span>veiled: <strong id="veiled-flag">-</strong></span>
+  </div>
+  <div class="row" id="row-copy"><span class="label">Copy results</span><span class="status"></span><span class="detail"></span></div>
+
+  <div id="features-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>time</th><th>brownRB</th><th>brownRG</th><th>Yratio</th><th>satC</th>
+          <th>specC</th><th>E</th><th>Acentre</th><th>boil</th><th>referenceOk</th><th>veiled</th>
+        </tr>
+      </thead>
+      <tbody id="features-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <div><strong>brownRB</strong>: pale &rarr; golden &rarr; brown axis. Should rise steadily as food browns, stay flat under lighting changes.</div>
+    <div><strong>brownRG</strong>: secondary browning axis, same illumination-invariance as brownRB.</div>
+    <div><strong>Yratio</strong>: centre brightness vs. surroundings - should barely move when you change the lights. This is the decisive on-device validation of the whole monitor design.</div>
+    <div><strong>satC</strong>: centre colour saturation - tends to drop as food chars.</div>
+    <div><strong>specC</strong>: fraction of blown/clipped centre pixels - rises with glare or steam highlights.</div>
+    <div><strong>E</strong>: centre edge/texture energy - rises with bubbles or surface texture.</div>
+    <div><strong>Acentre</strong>: centre frame-to-frame activity - rises when the food is visibly doing something.</div>
+    <div><strong>boil</strong>: Acentre minus Aannulus - isolates food activity from someone nudging the pan or tablet.</div>
+    <div><strong>referenceOk</strong>: false if the background/hob is too dark to serve as a lighting reference.</div>
+    <div><strong>veiled</strong>: true = steam signature detected (high Yratio, low saturation, low texture).</div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function statusClass(status) {
+      if (status === "ok") return "ok";
+      if (status === "warn") return "warn";
+      if (status === "fail") return "fail";
+      return "";
+    }
+
+    function setRow(id, status, detail) {
+      const row = $(id);
+      if (!row) return;
+      const statusEl = row.querySelector(".status");
+      statusEl.textContent = status;
+      statusEl.className = "status " + statusClass(status);
+      if (detail !== undefined) row.querySelector(".detail").textContent = detail;
+    }
+
+    function checkSecureContext() {
+      const ok = window.isSecureContext;
+      const banner = $("secure-banner");
+      banner.textContent = ok
+        ? "Secure context: OK (camera/mic/wakeLock/barcode are available)"
+        : "NOT a secure context - camera, microphone, wake lock, and barcode detection will all be unavailable. Serve over HTTPS or localhost.";
+      banner.className = ok ? "banner ok" : "banner fail";
+    }
+
+    function probeVoicesForDisplay() {
+      // Same event+poll pattern as tts.js: Chrome returns [] then fires
+      // "voiceschanged" later; Safari may populate synchronously and never
+      // fire the event; fall back to a 2000ms timer either way.
+      let settled = false;
+      function finish() {
+        if (settled) return;
+        settled = true;
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        const voices = window.speechSynthesis.getVoices() || [];
+        const greek = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith("el"));
+        setRow(
+          "row-voices",
+          greek.length ? "ok" : "warn",
+          `${voices.length} voices total, ${greek.length} Greek (${greek.map((v) => v.name).join(", ") || "none"})`
+        );
+      }
+      function onVoicesChanged() {
+        finish();
+      }
+      const initial = window.speechSynthesis.getVoices();
+      if (initial && initial.length > 0) {
+        finish();
+        return;
+      }
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
+      setTimeout(finish, 2000);
+    }
+
+    function checkStaticCapabilities() {
+      setRow("row-mediadevices", "mediaDevices" in navigator ? "ok" : "fail");
+
+      if (window.BarcodeDetector) {
+        setRow("row-barcode", "ok", "checking supported formats...");
+        BarcodeDetector.getSupportedFormats()
+          .then((formats) => setRow("row-barcode", "ok", formats.join(", ")))
+          .catch((err) => setRow("row-barcode", "warn", "getSupportedFormats() failed: " + err.message));
+      } else {
+        setRow("row-barcode", "fail", "BarcodeDetector not supported in this browser");
+      }
+
+      setRow("row-wakelock", "wakeLock" in navigator ? "ok" : "fail");
+      setRow("row-vibrate", "vibrate" in navigator ? "ok" : "fail");
+      setRow("row-audiocontext", window.AudioContext || window.webkitAudioContext ? "ok" : "fail");
+      setRow("row-speechsynthesis", "speechSynthesis" in window ? "ok" : "fail");
+
+      if ("speechSynthesis" in window) {
+        probeVoicesForDisplay();
+      } else {
+        setRow("row-voices", "fail", "speechSynthesis unavailable");
+      }
+    }
+
+    async function runMediaTests() {
+      setRow("row-camera", "warn", "requesting...");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
+        });
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+        if (settings.facingMode === "environment") {
+          setRow("row-camera", "ok", `facingMode=${settings.facingMode}, ${settings.width}x${settings.height}`);
+        } else {
+          setRow("row-camera", "warn", `facingMode=${settings.facingMode || "unknown"} (expected "environment")`);
+        }
+
+        // Device labels only populate after permission has actually been granted.
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const withLabels = devices.filter((d) => d.label);
+        setRow(
+          "row-enumerate",
+          withLabels.length > 0 ? "ok" : "warn",
+          `${devices.length} devices, ${withLabels.length} with labels`
+        );
+
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (err) {
+        setRow("row-camera", "fail", err.message);
+      }
+
+      setRow("row-mic", "warn", "requesting...");
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
+        const track = micStream.getAudioTracks()[0];
+        const settings = track.getSettings();
+        const honoured =
+          settings.echoCancellation === false && settings.noiseSuppression === false && settings.autoGainControl === false;
+        setRow(
+          "row-mic",
+          honoured ? "ok" : "warn",
+          `echoCancellation=${settings.echoCancellation}, noiseSuppression=${settings.noiseSuppression}, autoGainControl=${settings.autoGainControl}`
+        );
+        micStream.getTracks().forEach((t) => t.stop());
+      } catch (err) {
+        setRow("row-mic", "fail", err.message);
+      }
+
+      setRow("row-wakelock-test", "warn", "acquiring...");
+      try {
+        const lock = await navigator.wakeLock.request("screen");
+        await lock.release();
+        setRow("row-wakelock-test", "ok", "acquired and released successfully");
+      } catch (err) {
+        setRow("row-wakelock-test", "fail", err.message);
+      }
+
+      setRow("row-audio-test", "warn", "resuming...");
+      try {
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContextCtor();
+        await ctx.resume();
+        setRow("row-audio-test", ctx.state === "running" ? "ok" : "warn", `state=${ctx.state}`);
+        await ctx.close();
+      } catch (err) {
+        setRow("row-audio-test", "fail", err.message);
+      }
+    }
+
+    function speakGreekTestPhrase() {
+      const phrase = "Το νερό βράζει, πρόσθεσε τα ζυμαρικά.";
+      const voices = window.speechSynthesis.getVoices() || [];
+      const greekVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("el"));
+
+      const u = new SpeechSynthesisUtterance(phrase);
+      u.lang = "el-GR";
+      if (greekVoice) {
+        u.voice = greekVoice; // pin the actual voice object, not just .lang
+      }
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+
+      setRow(
+        "row-speak-test",
+        greekVoice ? "ok" : "warn",
+        greekVoice ? `speaking with voice "${greekVoice.name}"` : "no Greek voice found - spoken with the default voice/lang tag instead"
+      );
+    }
+
+    function vibrateTest() {
+      const supported = "vibrate" in navigator;
+      const called = supported ? navigator.vibrate([100, 50, 100]) : false;
+      setRow(
+        "row-vibrate-test",
+        called ? "warn" : "fail",
+        called
+          ? 'API returned true - this is NOT proof of a working motor. Most tablets have none. Feel for it, don\'t just read this.'
+          : "vibrate() unsupported or returned false"
+      );
+    }
+
+    let accumulatedRows = [];
+    let liveFeaturesState = null; // { stream, interval, aimer, audioCtx }
+
+    function renderFeatureRow(row) {
+      const tbody = $("features-tbody");
+      const tr = document.createElement("tr");
+      const time = new Date(row.t).toLocaleTimeString();
+      tr.innerHTML = `
+        <td>${time}</td>
+        <td>${row.brownRB.toFixed(4)}</td>
+        <td>${row.brownRG.toFixed(4)}</td>
+        <td>${row.Yratio.toFixed(4)}</td>
+        <td>${row.satC.toFixed(4)}</td>
+        <td>${row.specC.toFixed(4)}</td>
+        <td>${row.E !== undefined ? row.E.toFixed(4) : ""}</td>
+        <td>${row.Acentre !== undefined ? row.Acentre.toFixed(4) : ""}</td>
+        <td>${row.boil !== undefined ? row.boil.toFixed(4) : ""}</td>
+        <td>${row.referenceOk}</td>
+        <td>${row.veiled}</td>
+      `;
+      tbody.appendChild(tr);
+      while (tbody.children.length > 50) tbody.removeChild(tbody.firstChild);
+    }
+
+    async function startLiveFeatures() {
+      const video = $("probe-video");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
+      });
+      video.srcObject = stream;
+      await video.play();
+
+      // Dynamically import the REAL modules the app uses - a probe pass must
+      // mean something, so this never reimplements their logic.
+      const featuresMod = await import("./js/features.js");
+      const aimMod = await import("./js/aim.js");
+
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContextCtor();
+      await audioCtx.resume();
+
+      const aimer = aimMod.createAimer({
+        video,
+        audioCtx,
+        isSpeaking: () => false,
+        onScore: (score, reason) => {
+          $("aim-score").textContent = `${score.toFixed(2)} (${reason})`;
+        },
+      });
+
+      featuresMod.resetFeatures();
+      accumulatedRows = [];
+      $("features-tbody").innerHTML = "";
+      let peakBrownRB = -Infinity;
+      let minBrownRB = Infinity;
+      $("peak-brownrb").textContent = "-";
+      $("min-brownrb").textContent = "-";
+
+      const interval = setInterval(() => {
+        const f = featuresMod.extractFeatures(video);
+        if (!f) return;
+
+        if (f.brownRB > peakBrownRB) peakBrownRB = f.brownRB;
+        if (f.brownRB < minBrownRB) minBrownRB = f.brownRB;
+
+        const row = { t: Date.now(), ...f };
+        accumulatedRows.push(row);
+        renderFeatureRow(row);
+        $("peak-brownrb").textContent = peakBrownRB.toFixed(4);
+        $("min-brownrb").textContent = minBrownRB.toFixed(4);
+        $("reference-ok-flag").textContent = f.referenceOk ? "yes" : "no";
+        $("veiled-flag").textContent = f.veiled ? "YES (steam-like)" : "no";
+      }, 500);
+
+      liveFeaturesState = { stream, interval, aimer, audioCtx };
+      $("start-live-features").disabled = true;
+      $("stop-live-features").disabled = false;
+      $("toggle-aim-tone").disabled = false;
+    }
+
+    function stopLiveFeatures() {
+      if (!liveFeaturesState) return;
+      clearInterval(liveFeaturesState.interval);
+      liveFeaturesState.aimer.stop();
+      liveFeaturesState.stream.getTracks().forEach((t) => t.stop());
+      liveFeaturesState.audioCtx.close();
+      liveFeaturesState = null;
+      $("start-live-features").disabled = false;
+      $("stop-live-features").disabled = true;
+      $("toggle-aim-tone").disabled = true;
+      $("toggle-aim-tone").textContent = "Start aiming tone";
+    }
+
+    function toggleAimTone() {
+      if (!liveFeaturesState) return;
+      if (liveFeaturesState.aimer.isRunning()) {
+        liveFeaturesState.aimer.stop();
+        $("toggle-aim-tone").textContent = "Start aiming tone";
+      } else {
+        liveFeaturesState.aimer.start();
+        $("toggle-aim-tone").textContent = "Stop aiming tone";
+      }
+    }
+
+    function copyResults() {
+      if (accumulatedRows.length === 0) {
+        setRow("row-copy", "warn", "no data collected yet - run Live features first");
+        return;
+      }
+      const header = ["time", "brownRB", "brownRG", "Yratio", "satC", "specC", "E", "Acentre", "boil", "referenceOk", "veiled"];
+      const lines = [header.join("\t")];
+      for (const row of accumulatedRows) {
+        lines.push(
+          [
+            new Date(row.t).toISOString(),
+            row.brownRB,
+            row.brownRG,
+            row.Yratio,
+            row.satC,
+            row.specC,
+            row.E,
+            row.Acentre ?? "",
+            row.boil ?? "",
+            row.referenceOk,
+            row.veiled,
+          ].join("\t")
+        );
+      }
+      const text = lines.join("\n");
+
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch (err) {
+        ok = false;
+      }
+      document.body.removeChild(textarea);
+
+      setRow("row-copy", ok ? "ok" : "fail", ok ? `${accumulatedRows.length} rows copied to clipboard` : "copy failed - select and copy the table manually");
+    }
+
+    checkSecureContext();
+    checkStaticCapabilities();
+
+    $("run-media-tests").addEventListener("click", runMediaTests);
+    $("speak-greek").addEventListener("click", speakGreekTestPhrase);
+    $("vibrate-test").addEventListener("click", vibrateTest);
+    $("start-live-features").addEventListener("click", startLiveFeatures);
+    $("stop-live-features").addEventListener("click", stopLiveFeatures);
+    $("toggle-aim-tone").addEventListener("click", toggleAimTone);
+    $("copy-results").addEventListener("click", copyResults);
+  </script>
+</body>
+</html>
