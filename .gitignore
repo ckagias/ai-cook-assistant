@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 *.pem
 backend/data/reference_candidates/
+backend/data/imported_recipes_staging/
