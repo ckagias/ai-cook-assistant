@@ -205,7 +205,13 @@ class TestRoutes:
         assert r.status_code == 404
         assert r.json()["detail"] == "no reference image for this step"
 
-    def test_reference_named_but_missing_on_disk_404(self, client):
+    def test_reference_named_but_missing_on_disk_404(self, client, monkeypatch, tmp_path):
+        # Hermetic on purpose: point DATA_DIR at an empty tmp dir so this
+        # doesn't depend on whether pasta/0's real reference photo happens to
+        # be installed - it's declared in recipes.json either way.
+        from app import main as main_module
+
+        monkeypatch.setattr(main_module, "DATA_DIR", tmp_path)
         r = client.get("/reference/pasta/0")
         assert r.status_code == 404
         detail = r.json()["detail"]
