@@ -194,10 +194,11 @@ class TestRoutes:
         # /health is a real route registered before the static mount - must still resolve.
         r = client.get("/health")
         assert r.status_code == 200
-        # probe.html doesn't exist until a later phase - it must fall through to the
-        # static handler's own 404, not get swallowed or crash the app.
+        # probe.html is a real static file (Phase 15) - it must fall through to the
+        # static handler and serve normally, not get swallowed by an API route.
         r2 = client.get("/probe.html")
-        assert r2.status_code == 404
+        assert r2.status_code == 200
+        assert "text/html" in r2.headers["content-type"]
 
     def test_reference_no_image_named_404(self, client):
         r = client.get("/reference/pasta/2")
