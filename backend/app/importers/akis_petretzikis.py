@@ -17,12 +17,14 @@ from .base import DiscoveryOptions
 from . import http
 from . import html_utils
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from .schema import StagedRecipe, StagedIngredient, StagedStep, StagedMetadata
 
 STAGING_ROOT = Path(__file__).resolve().parent.parent.parent / "data" / "imported_recipes_staging" / "akis_petretzikis"
 STAGING_ROOT.mkdir(parents=True, exist_ok=True)
 MANIFEST_PATH = STAGING_ROOT / "manifest.json"
+REFETCH_THRESHOLD = timedelta(days=7)
 
 SITEMAP_URL = "https://akispetretzikis.com/sitemap.xml"
 RECIPE_URL_RE = re.compile(r"^https://akispetretzikis\.com/recipe/(\d+)/([a-z0-9-]+)$")
@@ -155,11 +157,163 @@ def fetch_and_normalize(recipe_id: str) -> dict:
     parsed_el = _strip_fields(raw_el)
     parsed_en = _strip_fields(raw_en)
 
-    return {"source_id": str(recipe_id), "raw_el": parsed_el, "raw_en": parsed_en, "fetched_at": datetime.now(timezone.utc).isoformat()}
-"""Akis Petretzikis importer.
+    raw_pair = {"source_id": str(recipe_id), "raw_el": parsed_el, "raw_en": parsed_en, "fetched_at": datetime.now(timezone.utc).isoformat()}
+    return raw_pair
 
-Discovery (sitemap), page parsing, and staged-schema normalize land in later
-phases. This module exists so the site_id is reserved and imports succeed.
-"""
 
+def _map_dietary_flags(raw_data: dict) -> dict:
+    # Map site-specific flags like is_ve, is_vg, is_gf, is_df, is_ef, is_nf
+    mapping = {
+        "is_ve": "vegetarian",
+        "is_vg": "vegan",
+        "is_gf": "gluten_free",
+        "is_df": "dairy_free",
+        "is_ef": "egg_free",
+        "is_nf": "nut_free",
+    }
+    out = {}
+    for raw_key, out_key in mapping.items():
+        val = raw_data.get(raw_key)
+        if isinstance(val, int):
+            out[out_key] = bool(val)
+        elif isinstance(val, bool):
+            out[out_key] = val
+    return out
+
+
+def normalize(raw_el: dict, raw_en: dict) -> StagedRecipe:
+    """Normalize the two parsed __NEXT_DATA__ payloads into a StagedRecipe.
+
+    This is intentionally conservative: it flattens method sections into a
+    single steps list, maps ingredient title/info, and extracts metadata.
+    """
+    # Navigate to the page data
+    data_el = raw_el.get("props", {}).get("pageProps", {}).get("ssRecipe", {}).get("data", {})
+    data_en = raw_en.get("props", {}).get("pageProps", {}).get("ssRecipe", {}).get("data", {})
+
+    source_id = str(raw_el.get("source_id") or data_el.get("id") or raw_en.get("source_id") or data_en.get("id"))
+
+    title = {"el": (data_el.get("title") or {}).get("el") if isinstance(data_el.get("title"), dict) else (data_el.get("title") or {}),
+             "en": (data_en.get("title") or {}).get("en") if isinstance(data_en.get("title"), dict) else (data_en.get("title") or {})}
+
+    # Category: try to copy id/slug if present
+    category = {}
+    cat = data_el.get("category") or {}
+    if isinstance(cat, dict):
+        for k in ("id", "slug"):
+            if k in cat:
+                category[k] = str(cat[k])
+
+    # Ingredients: flatten ingredient_sections
+    ingredients = []
+    for sec in data_el.get("ingredient_sections") or []:
+        for ing in sec.get("ingredients") or []:
+            title_el = ing.get("title") if isinstance(ing.get("title"), str) else ing.get("title")
+            # build bilingual title where possible
+            title_dict = {"el": title_el, "en": None}
+            # Quantity/unit/info best-effort
+            quantity = str(ing.get("quantity") or "")
+            unit = {"el": str(ing.get("unit") or ""), "en": ""}
+            info = {"el": str(ing.get("info") or ""), "en": ""}
+            ingredients.append(StagedIngredient(title=title_dict, quantity=quantity, unit=unit, info=info))
+
+    # Steps: flatten method sections in order, pair by position where possible
+    steps = []
+    def _collect_steps(data):
+        out = []
+        for sec in data.get("method") or []:
+            section_title = sec.get("section") or ""
+            section_dict = {"el": section_title, "en": section_title}
+            for s in sec.get("steps") or []:
+                text = s.get("step") or ""
+                out.append((section_dict, text))
+        return out
+
+    steps_el = _collect_steps(data_el)
+    steps_en = _collect_steps(data_en)
+
+    # Zip by position: if counts differ, pad with empty strings
+    max_n = max(len(steps_el), len(steps_en))
+    for i in range(max_n):
+        sec_el, text_el = steps_el[i] if i < len(steps_el) else ({"el": "", "en": ""}, "")
+        sec_en, text_en = steps_en[i] if i < len(steps_en) else ({"el": "", "en": ""}, "")
+        # prefer localized section title when present
+        section = {"el": sec_el.get("el") or sec_en.get("el") or "", "en": sec_en.get("en") or sec_el.get("en") or ""}
+        text = {"el": text_el or "", "en": text_en or ""}
+        steps.append(StagedStep(section=section, text=text))
+
+    # Metadata
+    meta = StagedMetadata()
+    try:
+        meta.make_time_min = int(data_el.get("make_time")) if data_el.get("make_time") is not None else None
+    except Exception:
+        meta.make_time_min = None
+    try:
+        meta.bake_time_min = int(data_el.get("bake_time")) if data_el.get("bake_time") is not None else None
+    except Exception:
+        meta.bake_time_min = None
+    meta.servings = data_el.get("shares")
+    meta.difficulty = data_el.get("difficulty")
+    meta.equipment = [e.get("title") if isinstance(e, dict) else e for e in data_el.get("equipment_used") or []]
+    meta.image_url = None
+    if data_el.get("assets") and isinstance(data_el.get("assets"), list) and data_el.get("assets")[0].get("url"):
+        meta.image_url = data_el.get("assets")[0].get("url")
+    meta.video_url = data_el.get("video_url")
+    # Dietary flags mapping
+    meta.dietary_flags = _map_dietary_flags(data_el)
+
+    staged = StagedRecipe(
+        source="akis_petretzikis",
+        source_id=source_id,
+        source_url={"el": _recipe_urls_for_id(source_id)[0], "en": _recipe_urls_for_id(source_id)[1]},
+        fetched_at=raw_el.get("fetched_at") or datetime.now(timezone.utc).isoformat(),
+        title={"el": (data_el.get("title") or "") if isinstance(data_el.get("title"), str) else (data_el.get("title") or {}),
+               "en": (data_en.get("title") or "") if isinstance(data_en.get("title"), str) else (data_en.get("title") or {})},
+        category=category,
+        ingredients=ingredients,
+        steps=steps,
+        metadata=meta,
+    )
+
+    return staged
+
+
+def write_staged(staged: StagedRecipe, force_refetch: bool = False) -> None:
+    """Write a staged recipe JSON and update manifest, idempotent unless forced."""
+    out_path = STAGING_ROOT / f"{staged.source_id}.json"
+
+    if out_path.exists() and not force_refetch:
+        mtime = datetime.fromtimestamp(out_path.stat().st_mtime, timezone.utc)
+        if datetime.now(timezone.utc) - mtime < REFETCH_THRESHOLD:
+            # skip write
+            return
+
+    try:
+        # pydantic v2: model_dump_json exists; fall back to json.dumps(model_dump())
+        text = staged.model_dump_json(ensure_ascii=False, indent=2)
+    except Exception:
+        text = json.dumps(staged.model_dump(), ensure_ascii=False, indent=2)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(text, encoding="utf-8")
+
+    # Update manifest
+    manifest = []
+    if MANIFEST_PATH.exists():
+        try:
+            manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            manifest = []
+
+    # Replace or append entry
+    entry = {"source_id": staged.source_id, "title": staged.title, "fetched_at": staged.fetched_at}
+    manifest = [m for m in manifest if m.get("source_id") != staged.source_id]
+    manifest.append(entry)
+    MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def fetch_normalize_and_stage(recipe_id: str, force_refetch: bool = False) -> StagedRecipe:
+    raw = fetch_and_normalize(recipe_id)
+    staged = normalize(raw["raw_el"], raw["raw_en"])
+    write_staged(staged, force_refetch=force_refetch)
+    return staged
 site_id = "akis_petretzikis"
