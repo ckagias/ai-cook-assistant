@@ -51,10 +51,10 @@ def _parse_group_spec(raw: str) -> list[int]:
     return values
 
 
-def _ensure_grouping(staged: StagedRecipe, input_func: Callable[[str], str]) -> list[list[int]]:
+def _ensure_grouping(staged: StagedRecipe, input_func: Callable[[str], str]) -> list[RecipeStep]:
     total = len(staged.steps)
     assigned: set[int] = set()
-    groups: list[list[int]] = []
+    recipe_steps: list[RecipeStep] = []
     while len(assigned) < total:
         remaining = [i for i in range(total) if i not in assigned]
         print("\nRemaining staged steps:")
@@ -65,7 +65,14 @@ def _ensure_grouping(staged: StagedRecipe, input_func: Callable[[str], str]) -> 
             print(f"  {i}: [{section}] {text}")
 
         raw = input_func("Enter the next step group as ranges (example: 0-2, 5): ").strip()
-        group = _parse_group_spec(raw)
+        if not raw:
+            print("No valid step indices were entered. Try again.")
+            continue
+        try:
+            group = _parse_group_spec(raw)
+        except ValueError:
+            print("Invalid range format. Use numbers or ranges like 0-2, 5.")
+            continue
         if not group:
             print("No valid step indices were entered. Try again.")
             continue
@@ -81,10 +88,10 @@ def _ensure_grouping(staged: StagedRecipe, input_func: Callable[[str], str]) -> 
         if overlap:
             print(f"These steps were already assigned: {overlap}. Please choose only remaining steps.")
             continue
-        groups.append(group)
         assigned.update(group)
+        recipe_steps.append(_collect_group_step(staged, group, input_func, len(recipe_steps)))
 
-    return groups
+    return recipe_steps
 
 
 def _default_ingredients(staged: StagedRecipe) -> list[str]:
@@ -120,7 +127,11 @@ def _collect_group_step(staged: StagedRecipe, group_indices: list[int], input_fu
     expected_duration = None
     if is_checkable:
         raw = input_func("Expected duration in seconds [blank for none]: ").strip()
-        expected_duration = int(raw) if raw else None
+        try:
+            expected_duration = int(raw) if raw else None
+        except ValueError:
+            print("Invalid duration; treating it as blank.")
+            expected_duration = None
         check_prompt_hint = input_func("Check prompt hint [blank for none]: ").strip() or None
     else:
         check_prompt_hint = None
@@ -172,10 +183,7 @@ def run_curation(staged: StagedRecipe, input_func: Callable[[str], str] = input)
         raw = input_func("No ingredients found; enter ingredients as comma-separated values: ").strip()
         ingredient_list = [item.strip() for item in raw.split(",") if item.strip()]
 
-    groups = _ensure_grouping(staged, input_func)
-    recipe_steps: list[RecipeStep] = []
-    for group_index, group in enumerate(groups, start=0):
-        recipe_steps.append(_collect_group_step(staged, group, input_func, group_index))
+    recipe_steps = _ensure_grouping(staged, input_func)
 
     recipe_name = {"el": staged.title.get("el", ""), "en": staged.title.get("en", "")}
 

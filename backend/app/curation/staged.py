@@ -20,7 +20,8 @@ def list_staged(source: str | None = None) -> list[StagedRecipe]:
         return []
 
     recipes: list[StagedRecipe] = []
-    for path in sorted(root.glob("*.json")):
+    candidates = sorted(root.glob("*.json")) if source is not None else sorted(STAGING_ROOT.glob("**/*.json"))
+    for path in candidates:
         if path.name == "manifest.json":
             continue
         try:

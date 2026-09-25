@@ -19,28 +19,41 @@ def _tokenize(value: str) -> set[str]:
 
 def find_possible_duplicates(candidate_title: dict[str, str], existing: list[Recipe]) -> list[Recipe]:
     """Return existing recipes that are likely duplicates of the new candidate title."""
-    candidate_values = [candidate_title.get("en", ""), candidate_title.get("el", "")]
-    normalized = [_normalize_text(v) for v in candidate_values if v]
+    candidate_values = {
+        "en": [candidate_title.get("en", "")],
+        "el": [candidate_title.get("el", "")],
+    }
 
     matches: list[Recipe] = []
     for recipe in existing:
-        names = [recipe.name.get("en", ""), recipe.name.get("el", "")]
-        aliases = [item for group in recipe.aliases.values() for item in group]
-        all_names = [*names, *aliases]
-        for name in all_names:
-            if not name:
-                continue
-            norm_name = _normalize_text(name)
-            if norm_name in normalized:
-                matches.append(recipe)
-                break
+        all_names_by_lang = {
+            "en": [recipe.name.get("en", ""), *recipe.aliases.get("en", [])],
+            "el": [recipe.name.get("el", ""), *recipe.aliases.get("el", [])],
+        }
 
-            tokens_candidate = set().union(*(_tokenize(v) for v in normalized)) if normalized else set()
-            tokens_recipe = _tokenize(norm_name)
-            if tokens_candidate and tokens_recipe:
-                overlap = len(tokens_candidate & tokens_recipe)
-                union = len(tokens_candidate | tokens_recipe)
-                if union and (overlap / union) >= 0.5:
+        for lang in ("en", "el"):
+            candidate_names = [value for value in candidate_values[lang] if value]
+            if not candidate_names:
+                continue
+
+            for recipe_name in all_names_by_lang[lang]:
+                if not recipe_name:
+                    continue
+
+                norm_candidate = [_normalize_text(value) for value in candidate_names]
+                norm_recipe = _normalize_text(recipe_name)
+                if norm_recipe in norm_candidate:
                     matches.append(recipe)
                     break
+
+                candidate_tokens = set().union(*(_tokenize(value) for value in norm_candidate))
+                recipe_tokens = _tokenize(norm_recipe)
+                if candidate_tokens and recipe_tokens:
+                    overlap = len(candidate_tokens & recipe_tokens)
+                    union = len(candidate_tokens | recipe_tokens)
+                    if union and (overlap / union) >= 0.5:
+                        matches.append(recipe)
+                        break
+            if recipe in matches:
+                break
     return matches
