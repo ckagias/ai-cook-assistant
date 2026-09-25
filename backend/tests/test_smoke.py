@@ -6,9 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from backend.app import demo_cache, recipes, vision
-from backend.app.main import _apply_protein_safety, _apply_safety_flag, app
-from backend.app.schemas import AnalyzeResponse
+from app import demo_cache, recipes, vision
+from app.main import _apply_protein_safety, _apply_safety_flag, app
+from app.schemas import AnalyzeResponse
 
 
 def _make_jpeg_b64() -> str:
