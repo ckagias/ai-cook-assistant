@@ -45,9 +45,17 @@ class RecipeStep(BaseModel):
     contains_raw_protein: bool = False
 
 
+class RecipeSource(BaseModel):
+    site: str
+    source_id: str
+    url: dict[str, str]
+    imported_at: str
+
+
 class Recipe(BaseModel):
     id: str
     name: dict[str, str]
     aliases: dict[str, list[str]]
     ingredients: list[str]
     steps: list[RecipeStep]
+    source: Optional[RecipeSource] = None

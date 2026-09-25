@@ -1,39 +1,40 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-from pydantic import BaseModel
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class StagedIngredient(BaseModel):
-    title: Dict[str, str]
+    title: dict[str, str]
     quantity: str = ""
-    unit: Dict[str, str] = {}
-    info: Dict[str, str] = {}
+    unit: dict[str, str] = Field(default_factory=dict)
+    info: dict[str, str] = Field(default_factory=dict)
 
 
 class StagedStep(BaseModel):
-    section: Dict[str, str]
-    text: Dict[str, str]
+    section: dict[str, str]
+    text: dict[str, str]
 
 
 class StagedMetadata(BaseModel):
-    make_time_min: Optional[int] = None
-    bake_time_min: Optional[int] = None
-    servings: Optional[str] = None
-    difficulty: Optional[str] = None
-    dietary_flags: Dict[str, bool] = {}
-    equipment: List[str] = []
-    image_url: Optional[str] = None
-    video_url: Optional[str] = None
+    make_time_min: int | None = None
+    bake_time_min: int | None = None
+    servings: str | None = None
+    difficulty: str | None = None
+    dietary_flags: dict[str, bool] = Field(default_factory=dict)
+    equipment: list[str] = Field(default_factory=list)
+    image_url: str | None = None
+    video_url: str | None = None
 
 
 class StagedRecipe(BaseModel):
     source: str
     source_id: str
-    source_url: Dict[str, str]
+    source_url: dict[str, str]
     fetched_at: str
-    title: Dict[str, str]
-    category: Dict[str, str] = {}
-    ingredients: List[StagedIngredient] = []
-    steps: List[StagedStep] = []
-    metadata: StagedMetadata = StagedMetadata()
+    title: dict[str, str]
+    category: dict[str, str] = Field(default_factory=dict)
+    ingredients: list[StagedIngredient]
+    steps: list[StagedStep]
+    metadata: StagedMetadata
