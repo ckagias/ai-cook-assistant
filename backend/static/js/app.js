@@ -11,6 +11,10 @@ import { createDetector } from "./detect.js";
 import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
 import { createPushToTalk } from "./voice.js";
 
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
 const el = {
   gate: document.getElementById("gate"),
   start: document.getElementById("start"),
