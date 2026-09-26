@@ -156,7 +156,10 @@ export function createDetector({
     clear();
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.font = "bold 14px system-ui, sans-serif";
+    // A phone's small preview gets smaller labels, or a few of them cover the whole picture.
+    const fontPx = rect.width < 360 ? 11 : 14;
+    const labelH = fontPx + 6;
+    ctx.font = `bold ${fontPx}px system-ui, sans-serif`;
     ctx.textBaseline = "top";
     const lang = getLang();
 
@@ -164,9 +167,9 @@ export function createDetector({
       const w = ctx.measureText(text).width + 8;
       // Cover-cropping can push a box edge off-screen; keep its label readable.
       x = Math.min(Math.max(0, x), Math.max(0, rect.width - w));
-      const top = Math.max(0, y - 20);
+      const top = Math.max(0, y - labelH);
       ctx.fillStyle = color;
-      ctx.fillRect(x, top, w, 20);
+      ctx.fillRect(x, top, w, labelH);
       ctx.fillStyle = "#111";
       ctx.fillText(text, x + 4, top + 3);
     };
