@@ -3,12 +3,12 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
-## Update: hold to talk, 🎤 lock, voice checklist, own voice removed (2026-09-27)
+## Update: hold to talk, mic lock, voice checklist, own voice removed (2026-09-27)
 
 From the first real use (DESIGN.md #35):
 - **Wake word:** "chef"/"σεφ" said to the app, or «γεια σου σεφ», wakes it even when the "hey"
-  is lost. Still not perfect with a Greek accent; the 🎤 lock avoids the wake word altogether.
-- **Talk:** hold to talk, let go to send; pauses no longer cut you off. **🎤 lock:** commands one
+  is lost. Still not perfect with a Greek accent; the mic lock avoids the wake word altogether.
+- **Talk:** hold to talk, let go to send; pauses no longer cut you off. **mic lock:** commands one
   after another, no wake word, until tapped again.
 - **The app's own words** caught by the mic are removed before a command is understood.
 - **Waits longer** before a command ends (1.8 s).

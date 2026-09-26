@@ -671,7 +671,7 @@ What the first real use showed, and what changed:
   recognizer offers several readings, the one that woke *with a command after it* wins.
 - **The talk button cut people off at the first pause** (the ingredients, a list of what they
   have). Now: hold to talk, let go to send, nothing cuts in between. For long stretches without
-  holding or a wake word, a separate **lock** (🎤) keeps listening until it's tapped again.
+  holding or a wake word, a separate **lock** (the mic button) keeps listening until it's tapped again.
   A switch that stays on was the old behaviour people found confusing; the lock is a deliberate,
   visible state, and hands-free stays its own choice.
 - **The mic hears the app's last words before the cook's** ("2 αυγά Okay έχω συλλέξει…" was

@@ -329,7 +329,7 @@ recognizer drops doesn't matter, and "ο σεφ είπε…" (talking *about* a 
 Three ways to talk, always in the bottom bar:
 - **Hold Μίλα / Talk** (or the **V** key) while you speak, let go when you're done. A pause while
   holding doesn't cut you off. A quick tap only reminds you to hold it.
-- **🎤 (the lock)**: tap once and it keeps listening, command after command, with no wake phrase,
+- **The mic button (the lock)**: tap once and it keeps listening, command after command, with no wake phrase,
   until you tap it again. Locked listening is shown on the button in the talk colour.
 - **"Hey chef"** with hands-free on (the **Χωρίς χέρια / Hands-free** switch).
 
@@ -407,7 +407,7 @@ large - so the whole app works without hearing it.
   to `POST /voice/text`, understood by whichever key is set - OpenAI (`gpt-5-mini`), Gemini, or
   Anthropic (`VOICE_PROVIDER` picks one explicitly).
 - **Browsers without speech recognition (Firefox):** hold Talk while you speak (up to 30 s), or
-  use the 🎤 lock, which records until each pause and then listens again; the recording is
+  use the mic lock, which records until each pause and then listens again; the recording is
   transcribed on the server (`gpt-4o-mini-transcribe`, needs `OPENAI_API_KEY`).
 - **A closed set of actions:** the model can only pick one from a fixed list. Code checks the
   result: timer bounds, that a chosen recipe was actually offered, that a step action has an

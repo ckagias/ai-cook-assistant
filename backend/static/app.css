@@ -996,10 +996,18 @@ button.talk[aria-pressed="true"] {
 }
 
 button.lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: var(--touch);
   padding: 8px 12px;
-  font-size: 1.2em;
   touch-action: manipulation;
+}
+
+/* A plain one-colour outline mic, in the button's text colour (white when locked). */
+button.lock .icon {
+  width: 1.5em;
+  height: 1.5em;
 }
 
 /* Locked = listening all the time: the same color as the talk button, so it reads "on". */
