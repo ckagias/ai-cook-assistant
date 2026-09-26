@@ -1,9 +1,58 @@
+/* Two themes, one set of names. Light by default; dark when the system asks for it, unless the
+   header button chose one (index.html applies a saved choice before the first paint).
+   Contrast, light: text 15:1, --muted 7.6:1, white on --voice 7.8:1, white on --danger 6.6:1;
+   --edge (control borders) 3.3:1. Dark: text 16:1, --muted 8:1, --edge 3.4:1. */
+
 :root {
-  --bg: #111;
-  --fg: #fff;
-  --accent: #ffd400;
-  --danger: #ff3b30;
-  --touch: 88px;
+  color-scheme: light;
+  --bg: #f4f2ee;
+  --surface: #ffffff;
+  --ink: #1c1b19;
+  --muted: #4f4c47;
+  --line: #d6d2c9;
+  --edge: #8a857b;
+  --voice: #1f5c45; /* the talk button and "listening" only */
+  --voice-edge: #1f5c45;
+  --danger: #b42318;
+  --danger-edge: #b42318;
+  --danger-text: #b42318;
+  --warn: #f2c200;
+  --on-accent: #ffffff; /* text on --voice and --danger */
+  --on-warn: #1c1b19; /* text on --warn, the same in both themes */
+  --touch: 48px;
+  --radius: 10px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface: #1d1c1a;
+  --ink: #f2f0eb;
+  --muted: #b5b1a8;
+  --line: #34322e;
+  --edge: #6e6a62;
+  --voice: #2f7a5a;
+  --voice-edge: #2f7a5a;
+  --danger: #c3362b;
+  --danger-edge: #c3362b;
+  --danger-text: #ff8a80;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1d1c1a;
+    --ink: #f2f0eb;
+    --muted: #b5b1a8;
+    --line: #34322e;
+    --edge: #6e6a62;
+    --voice: #2f7a5a;
+    --voice-edge: #2f7a5a;
+    --danger: #c3362b;
+    --danger-edge: #c3362b;
+    --danger-text: #ff8a80;
+  }
 }
 
 * {
@@ -18,15 +67,41 @@ body {
 
 body {
   background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 20px;
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
   line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
 }
+
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- buttons: white with a border; filled dark for the main action and for a toggle that's on --- */
 
 button {
   font: inherit;
-  color: inherit;
+  color: var(--ink);
+  min-height: var(--touch);
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--edge);
+  border-radius: var(--radius);
+  font-size: 0.95em;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  cursor: pointer;
   /* Long-press speaks the button (a11y.js) - don't let the OS start a text selection or
      callout menu on top of it, or add a double-tap zoom delay. */
   -webkit-touch-callout: none;
@@ -35,69 +110,196 @@ button {
   touch-action: manipulation;
 }
 
-[hidden] {
-  display: none !important;
+button.primary,
+button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
 }
 
-/* --- gate --- */
+/* Stop: still a full button, just not competing with the way forward. */
+button.quiet {
+  color: var(--danger-text);
+  border-color: var(--line);
+}
+
+/* On/off switches that aren't the main thing on screen: a dot, hollow or filled, not a big block. */
+button.switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.switch::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--edge);
+}
+
+button.switch[aria-pressed="true"] {
+  background: var(--surface);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+button.switch[aria-pressed="true"]::before {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button:focus-visible,
+summary:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* --- start screen --- */
 
 #gate {
   min-height: 100%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  padding: 24px;
-  text-align: center;
+  padding: 24px 16px;
+}
+
+.gate-card {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 #gate h1 {
-  font-size: 1.6em;
   margin: 0;
+  font-size: 2em;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1em;
+}
+
+.how {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: how;
+  border-bottom: 1px solid var(--line);
+}
+
+.how li {
+  counter-increment: how;
+  display: grid;
+  grid-template-columns: 2em 1fr;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.how li::before {
+  content: counter(how);
+  font-weight: 700;
 }
 
 #start {
-  width: 100%;
-  max-width: 480px;
-  min-height: var(--touch);
-  background: var(--accent);
-  color: #111;
-  border: none;
-  border-radius: 12px;
-  font-size: 1.4em;
-  font-weight: bold;
-  letter-spacing: 0.05em;
+  min-height: 60px;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-size: 1.2em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9em;
 }
 
 #gate-error {
-  color: var(--danger);
-  font-weight: bold;
-  max-width: 640px;
-  text-align: left;
+  margin: 0;
+  color: var(--danger-text);
+  font-weight: 700;
   white-space: pre-line; /* Greek, then English, then the browser's own words */
   overflow-wrap: anywhere;
 }
 
-/* --- app shell --- */
+/* --- app shell, phone first: one screen, camera beside the status, only the panel scrolls ---
+   ┌ header ─────────────┐
+   │ camera │ status     │
+   │ panel (scrolls)     │
+   │ talk + typing       │
+   └─────────────────────┘ */
 
 #app {
-  min-height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "top top"
+    "cam side"
+    "panel panel"
+    "bar bar";
+  column-gap: 12px;
+}
+
+.topbar {
+  grid-area: top;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  padding-top: max(6px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+#theme-toggle {
+  min-height: 36px;
+  padding: 4px 12px;
+  font-size: 0.85em;
 }
 
 .vision-col {
+  grid-area: cam;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: 6px;
+  padding: 12px 0 0 12px;
+  min-width: 0;
 }
 
 .viewport {
   position: relative;
-  flex: 1;
-  min-height: 40vh;
+  height: min(26vh, 52vw);
+  height: min(26dvh, 52vw);
+  aspect-ratio: 3 / 4;
   background: #000;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -120,50 +322,61 @@ button {
   pointer-events: none;
 }
 
-/* --- detection panel: live table under the preview --- */
+/* A camera call is running: said in words, not with a moving indicator. */
+#busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#busy span {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9em;
+  font-weight: 700;
+}
+
+/* --- detection: toggle and stats under the preview; the table only where it has room --- */
 
 #detect-panel {
-  padding: 8px 12px 0;
+  width: 0;
+  min-width: 100%; /* never widens the camera column */
 }
 
 .detect-bar {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
 }
 
 #detect-toggle {
-  min-height: var(--touch);
-  min-width: var(--touch);
-  padding: 8px 16px;
-  background: #222;
-  color: var(--fg);
-  border: 2px solid var(--accent);
-  border-radius: 12px;
-  font-size: 1em;
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 
-#detect-toggle[aria-pressed="true"] {
-  background: var(--accent);
-  color: #111;
-}
-
+/* FPS and timings: for the laptop screen; a phone has no room for them beside the preview. */
 #detect-stats {
-  font-size: 0.75em;
-  color: #aaa;
+  display: none;
+  font-size: 0.8em;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .table-scroll {
-  overflow-x: auto;
+  display: none;
 }
 
 #detect-table {
   width: 100%;
-  margin-top: 8px;
   border-collapse: collapse;
-  font-size: 0.75em;
+  font-size: 0.8em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -172,12 +385,15 @@ button {
   padding: 4px 6px;
   text-align: left;
   white-space: nowrap;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--line);
 }
 
 #detect-table th {
-  color: #aaa;
-  font-weight: normal;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .swatch {
@@ -188,208 +404,86 @@ button {
   vertical-align: middle;
 }
 
-/* busy indicator: three pulsing dots */
+/* --- beside the camera: hands-free state, the latest words, what the microphone hears --- */
 
-#busy {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: rgba(0, 0, 0, 0.45);
-}
-
-#busy .dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-#busy .dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-#busy .dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes pulse {
-  0%,
-  80%,
-  100% {
-    transform: scale(0.6);
-    opacity: 0.4;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-#status {
-  padding: 16px;
-  min-height: 1.4em;
-  font-size: 1.2em;
-  text-align: center;
-}
-
-.button-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  padding: 12px;
-}
-
-#recipe-list {
+.side {
+  grid-area: side;
+  contain: size; /* as tall as the camera column, never taller: long messages scroll here */
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-}
-
-.button-grid button,
-#recipe-list button,
-#alert button {
-  min-height: var(--touch);
-  min-width: var(--touch);
-  background: #222;
-  color: var(--fg);
-  border: 2px solid var(--accent);
-  border-radius: 12px;
-  font-size: 1.1em;
-  padding: 8px 12px;
-}
-
-.button-grid button.primary {
-  background: var(--accent);
-  color: #111;
-  font-weight: bold;
-}
-
-footer {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 16px;
-  font-size: 0.9em;
-  color: #aaa;
-}
-
-/* landscape / wide tablet: preview + detection table on the left, everything else stacked on
-   the right. A grid, because a single-row flexbox squeezed every control into its own column. */
-
-@media (min-width: 720px) and (orientation: landscape) {
-  #app {
-    display: grid;
-    grid-template-columns: 60% 40%;
-    grid-auto-rows: min-content;
-    align-items: start;
-  }
-
-  .vision-col {
-    grid-column: 1;
-    grid-row: 1 / span 12;
-  }
-
-  #app > :not(.vision-col) {
-    grid-column: 2;
-  }
-
-  .viewport {
-    min-height: 65vh;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #busy .dot {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* --- push-to-talk: full width, green; red while recording (both >= 4.5:1 with white text) --- */
-
-.button-grid button.talk {
-  grid-column: 1 / -1;
-  background: #0b6e4f;
-  border-color: #3ddc97;
-  color: #fff;
-  font-weight: bold;
-  /* A held finger that drifts must not turn into a scroll - the browser would cancel the pointer. */
-  touch-action: none;
-}
-
-.button-grid button.talk[aria-pressed="true"] {
-  background: #c8102e;
-  border-color: #ff8a8a;
-}
-
-/* --- hands-free: always-visible listening state over the camera view --- */
-
-#wake-bar {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  pointer-events: none;
+  padding: 12px 12px 0 0;
+  min-width: 0;
+}
+
+.side > * {
+  flex-shrink: 0;
 }
 
 #wake-status {
-  padding: 6px 12px 6px 30px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.75);
-  font-size: 0.8em;
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.78em;
+  font-weight: 600;
 }
 
 #wake-status:empty {
   display: none;
 }
 
-/* A dot, not colour alone: its fill and motion also change with the state. */
+/* A dot, not colour alone: the pill's fill and weight also change with the state. */
 #wake-status::before {
   content: "";
-  position: absolute;
-  left: 11px;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  margin-top: -6px;
+  flex: none;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 2px solid #aaa;
+  border: 2px solid var(--edge);
+}
+
+#wake-status[data-state="idle"] {
+  color: var(--ink);
 }
 
 #wake-status[data-state="idle"]::before {
-  background: #3ddc97;
-  border-color: #3ddc97;
+  background: var(--voice);
+  border-color: var(--voice-edge);
 }
 
 #wake-status[data-state="armed"] {
-  background: #c8102e;
-  font-weight: bold;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-accent);
+  font-weight: 700;
 }
 
 #wake-status[data-state="armed"]::before {
-  background: #fff;
-  border-color: #fff;
-  animation: pulse 1s ease-in-out infinite;
+  background: var(--on-accent);
+  border-color: var(--on-accent);
 }
 
 #wake-status[data-state="error"]::before {
-  border-color: var(--danger);
+  border-color: var(--danger-text);
+}
+
+#status {
+  min-height: 1.4em;
+  font-size: 1.05em;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 #interim {
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.75);
+  color: var(--muted);
   font-size: 0.9em;
   font-style: italic;
 }
@@ -398,48 +492,188 @@ footer {
   display: none;
 }
 
-#wake-toggle[aria-pressed="true"] {
-  background: #0b6e4f;
-  border-color: #3ddc97;
+.meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--muted);
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
 }
 
-/* --- alerts that stay until dismissed, and a full-screen flash, for a cook who can't hear --- */
+.meta:has(span:empty + span:empty) {
+  display: none;
+}
+
+#timer {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* --- the panel: whatever the cook is doing now, and the only part that scrolls --- */
+
+.panel {
+  grid-area: panel;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 12px 16px;
+  border-top: 1px solid var(--line);
+  container-type: inline-size;
+}
+
+.panel > * {
+  flex-shrink: 0;
+}
+
+.panel h2 {
+  margin: 0 0 4px;
+  font-size: 1.3em;
+  line-height: 1.2;
+}
+
+.panel h3 {
+  margin: 12px 0 6px;
+  color: var(--muted);
+  font-size: 0.82em;
+  font-weight: 700;
+}
+
+.panel p {
+  margin: 0;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.button-grid .wide {
+  grid-column: 1 / -1;
+}
+
+#stepper .button-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Three to a row on a phone: "Προηγούμενο" has to fit whole, never split mid-word. */
+#stepper .button-grid button {
+  padding: 6px 4px;
+  font-size: 0.88em;
+}
+
+@media (max-width: 380px) {
+  #stepper .button-grid button {
+    font-size: 0.82em;
+  }
+}
+
+/* A wider panel (laptop, tablet): four to a row, so the step's buttons take two rows. */
+@container (min-width: 520px) {
+  #stepper .button-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  #stepper .button-grid button {
+    font-size: 0.95em;
+  }
+}
+
+.panel section > .button-grid {
+  margin-top: 12px;
+}
+
+/* The ingredients can be a long list: its buttons stay in view while the list scrolls under them. */
+#overview > .button-grid {
+  position: sticky;
+  bottom: -16px; /* the panel's bottom padding */
+  padding: 8px 0 16px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+#wake-toggle[aria-pressed="true"] {
+  background: var(--voice);
+  border-color: var(--voice-edge);
+  color: var(--on-accent);
+}
+
+/* --- recipe list --- */
+
+#recipe-list {
+  display: grid;
+  gap: 8px;
+}
+
+#recipe-list button {
+  text-align: left;
+  padding: 8px 14px;
+}
+
+#recipe-list button[data-action="close-recipes"] {
+  position: sticky;
+  bottom: 0;
+  text-align: center;
+  border-color: var(--ink);
+}
+
+/* --- yes/no question, alerts that stay until dismissed, and a full-screen flash --- */
+
+#question {
+  padding: 12px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+#question p {
+  margin: 0 0 10px;
+  font-size: 1.05em;
+  font-weight: 700;
+}
 
 #alert {
-  margin: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: #111;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  font-size: 1.2em;
-  font-weight: bold;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--warn);
+  color: var(--on-warn);
+  font-size: 1.05em;
+  font-weight: 700;
 }
 
 #alert[data-kind="safety"] {
   background: var(--danger);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 #alert p {
   flex: 1 1 12em;
-  margin: 0;
 }
 
 #alert button {
-  background: #111;
-  border-color: #111;
+  min-width: 96px;
+  background: var(--on-warn);
+  border-color: var(--on-warn);
+  color: #fff;
 }
 
+/* The one animation left: a timer or a fire warning, for a cook who can't hear the alarm. */
 #flash {
   position: fixed;
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  background: var(--accent);
+  background: var(--warn);
   opacity: 0;
 }
 
@@ -461,61 +695,57 @@ footer {
   }
 }
 
-/* --- the yes/no question the app is waiting on --- */
-
-#question {
-  margin: 0 12px;
-  border: 3px solid var(--accent);
-  border-radius: 12px;
+@media (prefers-reduced-motion: reduce) {
+  #flash.go {
+    animation: none;
+    opacity: 0.35;
+  }
 }
 
-#question p {
-  margin: 12px 12px 0;
-  font-size: 1.2em;
-  font-weight: bold;
-  text-align: center;
+/* --- needs and preferences, overview: chips and checklists --- */
+
+#prefs-question {
+  font-size: 1.05em;
 }
 
-/* --- recipe overview: ingredients checklist, doneness --- */
-
-#overview,
-#stepper {
-  padding: 4px 0 0;
+#overview-meta {
+  color: var(--muted);
 }
 
-#overview h2,
-#overview h3,
-#overview > p {
-  margin: 8px 16px;
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-#overview h3 {
-  font-size: 0.9em;
-  color: #aaa;
-  font-weight: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.chips button {
+  min-height: 44px;
+  padding: 6px 12px;
+  font-weight: 500;
+}
+
+.chips button[aria-pressed="true"] {
+  font-weight: 700;
 }
 
 #ingredient-list,
 #equipment-list {
   list-style: none;
   margin: 0;
-  padding: 0 12px;
+  padding: 0;
   display: grid;
   gap: 6px;
 }
 
 #ingredient-list button,
 #equipment-list button {
-  width: 100%;
-  min-height: 56px;
-  padding: 8px 12px 8px 48px;
-  text-align: left;
-  background: #1b1b1b;
-  border: 2px solid #444;
-  border-radius: 10px;
   position: relative;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px 8px 44px;
+  text-align: left;
+  font-weight: 500;
+  border: 1px solid var(--line);
 }
 
 /* Tick box drawn with a border + check mark, so "have it" isn't shown by colour alone. */
@@ -525,166 +755,149 @@ footer {
   position: absolute;
   left: 12px;
   top: 50%;
-  width: 22px;
-  height: 22px;
-  margin-top: -11px;
-  border: 2px solid #aaa;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  border: 2px solid var(--edge);
   border-radius: 4px;
 }
 
 #ingredient-list button[aria-pressed="true"],
 #equipment-list button[aria-pressed="true"] {
-  border-color: #3ddc97;
-  color: #cfe;
+  background: var(--surface);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 #ingredient-list button[aria-pressed="true"]::before,
 #equipment-list button[aria-pressed="true"]::before {
   content: "✓";
-  border-color: #3ddc97;
-  background: #3ddc97;
-  color: #111;
-  font-weight: bold;
-  line-height: 22px;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 16px;
   text-align: center;
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 12px;
-}
-
-.chips button {
-  min-height: 56px;
-  padding: 8px 14px;
-  background: #222;
-  border: 2px solid #666;
-  border-radius: 999px;
-}
-
-.chips button[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #111;
-  font-weight: bold;
-}
-
-/* --- steps: the step in writing, big, and every running timer --- */
+/* --- steps: the step in writing, its timers, "Done" and one-tap questions --- */
 
 #step-count {
-  margin: 8px 16px 0;
-  color: #aaa;
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 600;
 }
 
 #step-text {
-  margin: 4px 16px 8px;
-  font-size: 1.35em;
-  line-height: 1.35;
+  margin: 4px 0 10px;
+  font-size: 1.15em;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 #timers {
   display: grid;
   gap: 8px;
-  padding: 0 12px;
+  margin-bottom: 10px;
+}
+
+#timers:empty {
+  display: none;
 }
 
 /* Label and clock on top, then +1 / -1 / stop - built once per timer, only the clock updates. */
 .timer-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 2px solid var(--accent);
-  border-radius: 12px;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
 .timer-label {
   grid-column: 1 / 3;
-  color: #ccc;
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 
 .timer-clock {
   grid-column: 3;
   text-align: right;
-  font-size: 2em;
-  font-weight: bold;
+  font-size: 1.8em;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .timer-row button {
-  min-height: 56px;
-  background: #222;
-  border: 2px solid #666;
-  border-radius: 10px;
-}
-
-/* --- typing instead of speaking --- */
-
-#ask {
-  padding: 4px 12px 0;
-}
-
-#ask label {
-  display: block;
+  min-height: 44px;
+  padding: 4px 6px;
   font-size: 0.85em;
-  color: #aaa;
-  margin-bottom: 4px;
 }
 
-.ask-row {
-  display: flex;
-  gap: 8px;
+/* On a phone the questions are one row that scrolls sideways; "Done" is always the first. */
+#step-actions {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
 }
 
-#ask input {
-  flex: 1;
-  min-width: 0;
-  min-height: 56px;
-  padding: 8px 12px;
-  font: inherit;
-  color: var(--fg);
-  background: #1b1b1b;
-  border: 2px solid #666;
-  border-radius: 10px;
+#step-actions button {
+  flex: none;
+  white-space: nowrap;
 }
 
-#ask input:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+#step-actions button[data-action="done-step"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
 }
 
-#ask button {
-  min-height: 56px;
-  min-width: 88px;
-  background: var(--accent);
-  color: #111;
-  border: none;
-  border-radius: 10px;
-  font-weight: bold;
+/* --- the recipe's short-term memory, and the conversation in writing --- */
+
+#memory-wrap {
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-/* --- the conversation, in writing --- */
+#memory-wrap summary {
+  padding: 10px 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#memory-list {
+  margin: 0;
+  padding: 0 0 10px 18px;
+  font-size: 0.9em;
+}
+
+#memory-list li {
+  margin: 4px 0;
+}
+
+#log-wrap:has(#log:empty) {
+  display: none;
+}
 
 #log-wrap h3 {
-  margin: 12px 16px 4px;
-  font-size: 0.9em;
-  color: #aaa;
-  font-weight: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-top: 0;
 }
 
 #log {
-  max-height: 16em;
+  max-height: 12em;
   overflow-y: auto;
-  margin: 0 12px;
-  padding: 4px 8px;
-  border: 1px solid #333;
-  border-radius: 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
   font-size: 0.9em;
 }
 
@@ -697,91 +910,222 @@ footer {
 }
 
 #log .log-you {
-  color: #9fd8ff;
+  color: var(--muted);
 }
 
-#log .log-you b,
-#log .log-chef b {
-  font-weight: bold;
+/* --- always on screen: talk, and typing instead of speaking --- */
+
+.bottombar {
+  grid-area: bar;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
 }
 
-button:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 2px;
+button.talk {
+  min-width: 96px;
+  padding: 8px 16px;
+  background: var(--voice);
+  border-color: var(--voice-edge);
+  color: var(--on-accent);
+  font-weight: 700;
+  /* A held finger that drifts must not turn into a scroll - the browser would cancel the pointer. */
+  touch-action: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  #flash.go {
-    animation: none;
-    opacity: 0.35;
-  }
-
-  #wake-status[data-state="armed"]::before {
-    animation: none;
-  }
+button.talk[aria-pressed="true"] {
+  background: var(--danger);
+  border-color: var(--danger-edge);
 }
 
-/* --- needs and preferences, before the ingredients --- */
-
-#prefs h2,
-#prefs h3,
-#prefs > p {
-  margin: 8px 16px;
-}
-
-#prefs h3 {
-  font-size: 0.9em;
-  color: #aaa;
-  font-weight: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-#prefs-question {
-  font-size: 1.15em;
-}
-
-/* --- per-step actions: "Done" first and bold, then one-tap questions --- */
-
-#step-actions {
-  margin: 8px 0 0;
-}
-
-#step-actions button[data-action="done-step"] {
-  background: #0b6e4f;
-  border-color: #3ddc97;
-  color: #fff;
-  font-weight: bold;
-}
-
-#step-actions button[data-action="quick-ask"],
-#step-actions button[data-action="time-left"] {
-  text-align: left;
-}
-
-/* --- the recipe's short-term memory --- */
-
-#memory-wrap {
-  margin: 12px 12px 0;
-  border: 1px solid #333;
-  border-radius: 10px;
-  padding: 4px 8px;
-}
-
-#memory-wrap summary {
-  min-height: 44px;
+#ask {
   display: flex;
-  align-items: center;
-  cursor: pointer;
-  color: #ccc;
-}
-
-#memory-list {
+  gap: 8px;
+  min-width: 0;
   margin: 0;
-  padding: 0 0 8px 20px;
-  font-size: 0.9em;
 }
 
-#memory-list li {
-  margin: 4px 0;
+#ask input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--edge);
+  border-radius: var(--radius);
+}
+
+#ask input::placeholder {
+  color: var(--muted);
+}
+
+#ask button {
+  flex: none;
+}
+
+/* --- tablets and laptops: a little larger --- */
+
+@media (min-width: 720px) and (min-height: 600px) {
+  :root {
+    --touch: 56px;
+  }
+
+  body {
+    font-size: 18px;
+  }
+
+  .brand {
+    font-size: 1.15em;
+  }
+
+  #step-actions {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  #step-actions button {
+    white-space: normal;
+  }
+
+  #ingredient-list,
+  #equipment-list {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+/* --- landscape (laptop browser, tablet, phone on its side): camera and detection on the left,
+   everything else on the right; still one screen, the right-hand panel scrolls --- */
+
+@media (orientation: landscape) and (min-width: 640px) {
+  #app {
+    grid-template-columns: minmax(0, 11fr) minmax(340px, 9fr);
+    grid-template-areas:
+      "top top"
+      "cam side"
+      "cam panel"
+      "cam bar";
+    column-gap: 16px;
+  }
+
+  .topbar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .vision-col {
+    min-height: 0;
+    gap: 10px;
+    padding: 16px 0 16px 16px;
+  }
+
+  .viewport {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    aspect-ratio: auto;
+  }
+
+  #detect-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 34%;
+    gap: 8px;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* Detection off or unavailable: the preview takes the room back. */
+  #detect-panel:has(#detect-table:empty) {
+    flex: 0 0 auto;
+  }
+
+  .detect-bar {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #detect-toggle {
+    flex: none;
+    padding: 4px 16px;
+  }
+
+  #detect-stats {
+    display: block;
+  }
+
+  .table-scroll {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .side {
+    contain: none;
+    max-height: 32vh;
+    padding: 16px 16px 0 0;
+  }
+
+  .panel {
+    padding: 12px 16px 16px 0;
+  }
+
+  .bottombar {
+    padding: 12px 16px 12px 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+/* A phone on its side: little height, so no table, a thinner header, and more width for the panel. */
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 520px) {
+  #app {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  .topbar {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  #theme-toggle {
+    min-height: 36px;
+  }
+
+  #detect-panel,
+  #detect-panel:has(#detect-table:empty) {
+    flex: 0 0 auto;
+  }
+
+  .table-scroll,
+  #detect-stats {
+    display: none;
+  }
+
+  .side {
+    max-height: 24vh;
+    padding-top: 8px;
+  }
+
+  .vision-col {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+/* A big laptop screen or a projector: the step text is what the room reads. */
+@media (min-width: 1200px) and (min-height: 700px) {
+  #status {
+    font-size: 1.2em;
+  }
+
+  #step-text {
+    font-size: 1.35em;
+  }
 }
