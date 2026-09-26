@@ -24,9 +24,11 @@ logger = logging.getLogger(__name__)
 # Windows registers .js as text/plain, which makes browsers refuse to execute ES modules served that way.
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+CERTS_DIR = Path(__file__).resolve().parent.parent / "certs"
 
 # Base64 overhead plus a large photo, well above capture.js's own MAX_EDGE/QUALITY-constrained output.
 MAX_ANALYZE_CONTENT_LENGTH = 15 * 1024 * 1024
@@ -504,6 +506,15 @@ def get_reference(recipe_id: str, step_index: int):
     if not full_path.is_file():
         raise HTTPException(status_code=404, detail=f"reference image not on disk: {rel_path}")
     return FileResponse(full_path)
+
+
+@app.get("/ca.crt")
+def get_ca_crt():
+    """Public: a phone installs this once so later LAN certs are trusted. Not a secret."""
+    path = CERTS_DIR / "ca-cert.crt"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="CA certificate not generated yet")
+    return FileResponse(path, media_type="application/x-x509-ca-cert", filename="ca-cert.crt")
 
 
 # Mounted last: mounting at "/" before the routes above would shadow every one of them.

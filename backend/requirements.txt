@@ -12,3 +12,5 @@ pytest>=8.0
 recipe-scrapers==15.12.0
 # LAN HTTPS certificate for setup-window.sh/.ps1 (scripts/lan.py) - no openssl needed.
 cryptography>=42
+# ASCII + PNG QR for the phone pairing URL (scripts/pairing_qr.py). Pillow already present.
+qrcode>=8.0

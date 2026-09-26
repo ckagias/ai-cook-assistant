@@ -20,6 +20,10 @@ import { createMemory } from "./memory.js";
 //   out: speech, and the same words on screen (status line, conversation log, alerts that stay)
 // so a blind cook never needs the screen, and a deaf cook who doesn't speak never needs sound.
 
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
 const el = {
   gate: document.getElementById("gate"),
   start: document.getElementById("start"),

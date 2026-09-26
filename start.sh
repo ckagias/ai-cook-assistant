@@ -92,8 +92,11 @@ echo ""
 echo "Cooking Assistant is running (${SECS} s)."
 echo "  This computer, any browser:  $LOCAL_URL"
 if [ -n "$LAN_IP" ]; then
-  echo "  Phone/tablet on this Wi-Fi:  https://$LAN_IP:$LAN_PORT/?token=$TOKEN&detect=1"
-  echo "      (accept the certificate warning once)"
+  PHONE_URL="https://$LAN_IP:$LAN_PORT/?token=$TOKEN&detect=1"
+  echo "  Phone/tablet on this Wi-Fi:  $PHONE_URL"
+  echo "      (first time on a phone: open https://$LAN_IP:$LAN_PORT/ca.crt, install it, then no warning)"
+  "$VENV_PYTHON" scripts/pairing_qr.py --url "$PHONE_URL" --png "$RUN_DIR/pairing.png" || \
+    echo "      (QR skipped - qrcode not installed; re-run setup.sh)"
 fi
 echo "  Press the big Start button and allow the camera. Detection starts by itself (first frames: 'loading model')."
 echo "  Server log: .run/server.err.log"
