@@ -16,6 +16,10 @@
       https://<LAN IP>:8443      phones/tablets on the same Wi-Fi (install /ca.crt once)
   - Opens the app in its own window with the camera and microphone already allowed.
     Closing the window stops the server.
+  - Every start is a clean one: the previous session's server and app window are closed, and
+    its leftovers (the window's browser profile, QR images, logs) are removed. Kept: the setup
+    stamp (fast starts) and the certificates (a phone trusts the local CA once).
+  - Prints a QR code for the phone and opens it as an image to scan from the screen.
   - Object/hand detection is on whenever it's installed.
 
 .EXAMPLE
@@ -162,7 +166,55 @@ $LanPort = "8443"
 if ($env:BACKEND_HTTPS_PORT) { $LanPort = $env:BACKEND_HTTPS_PORT }
 $Health = "http://127.0.0.1:$Port/health"
 
-# --- 2. pairing token, and this machine's LAN address + certificate (one call) ---
+# --- 2. a clean slate: this start replaces whatever an earlier one left running ---
+function Get-SessionWindows {
+    try {
+        return @(Get-CimInstance Win32_Process -Filter "Name='msedge.exe' OR Name='chrome.exe'" -ErrorAction Stop |
+            Where-Object { $_.CommandLine -and $_.CommandLine.Contains($RunDir) })
+    } catch {
+        return @()
+    }
+}
+function Get-ListenersOn([int[]]$Ports) {
+    return @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $Ports -contains $_.LocalPort })
+}
+function Stop-PreviousSession {
+    # Only this app's own processes: the app window (its profile lives in .run) and servers run by
+    # this backend's venv. Anything else holding the ports is reported, never killed.
+    $windows = Get-SessionWindows
+    $servers = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($Backend, [StringComparison]::OrdinalIgnoreCase) -and
+                       $_.CommandLine -match "serve\.py|uvicorn" })
+    # An interpreter whose venv launcher is already gone still holds the port: python running
+    # serve.py / uvicorn on this app's own ports is ours too.
+    foreach ($l in Get-ListenersOn @([int]$Port, [int]$LanPort)) {
+        $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($l.OwningProcess)" -ErrorAction SilentlyContinue
+        if ($proc -and $proc.Name -like "python*" -and $proc.CommandLine -match "serve\.py|uvicorn") { $servers += $proc }
+    }
+    $servers = @($servers | Sort-Object ProcessId -Unique)  # the same interpreter listens on both ports
+    if ($windows.Count -or $servers.Count) {
+        Write-Host "Closing the previous session (server and app window)..."
+    }
+    foreach ($p in $windows) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
+    foreach ($p in $servers) { & taskkill.exe /F /T /PID $p.ProcessId *> $null }
+    for ($i = 0; $i -lt 40; $i++) {
+        if (-not (Get-ListenersOn @([int]$Port, [int]$LanPort)).Count -and -not (Get-SessionWindows).Count) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    # Leftovers: the window's browser profile (cache, service worker, stored settings), QR images, logs.
+    Get-ChildItem $RunDir -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "app-profile*" -or $_.Name -like "*.png" -or $_.Name -like "server*.log" } |
+        ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+}
+Stop-PreviousSession
+$blocker = Get-ListenersOn @([int]$Port, [int]$LanPort) | Select-Object -First 1
+if ($blocker) {
+    $name = (Get-Process -Id $blocker.OwningProcess -ErrorAction SilentlyContinue).ProcessName
+    Write-Warn "ERROR: port $($blocker.LocalPort) is used by another program ($name, pid $($blocker.OwningProcess)) - close it, or set BACKEND_PORT / BACKEND_HTTPS_PORT."
+    exit 1
+}
+
+# --- 3. pairing token, and this machine's LAN address + certificate (one call) ---
 $lan = (& $VenvPython scripts\lan.py all | Out-String).Trim().Split("|")
 if ($LASTEXITCODE -ne 0 -or $lan.Count -ne 6) { Write-Warn "ERROR: scripts\lan.py failed."; exit 1 }
 $Token, $TokenState, $LanIp, $Cert, $Key, $Spki = $lan
@@ -172,15 +224,7 @@ if ($LocalOnly) { $LanIp = "" }
 $LocalUrl = "http://localhost:$Port/?token=$Token&detect=1"
 $AppProfile = Join-Path $RunDir "app-profile"
 
-# Already running (a second double-click): just bring up a window.
-& curl.exe -s -o NUL $Health
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Already running - opening the app window."
-    & $VenvPython scripts\app_window.py open --url $LocalUrl --profile $AppProfile
-    exit 0
-}
-
-# --- 3. the server: both addresses, one process, in the background ---
+# --- 4. the server: both addresses, one process, in the background ---
 $Log = Join-Path $RunDir "server.log"
 $ErrLog = Join-Path $RunDir "server.err.log"
 $serverArgs = "scripts\serve.py --port $Port"
@@ -214,7 +258,11 @@ try {
         Write-Host "      (first time on a phone: open https://${LanIp}:${LanPort}/ca.crt, install it, then no warning; Windows may ask to allow Python on private networks)"
         $Png = Join-Path $RunDir "pairing.png"
         & $VenvPython scripts\pairing_qr.py --url $PhoneUrl --png $Png
-        if ($LASTEXITCODE -ne 0) { Write-Host "      (QR skipped - qrcode not installed; re-run setup.ps1)" }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "      (QR skipped - qrcode not installed; re-run setup.ps1)"
+        } elseif (Test-Path $Png) {
+            Start-Process $Png  # on screen, big enough for a phone camera
+        }
     }
     Write-Host "  Press the big Start button and allow the camera. Detection starts by itself (first frames: 'loading model')."
     Write-Host "  Server log: .run\server.err.log"
@@ -226,7 +274,7 @@ try {
         exit 0
     }
 
-    # --- 4. the app window: own profile, camera + microphone allowed for localhost ---
+    # --- 5. the app window: own profile (fresh each start), camera + microphone allowed ---
     & $VenvPython scripts\app_window.py open --url $LocalUrl --profile $AppProfile
     if ($LASTEXITCODE -ne 0) {
         Write-Host "No Edge/Chrome for an app window - open the link above in any browser. Ctrl+C stops the server."

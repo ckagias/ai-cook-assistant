@@ -40,7 +40,15 @@ That's the whole thing:
 - **The app window:** it opens in its own Edge/Chrome window with the camera and microphone
   already allowed for the app's address. Closing it stops the server (Windows); on
   Linux/macOS, Ctrl+C stops it.
-- **Double-click again while running:** just reopens the window.
+- **The phone:** a QR code for the phone link is printed and opened as an image on screen.
+  Scan it with the phone on the same Wi-Fi. The first time only, install `/ca.crt` (see
+  **Tablet bring-up**).
+- **Every start is a clean one (Windows):** it closes the previous session's server and app
+  window, and removes the leftovers: the window's browser profile (cache, service worker,
+  stored settings), QR images and logs.
+  - **Kept:** the setup stamp, so starts stay fast, and the certificates, so a phone trusts the
+    local CA once, not every run.
+  - **Never killed:** a port held by some other program. `start.ps1` names it and stops.
 
 Then add a vision-provider key to `backend/.env` (see **API keys** below).
 
