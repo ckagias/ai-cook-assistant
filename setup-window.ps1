@@ -131,17 +131,32 @@ try {
         "--app=$(Quote $AppUrl)",
         "--user-data-dir=$(Quote $AppProfile)",
         "--ignore-certificate-errors-spki-list=$Spki",
+        "--test-type",  # hides the "unsupported command-line flag" warning bar the line above causes
         "--no-first-run",
         "--no-default-browser-check",
         "--window-size=1280,860"
     ) -join " "
+
+    # Every process of the app window carries its own --user-data-dir. The first one can hand the
+    # window to a process that's still around from an earlier run and exit at once, so its exit
+    # means nothing - the window is open for as long as any process with this profile exists.
+    function Test-AppWindowOpen {
+        try {
+            $procs = Get-CimInstance Win32_Process -Filter "Name='msedge.exe' OR Name='chrome.exe'" -ErrorAction Stop
+        } catch {
+            return $true  # the process query hiccuped - can't tell, so don't stop anyone's demo
+        }
+        return [bool]($procs | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($AppProfile) } | Select-Object -First 1)
+    }
+
     Write-Host "Opening the app window - close it to stop the server."
-    $started = Get-Date
-    $Window = Start-Process -FilePath $Browser -ArgumentList $browserArgs -PassThru
-    $Window | Wait-Process
-    # If this profile's window was already open, the launcher hands off to it and returns at once.
-    if (((Get-Date) - $started).TotalSeconds -lt 5) {
-        Read-Host "The app window is open. Press Enter here to stop the server"
+    Start-Process -FilePath $Browser -ArgumentList $browserArgs | Out-Null
+    for ($i = 0; $i -lt 30 -and -not (Test-AppWindowOpen); $i++) { Start-Sleep -Milliseconds 500 }
+    # Closed = two checks in a row (4 s apart) find no app-window process.
+    $misses = 0
+    while ($misses -lt 2) {
+        if (Test-AppWindowOpen) { $misses = 0 } else { $misses++ }
+        Start-Sleep -Seconds 2
     }
 }
 finally {

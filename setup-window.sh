@@ -140,11 +140,28 @@ fi
 
 PROFILE="$RUN_DIR/app-profile"
 if command -v cygpath >/dev/null 2>&1; then PROFILE="$(cygpath -w "$PROFILE")"; fi
+# Every process of the app window carries its --user-data-dir. The first one can hand the window
+# to a process still around from an earlier run and exit at once, so its exit means nothing -
+# the window is open for as long as any process with this profile exists.
+app_window_open() {
+  if command -v powershell.exe >/dev/null 2>&1; then
+    # exit 0 = open, 1 = closed; a failed process query also counts as open (can't tell).
+    APP_PROFILE="$PROFILE" powershell.exe -NoProfile -Command \
+      'try { $p = Get-CimInstance Win32_Process -Filter "Name=''msedge.exe'' OR Name=''chrome.exe''" -ErrorAction Stop } catch { exit 0 }; if ($p | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($env:APP_PROFILE) }) { exit 0 } else { exit 1 }' \
+      >/dev/null 2>&1
+  else
+    pgrep -f -- "--user-data-dir=$PROFILE" >/dev/null 2>&1
+  fi
+}
+
 echo "Opening the app window - close it to stop the server."
-STARTED=$(date +%s)
+# --test-type hides the "unsupported command-line flag" warning bar the SPKI flag causes.
 "$BROWSER" --app="$APP_URL" --user-data-dir="$PROFILE" --ignore-certificate-errors-spki-list="$SPKI" \
-  --no-first-run --no-default-browser-check --window-size=1280,860 >/dev/null 2>&1
-# If the profile was already open, the launcher hands off to that window and returns at once.
-if [ $(( $(date +%s) - STARTED )) -lt 5 ]; then
-  read -r -p "The app window is open. Press Enter here to stop the server... " _
-fi
+  --test-type --no-first-run --no-default-browser-check --window-size=1280,860 >/dev/null 2>&1 &
+for _ in $(seq 1 30); do app_window_open && break; sleep 0.5; done
+# Closed = two checks in a row (4 s apart) find no app-window process.
+MISSES=0
+while [ "$MISSES" -lt 2 ]; do
+  if app_window_open; then MISSES=0; else MISSES=$((MISSES + 1)); fi
+  sleep 2
+done

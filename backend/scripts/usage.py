@@ -44,10 +44,7 @@ def detection_status(env: dict, shell: str) -> list[str]:
         flag = "-NoDetection" if shell == "ps" else "--no-detection"
         return [f"not installed (setup ran with {flag}, or Python isn't 3.11/3.12)"]
     model = f"{env.get('DETECTOR_MODEL', 'yoloe-26s-seg')} @{env.get('DETECTOR_IMGSZ', '480')}, {env.get('DETECTOR_FORMAT', 'openvino')}"
-    if env.get("DETECTION_ENABLED", "false").lower() == "true":
-        return [f"installed and on ({model})"]
-    return [f"installed ({model}); setup-window turns it on,",
-            "               plain --run doesn't: set DETECTION_ENABLED=true in backend/.env"]
+    return [f"installed and on ({model}) - tap Ανίχνευση (Detection) in the app"]
 
 
 def recipe_status(env: dict) -> str:

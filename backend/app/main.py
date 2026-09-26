@@ -286,6 +286,10 @@ async def detect(request: Request, recipe_id: Optional[str] = None):
         service = detection_service.get_service()
     except detection_service.DetectionUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+    if getattr(service, "warming", False):
+        # Answer at once rather than queue frames behind the ~10 s model load.
+        raise HTTPException(status_code=503, detail="warming up - the detection model is loading",
+                            headers={"Retry-After": "1"})
 
     allowed = recipes.detection_vocabulary(recipe_id) if recipe_id else None
     try:

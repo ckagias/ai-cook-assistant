@@ -72,3 +72,25 @@ def test_hybrid_hands_add_only_what_mediapipe_missed():
     assert merged[0].fingertips and merged[0].handedness == "Right"
     assert merged[1].box == (0.80, 0.70, 1.00, 1.00) and merged[1].fingertips == []
 
+
+
+def test_one_object_boxed_as_two_classes_keeps_the_hazard():
+    from app.detection.detector import Detection
+    from app.detection.service import suppress_cross_class
+    from app.detection.vocabulary import load_vocabulary
+
+    scissors = Detection("scissors", 0.48, (0.10, 0.45, 0.97, 0.57))
+    knife = Detection("knife", 0.40, (0.11, 0.45, 0.98, 0.58))
+    bowl = Detection("bowl", 0.9, (0.1, 0.6, 0.3, 0.9))
+    kept = suppress_cross_class([scissors, knife, bowl], load_vocabulary())
+    assert [d.class_id for d in kept] == ["bowl", "knife"]  # best-first, knife beat the more confident scissors
+
+
+def test_separate_objects_of_different_classes_are_both_kept():
+    from app.detection.detector import Detection
+    from app.detection.service import suppress_cross_class
+    from app.detection.vocabulary import load_vocabulary
+
+    a = Detection("spoon", 0.8, (0.1, 0.1, 0.2, 0.3))
+    b = Detection("fork", 0.7, (0.5, 0.5, 0.6, 0.7))
+    assert len(suppress_cross_class([a, b], load_vocabulary())) == 2

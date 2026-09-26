@@ -61,6 +61,8 @@ export const STRINGS = {
   // --- detection preview (visual panel) ---
   detect_toggle: { en: "Detection", el: "Ανίχνευση" },
   detect_error: { en: "Detection unavailable - is the server running with DETECTION_ENABLED=true?", el: "Η ανίχνευση δεν είναι διαθέσιμη." },
+  detect_loading: { en: "Loading the detection model…", el: "Φόρτωση μοντέλου ανίχνευσης…" },
+  detect_slow: { en: "Detection is slow to answer - retrying…", el: "Η ανίχνευση αργεί - ξαναδοκιμάζω…" },
   detect_backend: { en: "server", el: "διακομιστής" },
   col_object: { en: "Object", el: "Αντικείμενο" },
   col_group: { en: "Group", el: "Ομάδα" },

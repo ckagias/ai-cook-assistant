@@ -173,6 +173,10 @@ fi
 
 # --- 11. --run: exec uvicorn in the foreground afterward ---
 if [ "$RUN_SERVER" = "1" ]; then
+  # Same as setup-window: detection is on whenever it's installed.
+  if [ "$WITH_DETECTION" = "1" ] && "$VENV_PYTHON" -c "import importlib.util as u, sys; sys.exit(0 if u.find_spec('ultralytics') and u.find_spec('mediapipe') else 1)"; then
+    export DETECTION_ENABLED=true
+  fi
   URL="http://localhost:${BACKEND_PORT:-8000}/"
   [ -n "${BACKEND_PAIRING_TOKEN:-}" ] && URL="${URL}?token=${BACKEND_PAIRING_TOKEN}"
   echo "Starting the server - open $URL  (Ctrl+C stops it)"

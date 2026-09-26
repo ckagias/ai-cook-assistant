@@ -177,6 +177,11 @@ if ($Run) {
     foreach ($entry in (Read-DotEnv ".env").GetEnumerator()) {
         [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
     }
+    # Same as setup-window: detection is on whenever it's installed.
+    if ($WithDetection) {
+        & $VenvPython -c "import importlib.util as u, sys; sys.exit(0 if u.find_spec('ultralytics') and u.find_spec('mediapipe') else 1)"
+        if ($LASTEXITCODE -eq 0) { $env:DETECTION_ENABLED = "true" }
+    }
     $bindHost = "127.0.0.1"
     if ($env:BACKEND_HOST) { $bindHost = $env:BACKEND_HOST }
     $port = "8000"

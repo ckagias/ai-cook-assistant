@@ -54,6 +54,16 @@ export function classColor(group, classId) {
   return "#" + mixed.map((c) => c.toString(16).padStart(2, "0")).join("");
 }
 
+// Which message the stats line shows for a failed frame.
+export function errorReason(err) {
+  if (err && err.status === 503 && /warming/i.test(err.detail || "")) return "detect_loading";
+  if (err && err.status === 401) return "not_paired";
+  if (err && err.status === 503) return "detect_error";
+  if (err && err.name === "AbortError") return "detect_slow";
+  if (err && err.status === undefined) return "network_trouble"; // fetch itself failed
+  return "detect_error";
+}
+
 export function handLabel(hand, lang) {
   const side = { Left: t("hand_left", lang), Right: t("hand_right", lang) }[hand.handedness];
   return side || t("hand", lang);
@@ -230,10 +240,6 @@ export function createDetector({
   function renderStats(res, frameMs) {
     if (!stats) return;
     const lang = getLang();
-    if (!res) {
-      stats.textContent = t("detect_error", lang);
-      return;
-    }
     stats.textContent = `${fps.toFixed(1)} FPS · ${t("detect_backend", lang)} ${Math.round(res.latency_ms.total)} ms · ${Math.round(frameMs)} ms · ${res.model}`;
   }
 
@@ -266,9 +272,14 @@ export function createDetector({
         renderStats(res, finished - started);
       }
     } catch (err) {
-      errors += 1;
-      delay = Math.min(2000, 250 * errors); // a dead backend shouldn't be hammered
-      renderStats(null, 0);
+      const reason = errorReason(err);
+      if (reason === "detect_loading") {
+        delay = 1000; // the model is loading - not a failure, just ask again shortly
+      } else {
+        errors += 1;
+        delay = Math.min(2000, 250 * errors); // a dead backend shouldn't be hammered
+      }
+      if (stats) stats.textContent = t(reason, getLang());
     } finally {
       inFlight = false;
     }

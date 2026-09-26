@@ -141,3 +141,14 @@ class TestVocabMatch:
     def test_recipe_vocabulary_for_pasta(self):
         allowed = recipes.detection_vocabulary("pasta")
         assert {"pasta", "colander", "pot", "hand", "knife"} <= allowed
+
+
+def test_warming_up_answers_at_once_instead_of_queueing(client, monkeypatch):
+    service = FakeService()
+    service.warming = True
+    monkeypatch.setattr(detection_service, "get_service", lambda: service)
+    r = post(client, JPEG_BYTES)
+    assert r.status_code == 503
+    assert "warming up" in r.json()["detail"]
+    assert r.headers["retry-after"] == "1"
+    assert service.calls == []

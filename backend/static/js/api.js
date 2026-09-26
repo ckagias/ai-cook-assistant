@@ -2,11 +2,12 @@ const TIMEOUT_MS = 25000; // above the worst observed real latency - lower silen
 const PAIRING_TOKEN_KEY = "pairingToken";
 
 export class HttpError extends Error {
-  constructor(status, path) {
-    super(`HTTP ${status} for ${path}`);
+  constructor(status, path, detail = "") {
+    super(`HTTP ${status} for ${path}${detail ? ": " + detail : ""}`);
     this.name = "HttpError";
     this.status = status;
     this.path = path;
+    this.detail = detail; // the server's reason, e.g. "warming up - the detection model is loading"
   }
 }
 
@@ -35,7 +36,13 @@ async function requestJson(path, init = {}, timeoutMs = TIMEOUT_MS) {
     const headers = { ...(init.headers || {}), "X-Pairing-Token": getPairingToken() };
     const res = await fetch(path, { ...init, headers, signal: controller.signal });
     if (!res.ok) {
-      throw new HttpError(res.status, path);
+      let detail = "";
+      try {
+        detail = (await res.json()).detail || "";
+      } catch {
+        // not JSON - the status alone will do
+      }
+      throw new HttpError(res.status, path, typeof detail === "string" ? detail : "");
     }
     return await res.json();
   } finally {
