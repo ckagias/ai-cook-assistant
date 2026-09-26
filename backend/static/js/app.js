@@ -72,6 +72,7 @@ const el = {
   detectStats: document.getElementById("detect-stats"),
   detectTable: document.getElementById("detect-table"),
   themeToggle: document.getElementById("theme-toggle"),
+  panel: document.getElementById("panel"),
 };
 
 const params = new URLSearchParams(window.location.search);
@@ -670,6 +671,12 @@ function checkIngredients() {
 
 // --- recipes: list, needs and preferences, ingredients and tools, steps ---
 
+// Only the panel scrolls: a new view, a new step or something waiting on the cook starts at its
+// top, not wherever the previous one was left.
+function panelToTop() {
+  el.panel.scrollTop = 0;
+}
+
 function showPanel(name) {
   el.controls.hidden = name !== "home";
   el.recipeList.hidden = name !== "list";
@@ -677,6 +684,7 @@ function showPanel(name) {
   el.overview.hidden = name !== "overview";
   el.stepper.hidden = name !== "steps";
   el.memoryWrap.hidden = !(name === "prefs" || name === "overview" || name === "steps") || memory.events().length === 0;
+  panelToTop();
 }
 
 // The short-term memory, readable on screen: preferences first, then the latest events.
