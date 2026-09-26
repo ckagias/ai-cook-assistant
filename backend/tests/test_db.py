@@ -26,8 +26,9 @@ def test_first_use_migrates_and_seeds_from_recipes_json(fresh_db):
 def test_migrations_are_idempotent(fresh_db):
     recipes.ensure_ready()
     assert db.migrate(fresh_db) == []
+    seed = json.loads(recipes.SEED_PATH.read_text(encoding="utf-8"))
     with db.session(fresh_db) as conn:
-        assert conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0] == 3
+        assert conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0] == len(seed)
 
 
 def test_staged_recipes_are_never_served():
@@ -100,9 +101,11 @@ def test_detection_vocabulary_uses_linked_classes_and_follows_updates():
 
 
 def test_bm25_search_is_accent_insensitive_and_serves_published_only():
-    assert [r.id for r in recipes.search_recipes(["Αυγα"])] == ["scrambled_eggs"]
-    assert [r.id for r in recipes.search_recipes(["spaghetti"])] == ["pasta"]  # an alias
+    # Greek ingredient lines are indexed too, so the pancakes' "2 αυγά" matches - after the dish itself.
+    assert [r.id for r in recipes.search_recipes(["Αυγα"])] == ["scrambled_eggs", "pancakes"]
+    assert "pasta" in [r.id for r in recipes.search_recipes(["spaghetti"])]  # an alias
     assert recipes.search_recipes(["sushi"]) == []
+    assert recipes.search_recipes(["σούσι"]) == []  # not "σου*" -> every "κουτ. σούπας"
     recipes.save_recipe(
         Recipe(id="s-omelette", name={"en": "Egg omelette"}, aliases={}, ingredients=["eggs"], steps=[]),
         status=recipes.STAGED,
@@ -112,7 +115,7 @@ def test_bm25_search_is_accent_insensitive_and_serves_published_only():
 
 def test_search_index_follows_deletes_and_is_rebuilt_for_old_databases(fresh_db):
     recipes.delete_recipe("pasta")
-    assert recipes.search_recipes(["pasta"]) == []
+    assert "pasta" not in [r.id for r in recipes.search_recipes(["pasta"])]
     with db.session(fresh_db) as conn:
         conn.execute("DELETE FROM recipe_search")  # simulate a database from before the index
     recipes._ready.clear()

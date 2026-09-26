@@ -6,6 +6,7 @@ imported ones stay `staged` until a human has curated the safety-relevant fields
 
 The read functions keep their original signatures, so main.py and vision.py are unchanged.
 """
+import hashlib
 import json
 import re
 import sqlite3
@@ -14,7 +15,9 @@ from pathlib import Path
 from typing import Optional
 
 from . import db
-from .schemas import EquipmentItem, IngredientLine, Recipe, RecipeSource, RecipeStep, RecipeTimes
+from .schemas import (
+    DONENESS_ORDER, DonenessTarget, EquipmentItem, IngredientLine, Recipe, RecipeSource, RecipeStep, RecipeTimes,
+)
 
 SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "recipes.json"
 DATA_PATH = SEED_PATH  # older name, kept for callers that still import it
@@ -42,15 +45,25 @@ def _dump(value) -> str:
 
 
 def ensure_ready() -> None:
-    """Migrate the database and seed the curated recipes the first time a path is used."""
+    """Migrate the database and apply the curated seed recipes the first time a path is used -
+    and again whenever data/recipes.json has changed since (a `git pull` that adds recipes must
+    reach a database that already exists). Same effect as `db_init.py --reseed`: seed recipes
+    are written as published, staged/imported ones are left alone."""
     path = db.db_path()
     key = str(path.resolve())
     if key in _ready:
         return
     db.migrate(path)
+    seed_hash = hashlib.sha256(SEED_PATH.read_bytes()).hexdigest()
     with db.session(path) as conn:
-        if conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0] == 0:
-            seed_from_json(conn)
+        applied = conn.execute("SELECT value FROM meta WHERE key = 'seed_sha256'").fetchone()
+        empty = conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0] == 0
+        if empty or applied is None or applied[0] != seed_hash:
+            seed_from_json(conn, SEED_PATH)  # the file just hashed, not the default bound at import
+            conn.execute(
+                "INSERT INTO meta (key, value) VALUES ('seed_sha256', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+                (seed_hash,),
+            )
         indexed = conn.execute("SELECT COUNT(*) FROM recipe_search").fetchone()[0]
         if indexed != conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]:
             _rebuild_search_index(conn)  # a database from before the search index existed
@@ -86,13 +99,15 @@ def _row_to_recipe(conn: sqlite3.Connection, row: sqlite3.Row) -> Recipe:
             contains_raw_protein=bool(s["contains_raw_protein"]),
             section=s["section"],
             suggested_duration_sec=s["suggested_duration_sec"],
+            kind=s["kind"],
+            by_doneness=json.loads(s["by_doneness_json"]),
         )
         for s in conn.execute("SELECT * FROM steps WHERE recipe_id = ? ORDER BY idx", (rid,))
     ]
     details = [
         IngredientLine(
             raw_text=i["raw_text"], quantity=i["quantity"], unit=i["unit"], name=i["name"],
-            group=i["group_name"], vocab_id=i["vocab_id"],
+            group=i["group_name"], vocab_id=i["vocab_id"], text=json.loads(i["text_json"]),
         )
         for i in conn.execute("SELECT * FROM recipe_ingredients WHERE recipe_id = ? ORDER BY position", (rid,))
     ]
@@ -114,7 +129,7 @@ def _row_to_recipe(conn: sqlite3.Connection, row: sqlite3.Row) -> Recipe:
     if any(row[k] is not None for k in ("prep_min", "cook_min", "total_min")):
         times = RecipeTimes(prep_min=row["prep_min"], cook_min=row["cook_min"], total_min=row["total_min"])
     # Plain ingredient strings for older clients; the structured lines are in ingredient_details.
-    has_structure = any(d.quantity or d.unit or d.name or d.group or d.vocab_id for d in details)
+    has_structure = any(d.quantity or d.unit or d.name or d.group or d.vocab_id or d.text for d in details)
     return Recipe(
         id=rid,
         name=json.loads(row["name_json"]),
@@ -182,6 +197,30 @@ def step_contains_raw_protein(recipe_id: Optional[str], step_index: Optional[int
     if step is None:
         return None
     return step.contains_raw_protein
+
+
+def text_in(texts: dict[str, str], language: str, fallback: str = "") -> str:
+    """One language out of a {"el": ..., "en": ...} dict: the asked one, else English, else any."""
+    return texts.get(language) or texts.get("en") or next(iter(texts.values()), fallback)
+
+
+def ingredient_lines(recipe: Recipe, language: str) -> list[str]:
+    """What to read out or show for each ingredient, in the cook's language when curated."""
+    if recipe.ingredient_details:
+        return [text_in(d.text, language, d.raw_text) for d in recipe.ingredient_details]
+    return list(recipe.ingredients)
+
+
+def doneness_options(recipe: Recipe) -> list[str]:
+    """The doneness choices this recipe has targets for, rarest first (empty for most recipes)."""
+    offered = {key for step in recipe.steps for key in step.by_doneness}
+    return [key for key in DONENESS_ORDER if key in offered]
+
+
+def doneness_target(step: Optional[RecipeStep], preference: Optional[str]) -> Optional[DonenessTarget]:
+    if step is None or not preference:
+        return None
+    return step.by_doneness.get(preference)
 
 
 def find_source(url: str) -> Optional[dict]:
@@ -252,11 +291,12 @@ def save_recipe(
         conn.execute(f"DELETE FROM {table} WHERE recipe_id = ?", (recipe.id,))
     conn.executemany(
         """INSERT INTO steps (recipe_id, idx, section, instruction_json, expected_duration_sec, suggested_duration_sec,
-                              checkable, check_prompt_hint, reference_image, contains_raw_protein)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                              checkable, check_prompt_hint, reference_image, contains_raw_protein, kind, by_doneness_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [
             (recipe.id, s.index, s.section, _dump(s.instruction), s.expected_duration_sec, s.suggested_duration_sec,
-             int(s.checkable), s.check_prompt_hint, s.reference_image, int(s.contains_raw_protein))
+             int(s.checkable), s.check_prompt_hint, s.reference_image, int(s.contains_raw_protein), s.kind,
+             _dump({k: v.model_dump() for k, v in s.by_doneness.items()}))
             for s in recipe.steps
         ],
     )
@@ -266,9 +306,10 @@ def save_recipe(
     if [d.raw_text for d in details] != list(recipe.ingredients):
         details = [IngredientLine(raw_text=text) for text in recipe.ingredients]
     conn.executemany(
-        """INSERT INTO recipe_ingredients (recipe_id, position, group_name, raw_text, quantity, unit, name, vocab_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        [(recipe.id, i, d.group, d.raw_text, d.quantity, d.unit, d.name, d.vocab_id) for i, d in enumerate(details)],
+        """INSERT INTO recipe_ingredients (recipe_id, position, group_name, raw_text, quantity, unit, name, vocab_id, text_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [(recipe.id, i, d.group, d.raw_text, d.quantity, d.unit, d.name, d.vocab_id, _dump(d.text))
+         for i, d in enumerate(details)],
     )
     seen: set[str] = set()
     for item in recipe.equipment:
@@ -329,6 +370,7 @@ def _search_text(recipe: Recipe) -> str:
     from .detection.vocab_match import fold
 
     parts = [*recipe.name.values(), *recipe.description.values(), *recipe.ingredients,
+             *(text for d in recipe.ingredient_details for text in d.text.values()),
              *(e.name for e in recipe.equipment), recipe.category or "", recipe.cuisine or ""]
     parts += [alias for values in recipe.aliases.values() for alias in values]
     return fold(" ".join(p for p in parts if p))
@@ -354,7 +396,9 @@ def search_recipes(words: list[str], limit: int = 5) -> list[Recipe]:
     for word in words:
         for token in re.findall(r"\w+", fold(word or "")):
             if len(token) >= 2:
-                tokens.append(token[: max(3, len(token) - 2)])  # crude stem: drop inflection
+                # Crude stem: drop inflection. Never below 4 letters for a 5+ letter word - "σούσι"
+                # as "σου*" would match every Greek "κουτ. σούπας" (tablespoon) in an ingredient line.
+                tokens.append(token[: 3 if len(token) <= 4 else max(4, len(token) - 2)])
     if not tokens:
         return []
     query = " OR ".join(f'"{t}"*' for t in dict.fromkeys(tokens))

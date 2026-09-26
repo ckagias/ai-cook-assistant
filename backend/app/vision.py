@@ -34,13 +34,40 @@ If language is "el": write spoken_response, clarifying_question, and evidence in
 
 If a second (reference) image is present, explicitly compare the live image against it.
 
+In check_doneness mode, judge the step described in "Step instruction" and "What to check":
+- Step kind "prep" (cutting, grating, mixing, seasoning): judge the work itself - piece size, evenness, what is left to do. Never talk about doneness or cooking.
+- Otherwise use colour, texture and the timer together: how far along the timer is tells you what to expect by now.
+- Set verdict: "ready" when the step looks finished and the cook can move on, "not_ready" when it clearly needs more work or time, "unsure" when you can't tell from the photo.
+- When not_ready and the step is on the heat, set suggested_extra_sec to roughly how much longer it needs, in seconds, and say that time in spoken_response. Otherwise leave it empty.
+- If a doneness preference is given, judge against it and mention the target inside temperature when one is given.
+
+In check_ingredients mode the user text lists the recipe's ingredients, numbered. Set ingredients_seen to the numbers of the ones you can clearly see in the photo (a packet, bottle or jar with a readable label counts). Never guess. In spoken_response, briefly say which you see and which you don't.
+
 Set raw_protein_detected=true generously whenever raw or undercooked poultry, pork, eggs, or fish might be present. You are never the final safety authority on this, so a false positive is cheap and a false negative is not.
 
 Set safety_flag.severity="alarm" only for unambiguous danger such as a visible flame or blackening/char. Use "caution" for ambiguous cues like steam or haze. safety_flag.reason is always in English regardless of the response language, since it is backend-facing only and never spoken aloud.
 
 Never say "as shown" or "you can see"."""
 
-_TRANSIENT_MARKERS = ("503", "unavailable", "429", "resource_exhausted", "overloaded")
+# 504 DEADLINE_EXCEEDED is a busy model too, seen live - the next model in the chain usually answers.
+_TRANSIENT_MARKERS = ("503", "unavailable", "429", "resource_exhausted", "overloaded", "504", "deadline_exceeded")
+
+# Checked in this order: anthropic -> ANTHROPIC_API_KEY, openai -> OPENAI_API_KEY, gemini -> GEMINI_API_KEY or GOOGLE_API_KEY.
+PROVIDER_KEY_ENV = {
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "openai": ("OPENAI_API_KEY",),
+    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+}
+
+
+def provider_has_key(provider: str) -> bool:
+    return any(os.getenv(var) for var in PROVIDER_KEY_ENV.get(provider, ()))
+
+
+def gemini_models(env_var: str = "GEMINI_MODEL") -> list[str]:
+    """The comma-separated fallback chain, tried in order on transient errors."""
+    raw = os.getenv(env_var) or os.getenv("GEMINI_MODEL", "gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash")
+    return [m.strip() for m in raw.split(",") if m.strip()]
 
 
 def _is_transient_error(exc: Exception) -> bool:
@@ -94,17 +121,39 @@ def _build_user_text(context: dict) -> str:
         f"Language: {context.get('language', 'el')}",
     ]
 
+    language = context.get("language", "el")
     recipe_id = context.get("recipe_id")
     step_index = context.get("step_index")
+    step = None
     if recipe_id is not None and step_index is not None:
         lines.append(f"Recipe: {recipe_id}, step {step_index}")
         step = recipes_module.get_step(recipe_id, step_index)
         if step is not None:
-            instruction = step.instruction.get(context.get("language", "el")) or step.instruction.get("en")
+            instruction = step.instruction.get(language) or step.instruction.get("en")
             if instruction:
                 lines.append(f"Step instruction: {instruction}")
+            if step.kind:
+                lines.append(f"Step kind: {step.kind}")
             if step.check_prompt_hint:
                 lines.append(f"What to check: {step.check_prompt_hint}")
+
+    preference = context.get("doneness_preference")
+    if preference:
+        target = recipes_module.doneness_target(step, preference)
+        suffix = f" (target inside temperature {target.temp_c}°C)" if target else ""
+        lines.append(f"Doneness preference: {preference.replace('_', ' ')}{suffix}")
+
+    total, elapsed = context.get("timer_total_sec"), context.get("timer_elapsed_sec")
+    if total and elapsed is not None:
+        lines.append(f"Timer: {elapsed // 60} min {elapsed % 60} s elapsed of {total // 60} min {total % 60} s")
+    elif context.get("mode") == "check_doneness":
+        lines.append("Timer: not started")
+
+    if context.get("mode") == "check_ingredients" and recipe_id is not None:
+        recipe = recipes_module.get_recipe(recipe_id)
+        if recipe is not None:
+            numbered = "; ".join(f"{i}. {text}" for i, text in enumerate(recipes_module.ingredient_lines(recipe, language), start=1))
+            lines.append(f"Ingredients: {numbered}")
 
     prior_context = context.get("prior_context")
     if prior_context:
@@ -209,11 +258,7 @@ def _call_gemini(image_bytes: bytes, ref_bytes: Optional[bytes], user_text: str)
         parts.append(types.Part.from_bytes(data=ref_bytes, mime_type="image/jpeg"))
         parts.append(types.Part.from_text(text=REFERENCE_NOTE))
 
-    models = [
-        m.strip()
-        for m in os.getenv("GEMINI_MODEL", "gemini-3.7-flash,gemini-3.8-flash,gemini-3.6-flash").split(",")
-        if m.strip()
-    ]
+    models = gemini_models()
 
     last_exc: Optional[Exception] = None
     for i, model_name in enumerate(models):

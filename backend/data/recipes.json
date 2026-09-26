@@ -1,12 +1,26 @@
 [
   {
     "id": "pasta",
-    "name": { "en": "Pasta", "el": "Ζυμαρικά" },
-    "aliases": {
-      "en": ["spaghetti", "noodles", "macaroni"],
-      "el": ["μακαρόνια", "σπαγγέτι"]
+    "name": {
+      "en": "Pasta",
+      "el": "Ζυμαρικά"
     },
-    "ingredients": ["pasta", "water", "salt"],
+    "aliases": {
+      "en": [
+        "spaghetti",
+        "noodles",
+        "macaroni"
+      ],
+      "el": [
+        "μακαρόνια",
+        "σπαγγέτι"
+      ]
+    },
+    "ingredients": [
+      "pasta",
+      "water",
+      "salt"
+    ],
     "steps": [
       {
         "index": 0,
@@ -18,7 +32,8 @@
         "checkable": true,
         "check_prompt_hint": "Is the water at a rolling boil?",
         "reference_image": "pasta_boiling.jpg",
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "cook"
       },
       {
         "index": 1,
@@ -30,7 +45,8 @@
         "checkable": true,
         "check_prompt_hint": "Is the pasta cooked through (al dente)?",
         "reference_image": "pasta_cooked.jpg",
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "cook"
       },
       {
         "index": 2,
@@ -42,18 +58,59 @@
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "prep"
+      }
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "pasta",
+        "name": "pasta",
+        "vocab_id": "pasta",
+        "text": {
+          "en": "500 g pasta",
+          "el": "500 γρ. ζυμαρικά"
+        }
+      },
+      {
+        "raw_text": "water",
+        "name": "water",
+        "text": {
+          "en": "4 litres of water",
+          "el": "4 λίτρα νερό"
+        }
+      },
+      {
+        "raw_text": "salt",
+        "name": "salt",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "1 tbsp salt",
+          "el": "1 κουτ. σούπας αλάτι"
+        }
       }
     ]
   },
   {
     "id": "pancakes",
-    "name": { "en": "Pancakes", "el": "Τηγανίτες" },
-    "aliases": {
-      "en": ["flapjacks"],
-      "el": ["πανκέικ"]
+    "name": {
+      "en": "Pancakes",
+      "el": "Τηγανίτες"
     },
-    "ingredients": ["flour", "eggs", "milk", "butter"],
+    "aliases": {
+      "en": [
+        "flapjacks"
+      ],
+      "el": [
+        "πανκέικ"
+      ]
+    },
+    "ingredients": [
+      "flour",
+      "eggs",
+      "milk",
+      "butter"
+    ],
     "steps": [
       {
         "index": 0,
@@ -65,7 +122,8 @@
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "prep"
       },
       {
         "index": 1,
@@ -77,7 +135,8 @@
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "cook"
       },
       {
         "index": 2,
@@ -89,7 +148,8 @@
         "checkable": true,
         "check_prompt_hint": "Are bubbles forming and the edges set, ready to flip?",
         "reference_image": "pancake_ready_to_flip.jpg",
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "cook"
       },
       {
         "index": 3,
@@ -101,18 +161,69 @@
         "checkable": true,
         "check_prompt_hint": "Is the second side golden brown?",
         "reference_image": "pancake_done.jpg",
-        "contains_raw_protein": false
+        "contains_raw_protein": false,
+        "kind": "cook"
+      }
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "flour",
+        "name": "flour",
+        "vocab_id": "flour",
+        "text": {
+          "en": "200 g flour",
+          "el": "200 γρ. αλεύρι"
+        }
+      },
+      {
+        "raw_text": "eggs",
+        "name": "eggs",
+        "vocab_id": "egg",
+        "text": {
+          "en": "2 eggs",
+          "el": "2 αυγά"
+        }
+      },
+      {
+        "raw_text": "milk",
+        "name": "milk",
+        "vocab_id": "milk",
+        "text": {
+          "en": "300 ml milk",
+          "el": "300 ml γάλα"
+        }
+      },
+      {
+        "raw_text": "butter",
+        "name": "butter",
+        "vocab_id": "butter",
+        "text": {
+          "en": "30 g butter",
+          "el": "30 γρ. βούτυρο"
+        }
       }
     ]
   },
   {
     "id": "scrambled_eggs",
-    "name": { "en": "Scrambled Eggs", "el": "Αυγά Χτυπητά" },
-    "aliases": {
-      "en": ["eggs"],
-      "el": ["αυγά", "ομελέτα"]
+    "name": {
+      "en": "Scrambled Eggs",
+      "el": "Αυγά Χτυπητά"
     },
-    "ingredients": ["eggs", "butter", "salt"],
+    "aliases": {
+      "en": [
+        "eggs"
+      ],
+      "el": [
+        "αυγά",
+        "ομελέτα"
+      ]
+    },
+    "ingredients": [
+      "eggs",
+      "butter",
+      "salt"
+    ],
     "steps": [
       {
         "index": 0,
@@ -124,7 +235,8 @@
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
-        "contains_raw_protein": true
+        "contains_raw_protein": true,
+        "kind": "prep"
       },
       {
         "index": 1,
@@ -136,7 +248,1447 @@
         "checkable": true,
         "check_prompt_hint": "Are the eggs fully set with no runny parts?",
         "reference_image": "eggs_done.jpg",
-        "contains_raw_protein": true
+        "contains_raw_protein": true,
+        "kind": "cook"
+      }
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "eggs",
+        "name": "eggs",
+        "vocab_id": "egg",
+        "text": {
+          "en": "4 eggs",
+          "el": "4 αυγά"
+        }
+      },
+      {
+        "raw_text": "butter",
+        "name": "butter",
+        "vocab_id": "butter",
+        "text": {
+          "en": "15 g butter",
+          "el": "15 γρ. βούτυρο"
+        }
+      },
+      {
+        "raw_text": "salt",
+        "name": "salt",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "a pinch of salt",
+          "el": "μια πρέζα αλάτι"
+        }
+      }
+    ]
+  },
+  {
+    "id": "roast_beef",
+    "name": {
+      "en": "Roast Beef",
+      "el": "Ροσμπίφ"
+    },
+    "aliases": {
+      "en": [
+        "roast beef",
+        "beef roast",
+        "roastbeef",
+        "roast"
+      ],
+      "el": [
+        "ροσμπίφ",
+        "ροζμπίφ",
+        "μοσχάρι ψητό",
+        "μοσχάρι στο φούρνο",
+        "ψητό μοσχάρι"
+      ]
+    },
+    "ingredients": [
+      "1.2 kg beef topside or sirloin, in one piece",
+      "4 cloves of garlic",
+      "2 tbsp olive oil",
+      "1 tbsp Dijon mustard",
+      "2 sprigs of fresh rosemary",
+      "1 tsp salt",
+      "1/2 tsp black pepper"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Take the beef out of the fridge about 1 hour before cooking, so it cooks evenly.",
+          "el": "Βγάλε το μοσχάρι από το ψυγείο περίπου 1 ώρα πριν το μαγείρεμα, για να ψηθεί ομοιόμορφα."
+        },
+        "expected_duration_sec": 3600,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "rest"
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Preheat the oven to 220°C, or 200°C with the fan on.",
+          "el": "Προθέρμανε τον φούρνο στους 220°C, ή στους 200°C στον αέρα."
+        },
+        "expected_duration_sec": 900,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": null
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Peel the garlic and cut each clove into thin slices.",
+          "el": "Καθάρισε το σκόρδο και κόψε κάθε σκελίδα σε λεπτές φέτες."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Garlic cloves peeled and cut into thin, even slices, about 2 mm.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Make small cuts all over the beef with a knife and push a garlic slice into each. Rub the meat with the olive oil, mustard, salt, pepper and rosemary. Wash your hands afterwards.",
+          "el": "Κάνε μικρές τομές σε όλο το μοσχάρι με ένα μαχαίρι και βάλε μέσα από μια φέτα σκόρδο. Άλειψε το κρέας με το ελαιόλαδο, τη μουστάρδα, το αλάτι, το πιπέρι και το δεντρολίβανο. Μετά πλύνε τα χέρια σου."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Beef evenly coated with oil and mustard, garlic slices pushed into small cuts all over.",
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "prep"
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Put the beef on a baking tray and roast it at 220°C for 20 minutes to brown the outside.",
+          "el": "Βάλε το μοσχάρι σε ένα ταψί και ψήσ' το στους 220°C για 20 λεπτά, να ροδίσει απ' έξω."
+        },
+        "expected_duration_sec": 1200,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "cook"
+      },
+      {
+        "index": 5,
+        "instruction": {
+          "en": "Lower the oven to 160°C and keep roasting until a thermometer in the thickest part reads your target temperature.",
+          "el": "Χαμήλωσε τον φούρνο στους 160°C και συνέχισε το ψήσιμο μέχρι το θερμόμετρο στο πιο χοντρό σημείο να δείξει τη θερμοκρασία που θέλεις."
+        },
+        "expected_duration_sec": 1800,
+        "checkable": true,
+        "check_prompt_hint": "Outside of the roast: an even brown crust, no pale patches, nothing blackened. The inside can only be judged with a thermometer.",
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "cook",
+        "by_doneness": {
+          "rare": {
+            "temp_c": 50,
+            "duration_sec": 1500
+          },
+          "medium_rare": {
+            "temp_c": 54,
+            "duration_sec": 1800
+          },
+          "medium": {
+            "temp_c": 60,
+            "duration_sec": 2400
+          },
+          "medium_well": {
+            "temp_c": 65,
+            "duration_sec": 2700
+          },
+          "well_done": {
+            "temp_c": 70,
+            "duration_sec": 3300
+          }
+        }
+      },
+      {
+        "index": 6,
+        "instruction": {
+          "en": "Take the beef out, cover it loosely with foil and let it rest for 15 minutes. It keeps cooking by a few degrees.",
+          "el": "Βγάλε το μοσχάρι, σκέπασέ το χαλαρά με αλουμινόχαρτο και άφησέ το να ξεκουραστεί 15 λεπτά. Συνεχίζει να ψήνεται λίγους βαθμούς."
+        },
+        "expected_duration_sec": 900,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "rest"
+      },
+      {
+        "index": 7,
+        "instruction": {
+          "en": "Slice the beef thinly, across the grain.",
+          "el": "Κόψε το μοσχάρι σε λεπτές φέτες, κόντρα στις ίνες."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Thin, even slices of cooked beef, about 5 mm, cut across the grain.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      }
+    ],
+    "description": {
+      "en": "Garlic and rosemary roast beef, cooked to how you like it.",
+      "el": "Ροσμπίφ με σκόρδο και δεντρολίβανο, ψημένο όπως σου αρέσει."
+    },
+    "servings": "6",
+    "times": {
+      "prep_min": 20,
+      "cook_min": 75,
+      "total_min": 95
+    },
+    "category": "main",
+    "cuisine": null,
+    "ingredient_details": [
+      {
+        "raw_text": "1.2 kg beef topside or sirloin, in one piece",
+        "name": "beef",
+        "vocab_id": "raw_meat",
+        "text": {
+          "en": "1.2 kg beef topside or sirloin, in one piece",
+          "el": "1,2 κιλά μοσχαρίσιο νουά ή κόντρα φιλέτο, σε ένα κομμάτι"
+        }
+      },
+      {
+        "raw_text": "4 cloves of garlic",
+        "name": "garlic",
+        "vocab_id": "garlic",
+        "text": {
+          "en": "4 cloves of garlic",
+          "el": "4 σκελίδες σκόρδο"
+        }
+      },
+      {
+        "raw_text": "2 tbsp olive oil",
+        "name": "olive oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "2 tbsp olive oil",
+          "el": "2 κουτ. σούπας ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "1 tbsp Dijon mustard",
+        "name": "mustard",
+        "text": {
+          "en": "1 tbsp Dijon mustard",
+          "el": "1 κουτ. σούπας μουστάρδα Ντιζόν"
+        }
+      },
+      {
+        "raw_text": "2 sprigs of fresh rosemary",
+        "name": "rosemary",
+        "text": {
+          "en": "2 sprigs of fresh rosemary",
+          "el": "2 κλωναράκια φρέσκο δεντρολίβανο"
+        }
+      },
+      {
+        "raw_text": "1 tsp salt",
+        "name": "salt",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "1 tsp salt",
+          "el": "1 κουτ. γλυκού αλάτι"
+        }
+      },
+      {
+        "raw_text": "1/2 tsp black pepper",
+        "name": "black pepper",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "1/2 tsp black pepper",
+          "el": "½ κουτ. γλυκού μαύρο πιπέρι"
+        }
+      }
+    ]
+  },
+  {
+    "id": "beef_steak",
+    "name": {
+      "en": "Pan-Seared Beef Steak",
+      "el": "Μοσχαρίσια Μπριζόλα στο Τηγάνι"
+    },
+    "aliases": {
+      "en": [
+        "steak",
+        "beef steak",
+        "ribeye",
+        "rib eye",
+        "sirloin steak"
+      ],
+      "el": [
+        "μπριζόλα",
+        "μπριζόλες",
+        "στέικ",
+        "μοσχαρίσια μπριζόλα"
+      ]
+    },
+    "ingredients": [
+      "2 beef steaks (rib-eye or sirloin), about 2.5 cm thick",
+      "1 tbsp sunflower or olive oil",
+      "30 g butter",
+      "2 cloves of garlic",
+      "2 sprigs of fresh thyme",
+      "salt and black pepper"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Take the steaks out of the fridge 30 minutes before cooking and pat them dry with kitchen paper.",
+          "el": "Βγάλε τις μπριζόλες από το ψυγείο 30 λεπτά πριν το μαγείρεμα και στέγνωσέ τες με χαρτί κουζίνας."
+        },
+        "expected_duration_sec": 1800,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "rest"
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Season both sides well with salt and pepper. Lightly crush the garlic cloves with the flat of a knife.",
+          "el": "Αλάτισε και πιπέρωσε καλά και τις δύο πλευρές. Λιώσε ελαφρά τις σκελίδες σκόρδο με την πλάτη του μαχαιριού."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "prep"
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Heat the oil in a heavy frying pan over high heat until it shimmers.",
+          "el": "Ζέστανε το λάδι σε ένα βαρύ τηγάνι σε δυνατή φωτιά, μέχρι να αρχίσει να τρεμοπαίζει."
+        },
+        "expected_duration_sec": 180,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "cook"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Lay the steaks in the pan and don't move them while the first side sears.",
+          "el": "Βάλε τις μπριζόλες στο τηγάνι και μην τις κουνήσεις όσο ψήνεται η πρώτη πλευρά."
+        },
+        "expected_duration_sec": 180,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "cook",
+        "by_doneness": {
+          "rare": {
+            "temp_c": 50,
+            "duration_sec": 120
+          },
+          "medium_rare": {
+            "temp_c": 54,
+            "duration_sec": 180
+          },
+          "medium": {
+            "temp_c": 60,
+            "duration_sec": 240
+          },
+          "medium_well": {
+            "temp_c": 65,
+            "duration_sec": 270
+          },
+          "well_done": {
+            "temp_c": 70,
+            "duration_sec": 300
+          }
+        }
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Turn the steaks, add the butter, garlic and thyme, and spoon the foaming butter over the meat while the second side cooks.",
+          "el": "Γύρισε τις μπριζόλες, πρόσθεσε το βούτυρο, το σκόρδο και το θυμάρι, και περίχυνε το κρέας με το βούτυρο όσο ψήνεται η δεύτερη πλευρά."
+        },
+        "expected_duration_sec": 180,
+        "checkable": true,
+        "check_prompt_hint": "Steak crust colour: deep brown on both sides, not blackened. The inside can only be judged with a thermometer.",
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "cook",
+        "by_doneness": {
+          "rare": {
+            "temp_c": 50,
+            "duration_sec": 120
+          },
+          "medium_rare": {
+            "temp_c": 54,
+            "duration_sec": 180
+          },
+          "medium": {
+            "temp_c": 60,
+            "duration_sec": 240
+          },
+          "medium_well": {
+            "temp_c": 65,
+            "duration_sec": 300
+          },
+          "well_done": {
+            "temp_c": 70,
+            "duration_sec": 360
+          }
+        }
+      },
+      {
+        "index": 5,
+        "instruction": {
+          "en": "Move the steaks to a plate and let them rest for 5 minutes.",
+          "el": "Βάλε τις μπριζόλες σε ένα πιάτο και άφησέ τες να ξεκουραστούν 5 λεπτά."
+        },
+        "expected_duration_sec": 300,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "rest"
+      },
+      {
+        "index": 6,
+        "instruction": {
+          "en": "Slice the steaks across the grain into strips about 1 cm wide.",
+          "el": "Κόψε τις μπριζόλες κόντρα στις ίνες, σε λωρίδες πλάτους περίπου 1 εκ."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Cooked steak cut into even strips about 1 cm wide, across the grain.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      }
+    ],
+    "description": {
+      "en": "A thick steak seared in a hot pan and basted with garlic butter.",
+      "el": "Χοντρή μπριζόλα ψημένη σε καυτό τηγάνι, περιχυμένη με βούτυρο και σκόρδο."
+    },
+    "servings": "2",
+    "times": {
+      "prep_min": 35,
+      "cook_min": 15,
+      "total_min": 50
+    },
+    "category": "main",
+    "cuisine": null,
+    "ingredient_details": [
+      {
+        "raw_text": "2 beef steaks (rib-eye or sirloin), about 2.5 cm thick",
+        "name": "beef steaks",
+        "vocab_id": "raw_meat",
+        "text": {
+          "en": "2 beef steaks (rib-eye or sirloin), about 2.5 cm thick",
+          "el": "2 μοσχαρίσιες μπριζόλες (ribeye ή κόντρα φιλέτο), πάχους περίπου 2,5 εκ."
+        }
+      },
+      {
+        "raw_text": "1 tbsp sunflower or olive oil",
+        "name": "oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "1 tbsp sunflower or olive oil",
+          "el": "1 κουτ. σούπας ηλιέλαιο ή ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "30 g butter",
+        "name": "butter",
+        "vocab_id": "butter",
+        "text": {
+          "en": "30 g butter",
+          "el": "30 γρ. βούτυρο"
+        }
+      },
+      {
+        "raw_text": "2 cloves of garlic",
+        "name": "garlic",
+        "vocab_id": "garlic",
+        "text": {
+          "en": "2 cloves of garlic",
+          "el": "2 σκελίδες σκόρδο"
+        }
+      },
+      {
+        "raw_text": "2 sprigs of fresh thyme",
+        "name": "thyme",
+        "text": {
+          "en": "2 sprigs of fresh thyme",
+          "el": "2 κλωναράκια φρέσκο θυμάρι"
+        }
+      },
+      {
+        "raw_text": "salt and black pepper",
+        "name": "salt and pepper",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "salt and black pepper",
+          "el": "αλάτι και μαύρο πιπέρι"
+        }
+      }
+    ]
+  },
+  {
+    "id": "greek_salad",
+    "name": {
+      "en": "Greek Salad",
+      "el": "Χωριάτικη Σαλάτα"
+    },
+    "aliases": {
+      "en": [
+        "greek salad",
+        "village salad",
+        "horiatiki",
+        "salad"
+      ],
+      "el": [
+        "χωριάτικη",
+        "ελληνική σαλάτα",
+        "σαλάτα"
+      ]
+    },
+    "ingredients": [
+      "4 ripe tomatoes",
+      "1 cucumber",
+      "1 red onion",
+      "1 green pepper",
+      "200 g feta cheese",
+      "12 Kalamata olives",
+      "4 tbsp extra virgin olive oil",
+      "1 tsp dried oregano",
+      "a pinch of salt"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Wash the tomatoes, the cucumber and the pepper.",
+          "el": "Πλύνε τις ντομάτες, το αγγούρι και την πιπεριά."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Cut each tomato into wedges, about 8 pieces, and put them in a large bowl.",
+          "el": "Κόψε κάθε ντομάτα σε κομμάτια, περίπου 8, και βάλ' τα σε ένα μεγάλο μπολ."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Tomato wedges of similar size, about 8 per tomato.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Cut the cucumber into half-moon slices about 1 cm thick and add them to the bowl.",
+          "el": "Κόψε το αγγούρι σε μισοφέγγαρα πάχους περίπου 1 εκ. και πρόσθεσέ τα στο μπολ."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Cucumber in even half-moon slices, about 1 cm thick.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Slice the onion into thin rings. Remove the seeds from the pepper and slice it into thin rings too.",
+          "el": "Κόψε το κρεμμύδι σε λεπτές ροδέλες. Βγάλε τους σπόρους από την πιπεριά και κόψε κι αυτή σε λεπτές ροδέλες."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Thin onion rings and thin pepper rings, about 3 mm, pepper seeds removed.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Add the onion, pepper and olives to the bowl, season with a little salt, and lay the feta on top in one piece.",
+          "el": "Πρόσθεσε στο μπολ το κρεμμύδι, την πιπεριά και τις ελιές, αλάτισε ελαφρά και βάλε από πάνω τη φέτα ολόκληρη."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 5,
+        "instruction": {
+          "en": "Sprinkle the oregano over the feta, pour over the olive oil and serve.",
+          "el": "Πασπάλισε τη φέτα με ρίγανη, περίχυσε με το ελαιόλαδο και σέρβιρε."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Salad assembled: vegetables in the bowl, feta on top, oregano and oil over it.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      }
+    ],
+    "description": {
+      "en": "The classic village salad - lots of cutting, no cooking.",
+      "el": "Η κλασική χωριάτικη - πολύ κόψιμο, καθόλου μαγείρεμα."
+    },
+    "servings": "4",
+    "times": {
+      "prep_min": 15,
+      "cook_min": 0,
+      "total_min": 15
+    },
+    "category": "salad",
+    "cuisine": "Greek",
+    "ingredient_details": [
+      {
+        "raw_text": "4 ripe tomatoes",
+        "name": "tomatoes",
+        "vocab_id": "tomato",
+        "text": {
+          "en": "4 ripe tomatoes",
+          "el": "4 ώριμες ντομάτες"
+        }
+      },
+      {
+        "raw_text": "1 cucumber",
+        "name": "cucumber",
+        "vocab_id": "cucumber",
+        "text": {
+          "en": "1 cucumber",
+          "el": "1 αγγούρι"
+        }
+      },
+      {
+        "raw_text": "1 red onion",
+        "name": "red onion",
+        "vocab_id": "onion",
+        "text": {
+          "en": "1 red onion",
+          "el": "1 κόκκινο κρεμμύδι"
+        }
+      },
+      {
+        "raw_text": "1 green pepper",
+        "name": "green pepper",
+        "vocab_id": "bell_pepper",
+        "text": {
+          "en": "1 green pepper",
+          "el": "1 πράσινη πιπεριά"
+        }
+      },
+      {
+        "raw_text": "200 g feta cheese",
+        "name": "feta",
+        "vocab_id": "cheese",
+        "text": {
+          "en": "200 g feta cheese",
+          "el": "200 γρ. φέτα"
+        }
+      },
+      {
+        "raw_text": "12 Kalamata olives",
+        "name": "olives",
+        "text": {
+          "en": "12 Kalamata olives",
+          "el": "12 ελιές Καλαμών"
+        }
+      },
+      {
+        "raw_text": "4 tbsp extra virgin olive oil",
+        "name": "olive oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "4 tbsp extra virgin olive oil",
+          "el": "4 κουτ. σούπας εξαιρετικό παρθένο ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "1 tsp dried oregano",
+        "name": "oregano",
+        "text": {
+          "en": "1 tsp dried oregano",
+          "el": "1 κουτ. γλυκού ρίγανη"
+        }
+      },
+      {
+        "raw_text": "a pinch of salt",
+        "name": "salt",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "a pinch of salt",
+          "el": "μια πρέζα αλάτι"
+        }
+      }
+    ]
+  },
+  {
+    "id": "lemon_potatoes",
+    "name": {
+      "en": "Greek Lemon Roast Potatoes",
+      "el": "Πατάτες Λεμονάτες στο Φούρνο"
+    },
+    "aliases": {
+      "en": [
+        "lemon potatoes",
+        "roast potatoes",
+        "oven potatoes",
+        "potatoes",
+        "baked potatoes"
+      ],
+      "el": [
+        "πατάτες λεμονάτες",
+        "λεμονάτες",
+        "πατάτες φούρνου",
+        "πατάτες στο φούρνο",
+        "πατάτες"
+      ]
+    },
+    "ingredients": [
+      "1.2 kg potatoes",
+      "juice of 2 lemons",
+      "100 ml olive oil",
+      "3 cloves of garlic",
+      "1 tbsp dried oregano",
+      "250 ml hot water",
+      "1 1/2 tsp salt and 1/2 tsp pepper"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Preheat the oven to 200°C, or 180°C with the fan on.",
+          "el": "Προθέρμανε τον φούρνο στους 200°C, ή στους 180°C στον αέρα."
+        },
+        "expected_duration_sec": 900,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": null
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Peel the potatoes and cut them into long wedges, 6 to 8 per potato.",
+          "el": "Καθάρισε τις πατάτες και κόψε τες σε μακριές φέτες, 6 με 8 από κάθε πατάτα."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Peeled potato wedges of even size, about 2 cm thick at the widest part.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Put the wedges in a baking tray. Add the lemon juice, olive oil, crushed garlic, oregano, salt, pepper and the hot water, and toss everything together.",
+          "el": "Βάλε τις πατάτες σε ένα ταψί. Πρόσθεσε τον χυμό λεμονιού, το ελαιόλαδο, το σκόρδο λιωμένο, τη ρίγανη, το αλάτι, το πιπέρι και το ζεστό νερό, και ανακάτεψέ τα όλα."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Potato wedges in one layer in the tray, coated in oil and seasoning, liquid in the bottom.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Bake for 40 minutes, then turn the potatoes over.",
+          "el": "Ψήσε για 40 λεπτά και μετά γύρισε τις πατάτες."
+        },
+        "expected_duration_sec": 2400,
+        "checkable": true,
+        "check_prompt_hint": "Tops starting to turn golden and about half the liquid gone.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "cook"
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Bake for another 20 to 30 minutes, until golden brown and most of the liquid has gone. If they look dry before they're done, add a little hot water.",
+          "el": "Ψήσε για άλλα 20 με 30 λεπτά, μέχρι να ροδίσουν και να φύγουν τα περισσότερα υγρά. Αν στεγνώσουν πριν ψηθούν, πρόσθεσε λίγο ζεστό νερό."
+        },
+        "expected_duration_sec": 1500,
+        "checkable": true,
+        "check_prompt_hint": "Golden-brown tops and edges, crisp-looking, only a little liquid left, nothing blackened.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "cook"
+      }
+    ],
+    "description": {
+      "en": "Potatoes roasted in lemon, olive oil and oregano until golden.",
+      "el": "Πατάτες ψημένες με λεμόνι, ελαιόλαδο και ρίγανη μέχρι να ροδίσουν."
+    },
+    "servings": "4",
+    "times": {
+      "prep_min": 15,
+      "cook_min": 70,
+      "total_min": 85
+    },
+    "category": "side",
+    "cuisine": "Greek",
+    "ingredient_details": [
+      {
+        "raw_text": "1.2 kg potatoes",
+        "name": "potatoes",
+        "vocab_id": "potato",
+        "text": {
+          "en": "1.2 kg potatoes",
+          "el": "1,2 κιλά πατάτες"
+        }
+      },
+      {
+        "raw_text": "juice of 2 lemons",
+        "name": "lemons",
+        "vocab_id": "lemon",
+        "text": {
+          "en": "juice of 2 lemons",
+          "el": "χυμός από 2 λεμόνια"
+        }
+      },
+      {
+        "raw_text": "100 ml olive oil",
+        "name": "olive oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "100 ml olive oil",
+          "el": "100 ml ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "3 cloves of garlic",
+        "name": "garlic",
+        "vocab_id": "garlic",
+        "text": {
+          "en": "3 cloves of garlic",
+          "el": "3 σκελίδες σκόρδο"
+        }
+      },
+      {
+        "raw_text": "1 tbsp dried oregano",
+        "name": "oregano",
+        "text": {
+          "en": "1 tbsp dried oregano",
+          "el": "1 κουτ. σούπας ρίγανη"
+        }
+      },
+      {
+        "raw_text": "250 ml hot water",
+        "name": "water",
+        "text": {
+          "en": "250 ml hot water",
+          "el": "250 ml ζεστό νερό"
+        }
+      },
+      {
+        "raw_text": "1 1/2 tsp salt and 1/2 tsp pepper",
+        "name": "salt and pepper",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "1 1/2 tsp salt and 1/2 tsp pepper",
+          "el": "1½ κουτ. γλυκού αλάτι και ½ κουτ. γλυκού πιπέρι"
+        }
+      }
+    ]
+  },
+  {
+    "id": "chicken_thighs_oven",
+    "name": {
+      "en": "Oven-Baked Chicken Thighs",
+      "el": "Κοτόπουλο Μπούτια στο Φούρνο"
+    },
+    "aliases": {
+      "en": [
+        "chicken",
+        "baked chicken",
+        "roast chicken",
+        "chicken thighs",
+        "oven chicken"
+      ],
+      "el": [
+        "κοτόπουλο",
+        "κοτόπουλο στο φούρνο",
+        "κοτόπουλο ψητό",
+        "μπούτια",
+        "μπουτάκια"
+      ]
+    },
+    "ingredients": [
+      "8 chicken thighs, bone in, with skin",
+      "2 tbsp olive oil",
+      "juice of 1 lemon",
+      "2 cloves of garlic",
+      "1 tsp paprika",
+      "1 tsp dried oregano",
+      "salt and black pepper"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Preheat the oven to 200°C, or 180°C with the fan on.",
+          "el": "Προθέρμανε τον φούρνο στους 200°C, ή στους 180°C στον αέρα."
+        },
+        "expected_duration_sec": 900,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": null
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Pat the chicken dry with kitchen paper and lay it in a baking tray, skin side up.",
+          "el": "Στέγνωσε το κοτόπουλο με χαρτί κουζίνας και βάλ' το σε ένα ταψί, με την πέτσα προς τα πάνω."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Chicken pieces in one layer, skin side up, not overlapping.",
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "prep"
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Mix the olive oil, lemon juice, crushed garlic, paprika, oregano, salt and pepper, and rub it all over the chicken. Wash your hands afterwards.",
+          "el": "Ανακάτεψε το ελαιόλαδο, τον χυμό λεμονιού, το λιωμένο σκόρδο, την πάπρικα, τη ρίγανη, το αλάτι και το πιπέρι, και άλειψε καλά το κοτόπουλο. Μετά πλύνε τα χέρια σου."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "prep"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Roast for 40 to 45 minutes, until the skin is deep golden and a thermometer in the thickest part, not touching the bone, reads at least 74°C.",
+          "el": "Ψήσε για 40 με 45 λεπτά, μέχρι η πέτσα να γίνει βαθιά χρυσαφένια και το θερμόμετρο στο πιο χοντρό σημείο, χωρίς να ακουμπά το κόκαλο, να δείξει τουλάχιστον 74°C."
+        },
+        "expected_duration_sec": 2400,
+        "checkable": true,
+        "check_prompt_hint": "Skin colour: deep golden and crisp-looking, nothing blackened. Safety only by thermometer, at least 74°C.",
+        "reference_image": null,
+        "contains_raw_protein": true,
+        "kind": "cook"
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Let the chicken rest for 5 minutes before serving.",
+          "el": "Άφησε το κοτόπουλο να ξεκουραστεί 5 λεπτά πριν το σερβίρεις."
+        },
+        "expected_duration_sec": 300,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "rest"
+      }
+    ],
+    "description": {
+      "en": "Crisp-skinned chicken thighs with lemon, garlic and paprika.",
+      "el": "Τραγανά μπούτια κοτόπουλου με λεμόνι, σκόρδο και πάπρικα."
+    },
+    "servings": "4",
+    "times": {
+      "prep_min": 15,
+      "cook_min": 45,
+      "total_min": 60
+    },
+    "category": "main",
+    "cuisine": null,
+    "ingredient_details": [
+      {
+        "raw_text": "8 chicken thighs, bone in, with skin",
+        "name": "chicken thighs",
+        "vocab_id": "chicken",
+        "text": {
+          "en": "8 chicken thighs, bone in, with skin",
+          "el": "8 μπούτια κοτόπουλο με κόκαλο και πέτσα"
+        }
+      },
+      {
+        "raw_text": "2 tbsp olive oil",
+        "name": "olive oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "2 tbsp olive oil",
+          "el": "2 κουτ. σούπας ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "juice of 1 lemon",
+        "name": "lemon",
+        "vocab_id": "lemon",
+        "text": {
+          "en": "juice of 1 lemon",
+          "el": "χυμός από 1 λεμόνι"
+        }
+      },
+      {
+        "raw_text": "2 cloves of garlic",
+        "name": "garlic",
+        "vocab_id": "garlic",
+        "text": {
+          "en": "2 cloves of garlic",
+          "el": "2 σκελίδες σκόρδο"
+        }
+      },
+      {
+        "raw_text": "1 tsp paprika",
+        "name": "paprika",
+        "text": {
+          "en": "1 tsp paprika",
+          "el": "1 κουτ. γλυκού πάπρικα"
+        }
+      },
+      {
+        "raw_text": "1 tsp dried oregano",
+        "name": "oregano",
+        "text": {
+          "en": "1 tsp dried oregano",
+          "el": "1 κουτ. γλυκού ρίγανη"
+        }
+      },
+      {
+        "raw_text": "salt and black pepper",
+        "name": "salt and pepper",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "salt and black pepper",
+          "el": "αλάτι και μαύρο πιπέρι"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tomato_pasta",
+    "name": {
+      "en": "Spaghetti with Tomato Sauce",
+      "el": "Μακαρονάδα με Σάλτσα Ντομάτας"
+    },
+    "aliases": {
+      "en": [
+        "spaghetti with tomato sauce",
+        "tomato pasta",
+        "pasta with tomato sauce",
+        "spaghetti napolitana",
+        "napolitana"
+      ],
+      "el": [
+        "μακαρονάδα",
+        "μακαρόνια με σάλτσα",
+        "μακαρόνια με σάλτσα ντομάτας",
+        "σπαγγέτι με σάλτσα",
+        "ναπολιτάνα"
+      ]
+    },
+    "ingredients": [
+      "500 g spaghetti",
+      "1 onion",
+      "2 cloves of garlic",
+      "3 tbsp olive oil",
+      "400 g tin of chopped tomatoes",
+      "1 tsp sugar",
+      "a few basil leaves",
+      "salt and black pepper",
+      "grated kefalotyri or parmesan, to serve"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Finely chop the onion.",
+          "el": "Ψιλόκοψε το κρεμμύδι."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Onion finely chopped into small, even pieces, about 3 to 5 mm.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Peel the garlic and chop it very finely.",
+          "el": "Καθάρισε το σκόρδο και ψιλόκοψέ το πολύ καλά."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Garlic peeled and very finely chopped.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Heat the olive oil in a saucepan over medium heat and cook the onion for about 5 minutes, until soft and see-through. Add the garlic for the last minute.",
+          "el": "Ζέστανε το ελαιόλαδο σε μια κατσαρόλα σε μέτρια φωτιά και σοτάρισε το κρεμμύδι για περίπου 5 λεπτά, μέχρι να μαλακώσει και να γίνει διάφανο. Πρόσθεσε το σκόρδο το τελευταίο λεπτό."
+        },
+        "expected_duration_sec": 300,
+        "checkable": true,
+        "check_prompt_hint": "Onion soft and translucent, not browned.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "cook"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Add the tomatoes, sugar, salt and pepper, and simmer uncovered over low heat for 20 minutes, stirring now and then.",
+          "el": "Πρόσθεσε την ντομάτα, τη ζάχαρη, το αλάτι και το πιπέρι, και σιγόβρασε ξεσκέπαστο σε χαμηλή φωτιά για 20 λεπτά, ανακατεύοντας πού και πού."
+        },
+        "expected_duration_sec": 1200,
+        "checkable": true,
+        "check_prompt_hint": "Sauce thickened, not watery, gently bubbling.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "cook"
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Meanwhile, bring a large pot of salted water to the boil.",
+          "el": "Στο μεταξύ, βάλε να βράσει μια μεγάλη κατσαρόλα με αλατισμένο νερό."
+        },
+        "expected_duration_sec": 480,
+        "checkable": true,
+        "check_prompt_hint": "Is the water at a rolling boil?",
+        "reference_image": "pasta_boiling.jpg",
+        "contains_raw_protein": false,
+        "kind": "cook"
+      },
+      {
+        "index": 5,
+        "instruction": {
+          "en": "Add the spaghetti and cook it for the time on the packet, usually 9 to 11 minutes. Stir at the start so it doesn't stick.",
+          "el": "Ρίξε τα μακαρόνια και βράσ' τα όσο λέει η συσκευασία, συνήθως 9 με 11 λεπτά. Ανακάτεψε στην αρχή για να μην κολλήσουν."
+        },
+        "expected_duration_sec": 600,
+        "checkable": true,
+        "check_prompt_hint": "Is the pasta cooked through (al dente)?",
+        "reference_image": "pasta_cooked.jpg",
+        "contains_raw_protein": false,
+        "kind": "cook"
+      },
+      {
+        "index": 6,
+        "instruction": {
+          "en": "Drain the spaghetti, mix it with the sauce, tear in the basil and serve with grated cheese.",
+          "el": "Σούρωσε τα μακαρόνια, ανακάτεψέ τα με τη σάλτσα, πρόσθεσε τον βασιλικό κομμένο με τα χέρια και σέρβιρε με τριμμένο τυρί."
+        },
+        "expected_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      }
+    ],
+    "description": {
+      "en": "Everyday spaghetti with a simple onion and tomato sauce.",
+      "el": "Καθημερινή μακαρονάδα με απλή σάλτσα ντομάτας και κρεμμύδι."
+    },
+    "servings": "4",
+    "times": {
+      "prep_min": 10,
+      "cook_min": 30,
+      "total_min": 40
+    },
+    "category": "main",
+    "cuisine": null,
+    "ingredient_details": [
+      {
+        "raw_text": "500 g spaghetti",
+        "name": "spaghetti",
+        "vocab_id": "pasta",
+        "text": {
+          "en": "500 g spaghetti",
+          "el": "500 γρ. σπαγγέτι"
+        }
+      },
+      {
+        "raw_text": "1 onion",
+        "name": "onion",
+        "vocab_id": "onion",
+        "text": {
+          "en": "1 onion",
+          "el": "1 κρεμμύδι"
+        }
+      },
+      {
+        "raw_text": "2 cloves of garlic",
+        "name": "garlic",
+        "vocab_id": "garlic",
+        "text": {
+          "en": "2 cloves of garlic",
+          "el": "2 σκελίδες σκόρδο"
+        }
+      },
+      {
+        "raw_text": "3 tbsp olive oil",
+        "name": "olive oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "3 tbsp olive oil",
+          "el": "3 κουτ. σούπας ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "400 g tin of chopped tomatoes",
+        "name": "chopped tomatoes",
+        "vocab_id": "tomato",
+        "text": {
+          "en": "400 g tin of chopped tomatoes",
+          "el": "1 κονσέρβα 400 γρ. ντομάτα ψιλοκομμένη"
+        }
+      },
+      {
+        "raw_text": "1 tsp sugar",
+        "name": "sugar",
+        "text": {
+          "en": "1 tsp sugar",
+          "el": "1 κουτ. γλυκού ζάχαρη"
+        }
+      },
+      {
+        "raw_text": "a few basil leaves",
+        "name": "basil",
+        "text": {
+          "en": "a few basil leaves",
+          "el": "λίγα φύλλα βασιλικού"
+        }
+      },
+      {
+        "raw_text": "salt and black pepper",
+        "name": "salt and pepper",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "salt and black pepper",
+          "el": "αλάτι και μαύρο πιπέρι"
+        }
+      },
+      {
+        "raw_text": "grated kefalotyri or parmesan, to serve",
+        "name": "grated cheese",
+        "vocab_id": "cheese",
+        "text": {
+          "en": "grated kefalotyri or parmesan, to serve",
+          "el": "τριμμένο κεφαλοτύρι ή παρμεζάνα, για το σερβίρισμα"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tzatziki",
+    "name": {
+      "en": "Tzatziki",
+      "el": "Τζατζίκι"
+    },
+    "aliases": {
+      "en": [
+        "tzatziki",
+        "yoghurt dip",
+        "yogurt dip",
+        "cucumber dip"
+      ],
+      "el": [
+        "τζατζίκι",
+        "τζατζικι"
+      ]
+    },
+    "ingredients": [
+      "500 g strained Greek yoghurt",
+      "1 cucumber",
+      "2 cloves of garlic",
+      "2 tbsp olive oil",
+      "1 tbsp white wine vinegar",
+      "1 tbsp chopped fresh dill",
+      "a pinch of salt"
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "instruction": {
+          "en": "Grate the cucumber on the coarse side of a grater.",
+          "el": "Τρίψε το αγγούρι στη χοντρή πλευρά του τρίφτη."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Cucumber coarsely grated.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 1,
+        "instruction": {
+          "en": "Squeeze the grated cucumber hard with your hands, or in a clean tea towel, to get out as much water as you can.",
+          "el": "Στύψε καλά το τριμμένο αγγούρι με τα χέρια ή σε μια καθαρή πετσέτα, για να φύγει όσο περισσότερο νερό γίνεται."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Grated cucumber squeezed dry: compact, very little liquid.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 2,
+        "instruction": {
+          "en": "Crush the garlic or grate it very finely.",
+          "el": "Λιώσε το σκόρδο ή τρίψ' το πολύ ψιλά."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Garlic crushed to a paste or very fine pieces.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 3,
+        "instruction": {
+          "en": "Mix the yoghurt with the cucumber, garlic, olive oil, vinegar, dill and a pinch of salt.",
+          "el": "Ανακάτεψε το γιαούρτι με το αγγούρι, το σκόρδο, το ελαιόλαδο, το ξίδι, τον άνηθο και μια πρέζα αλάτι."
+        },
+        "expected_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Smooth, evenly mixed tzatziki with the cucumber spread through it.",
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "prep"
+      },
+      {
+        "index": 4,
+        "instruction": {
+          "en": "Cover it and chill for at least 30 minutes so the flavours come together.",
+          "el": "Σκέπασέ το και βάλ' το στο ψυγείο για τουλάχιστον 30 λεπτά, να δέσουν οι γεύσεις."
+        },
+        "expected_duration_sec": 1800,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false,
+        "kind": "rest"
+      }
+    ],
+    "description": {
+      "en": "Garlicky yoghurt and cucumber dip - grating, squeezing and mixing.",
+      "el": "Γιαούρτι με αγγούρι και σκόρδο - τρίψιμο, στύψιμο και ανακάτεμα."
+    },
+    "servings": "6",
+    "times": {
+      "prep_min": 15,
+      "cook_min": 0,
+      "total_min": 15
+    },
+    "category": "dip",
+    "cuisine": "Greek",
+    "ingredient_details": [
+      {
+        "raw_text": "500 g strained Greek yoghurt",
+        "name": "yoghurt",
+        "text": {
+          "en": "500 g strained Greek yoghurt",
+          "el": "500 γρ. στραγγιστό γιαούρτι"
+        }
+      },
+      {
+        "raw_text": "1 cucumber",
+        "name": "cucumber",
+        "vocab_id": "cucumber",
+        "text": {
+          "en": "1 cucumber",
+          "el": "1 αγγούρι"
+        }
+      },
+      {
+        "raw_text": "2 cloves of garlic",
+        "name": "garlic",
+        "vocab_id": "garlic",
+        "text": {
+          "en": "2 cloves of garlic",
+          "el": "2 σκελίδες σκόρδο"
+        }
+      },
+      {
+        "raw_text": "2 tbsp olive oil",
+        "name": "olive oil",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "2 tbsp olive oil",
+          "el": "2 κουτ. σούπας ελαιόλαδο"
+        }
+      },
+      {
+        "raw_text": "1 tbsp white wine vinegar",
+        "name": "vinegar",
+        "vocab_id": "bottle",
+        "text": {
+          "en": "1 tbsp white wine vinegar",
+          "el": "1 κουτ. σούπας λευκό ξίδι"
+        }
+      },
+      {
+        "raw_text": "1 tbsp chopped fresh dill",
+        "name": "dill",
+        "text": {
+          "en": "1 tbsp chopped fresh dill",
+          "el": "1 κουτ. σούπας ψιλοκομμένος άνηθος"
+        }
+      },
+      {
+        "raw_text": "a pinch of salt",
+        "name": "salt",
+        "vocab_id": "salt_pepper",
+        "text": {
+          "en": "a pinch of salt",
+          "el": "μια πρέζα αλάτι"
+        }
       }
     ]
   }

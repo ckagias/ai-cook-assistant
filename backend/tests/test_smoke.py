@@ -175,7 +175,9 @@ class TestRoutes:
         r = client.get("/recipes")
         assert r.status_code == 200
         ids = [x["id"] for x in r.json()]
-        assert ids == ["pasta", "pancakes", "scrambled_eggs"]
+        seed = json.loads(recipes.SEED_PATH.read_text(encoding="utf-8"))
+        assert ids == [item["id"] for item in seed]
+        assert {"pasta", "pancakes", "scrambled_eggs", "roast_beef"} <= set(ids)
 
     def test_recipe_detail(self, client):
         r = client.get("/recipes/pasta")
@@ -371,6 +373,21 @@ class TestProviderSeam:
         assert "raw_protein_detected" not in schema.required
         for field in ("description", "confidence", "spoken_response"):
             assert field in schema.required
+
+    def test_every_sdk_normalizer_accepts_voice_command(self):
+        # Voice commands are understood by whichever provider has a key (DESIGN #21), so the
+        # same regression check as AnalyzeResponse - the Anthropic path can't be called live here.
+        import anthropic.lib._parse._transform as transform
+        import google.genai._transformers as transformers
+        import openai.lib._pydantic as pydantic_lib
+
+        from app.schemas import VoiceCommand
+
+        assert transform.transform_schema(VoiceCommand)
+        strict = pydantic_lib.to_strict_json_schema(VoiceCommand)
+        assert set(strict["required"]) == set(strict["properties"].keys())
+        gemini = transformers.t_schema(None, VoiceCommand)
+        assert "yes" in gemini.properties["action"].enum and gemini.properties["doneness"].nullable is True
 
 
 # --- reference image resolution ---

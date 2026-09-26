@@ -7,14 +7,17 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, barcode, demo_cache, output_guard, rate_limit, recipes, vision, voice
 from .detection import service as detection_service
-from .schemas import AnalyzeRequest, AnalyzeResponse, DetectResponse, Recipe, VoiceResponse
+from .schemas import (
+    AnalyzeRequest, AnalyzeResponse, DetectResponse, Doneness, PendingQuestion, Recipe, RecipeStep, VoiceResponse,
+    VoiceTextRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +62,32 @@ THERMOMETER_NOTE = {
     ),
 }
 
+# Replaces THERMOMETER_NOTE when the step has a curated target for the cook's doneness choice.
+# The general guidance is still said: a rare preference is the cook's call, not the app's.
+TARGET_NOTE = {
+    "en": (
+        "Don't judge the inside by its colour. For {pref}, take it off the heat when a thermometer "
+        "in the thickest part reads {temp}°C. Food-safety guidance for whole cuts of beef, pork and "
+        "lamb is at least 63°C."
+    ),
+    "el": (
+        "Μην κρίνεις το εσωτερικό από το χρώμα. Για {pref}, βγάλ' το από τη φωτιά όταν το θερμόμετρο "
+        "στο πιο χοντρό σημείο δείξει {temp}°C. Οι οδηγίες ασφάλειας τροφίμων για ολόκληρα κομμάτια "
+        "βοδινού, χοιρινού και αρνιού λένε τουλάχιστον 63°C."
+    ),
+}
+
+DONENESS_NAMES = voice.DONENESS_NAMES
+
+# A prep step with raw meat in it (cutting chicken, seasoning a roast) is judged on the prep - but
+# the cook still hears the one thing about raw meat that applies to prep.
+HYGIENE_NOTE = {
+    "en": "Raw meat: wash your hands, the knife and the board afterwards.",
+    "el": "Ωμό κρέας: πλύνε μετά τα χέρια, το μαχαίρι και την επιφάνεια κοπής.",
+}
+
+MAX_EXTRA_SEC = 3600  # a check may suggest at most another hour
+
 # Said first on every alarm - fixed text, so neither the model nor anything in the photo can
 # change or drop the warning a user who can't see the stove relies on.
 ALARM_NOTE = {
@@ -73,12 +102,7 @@ _STRONG_ALARM = re.compile(r"\b(flam(e|es|ing)|fire|sparks?)\b")
 _ALARM_KEYWORDS = ("burning", "burnt", "burned", "char", "scorch", "blacken", "melting", "smoke", "smoking")
 _ALARM_VETO = ("steam", "haze", "vapor", "vapour", "condensation")
 
-# Checked in this order: anthropic -> ANTHROPIC_API_KEY, openai -> OPENAI_API_KEY, gemini -> GEMINI_API_KEY or GOOGLE_API_KEY.
-PROVIDER_KEY_ENV = {
-    "anthropic": ("ANTHROPIC_API_KEY",),
-    "openai": ("OPENAI_API_KEY",),
-    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
-}
+PROVIDER_KEY_ENV = vision.PROVIDER_KEY_ENV
 
 # /analyze is the expensive one (a real vision-provider call); /barcode is cheaper but
 # still an open proxy to a third party, whose own rate limit is a shared resource.
@@ -88,6 +112,9 @@ BARCODE_RATE_LIMIT = (60, 3600.0)
 DETECT_RATE_LIMIT = (900, 60.0)
 # Each voice command is two paid calls (transcription + understanding).
 VOICE_RATE_LIMIT = (120, 3600.0)
+# Recognized or typed text is one call. Simple commands ("next", "yes") never get here - the
+# client matches those itself - so this is the conversational share of a hands-free session.
+VOICE_TEXT_RATE_LIMIT = (300, 3600.0)
 
 
 def _rate_limit_dependency(prefix: str, max_requests: int, window_sec: float):
@@ -108,19 +135,43 @@ def _is_alarm(response: dict) -> bool:
     return bool(flag) and flag.get("severity") == "alarm"
 
 
-def _apply_protein_safety(response: dict, mode: str, language: str, recipe_flagged) -> dict:
+def _thermometer_note(language: str, step: Optional[RecipeStep] = None, preference: Optional[str] = None) -> str:
+    target = recipes.doneness_target(step, preference)
+    if target is None:
+        return THERMOMETER_NOTE.get(language, THERMOMETER_NOTE["en"])
+    names = DONENESS_NAMES.get(language, DONENESS_NAMES["en"])
+    template = TARGET_NOTE.get(language, TARGET_NOTE["en"])
+    return template.format(pref=names.get(preference, preference), temp=target.temp_c)
+
+
+def _apply_protein_safety(response: dict, mode: str, language: str, recipe_flagged,
+                          step: Optional[RecipeStep] = None, preference: Optional[str] = None) -> dict:
+    if mode == "check_ingredients":
+        # Seeing a packet of raw chicken on the counter isn't judging it by looks - no lecture.
+        return response
     triggered = bool(response.get("raw_protein_detected")) if recipe_flagged is None else recipe_flagged
     if not triggered:
         return response
 
-    note = THERMOMETER_NOTE.get(language, THERMOMETER_NOTE["en"])
     response = dict(response)
+    if mode == "check_doneness" and step is not None and step.kind == "prep":
+        # Curated as preparation: the verdict is about the cut or the seasoning, never doneness.
+        response["doneness_stage"] = None
+        hygiene = HYGIENE_NOTE.get(language, HYGIENE_NOTE["en"])
+        if not _is_alarm(response):
+            response["spoken_response"] = f"{response.get('spoken_response', '')} {hygiene}".strip()
+        return response
+
+    note = _thermometer_note(language, step, preference)
     if mode == "check_doneness":
         response["doneness_stage"] = None
         response["confidence"] = "low"
         response["evidence"] = []
         response["needs_clarification"] = False
         response["clarifying_question"] = None
+        # Looks can't say raw meat is done, so neither "ready" nor "N more minutes" survives.
+        response["verdict"] = None
+        response["suggested_extra_sec"] = None
         if _is_alarm(response):
             # A fire outranks a thermometer lecture: keep the alarm words, drop only the verdict.
             return response
@@ -128,6 +179,28 @@ def _apply_protein_safety(response: dict, mode: str, language: str, recipe_flagg
     else:
         # "what is this package" still deserves an answer, not only a lecture.
         response["spoken_response"] = f"{response.get('spoken_response', '')} {note}".strip()
+    return response
+
+
+def _apply_verdict_bounds(response: dict, mode: str, ingredient_count: int) -> dict:
+    """The structured fields the client acts on, kept inside what they're allowed to mean."""
+    response = dict(response)
+    verdict = response.get("verdict")
+    if mode != "check_doneness":
+        verdict = None
+    elif verdict == "ready" and response.get("confidence") == "low":
+        verdict = "unsure"  # "move on?" is only offered when the model is at least fairly sure
+    response["verdict"] = verdict
+    extra = response.get("suggested_extra_sec")
+    if verdict != "not_ready" or not isinstance(extra, int) or extra <= 0:
+        response["suggested_extra_sec"] = None
+    else:
+        response["suggested_extra_sec"] = min(extra, MAX_EXTRA_SEC)
+    seen = response.get("ingredients_seen") or []
+    if mode == "check_ingredients":
+        response["ingredients_seen"] = sorted({n for n in seen if isinstance(n, int) and 1 <= n <= ingredient_count})
+    else:
+        response["ingredients_seen"] = []
     return response
 
 
@@ -167,12 +240,18 @@ def _apply_safety_rules(response: dict, req: AnalyzeRequest, recipe_flagged) -> 
         "recipe_id": req.recipe_id,
         "step_index": req.step_index,
     }
+    step = recipes.get_step(req.recipe_id, req.step_index) if req.recipe_id and req.step_index is not None else None
+    recipe = recipes.get_recipe(req.recipe_id) if req.mode == "check_ingredients" and req.recipe_id else None
     # sanitize_response runs first so every path (fixture and live) is covered, not just callers that remember to.
     response = output_guard.sanitize_response(response, req.language, guard_context)
     response = output_guard.apply_plausibility_check(response, guard_context)
+    response = _apply_verdict_bounds(response, req.mode, len(recipes.ingredient_lines(recipe, req.language)) if recipe else 0)
     # Settle the alarm first: the protein rule must know whether it is looking at a fire.
     response = _apply_safety_flag(response)
-    response = _apply_protein_safety(response, req.mode, req.language, recipe_flagged)
+    response = _apply_protein_safety(response, req.mode, req.language, recipe_flagged, step, req.doneness_preference)
+    if _is_alarm(response):
+        response["verdict"] = None  # never "shall we move on?" on top of a fire warning
+        response["suggested_extra_sec"] = None
     return _apply_alarm_voice(response, req.language)
 
 
@@ -213,7 +292,12 @@ def on_startup():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "demo_mode": demo_cache.demo_mode_enabled()}
+    # Which voice paths this server can answer - booleans only, never which key or provider.
+    return {
+        "status": "ok",
+        "demo_mode": demo_cache.demo_mode_enabled(),
+        "voice": {"text": voice.interpret_provider() is not None, "audio": voice.transcription_available()},
+    }
 
 
 @app.post(
@@ -252,6 +336,9 @@ def analyze(req: AnalyzeRequest):
         "step_index": req.step_index,
         "prior_context": req.prior_context,
         "user_followup": req.user_followup,
+        "doneness_preference": req.doneness_preference,
+        "timer_elapsed_sec": req.timer_elapsed_sec,
+        "timer_total_sec": req.timer_total_sec,
     }
 
     result = vision.analyze_frame(image_bytes, context)
@@ -318,6 +405,9 @@ async def voice_command(
     recipe_id: Optional[str] = None,
     step_index: Optional[int] = None,
     candidates: Optional[str] = None,
+    pending: Optional[PendingQuestion] = None,
+    doneness: Optional[Doneness] = None,
+    timer_remaining_sec: Optional[int] = Query(default=None, ge=0, le=86400),
 ):
     """Push-to-talk: raw audio body (audio/webm, audio/ogg, audio/mp4, audio/wav) -> one validated
     action. See app/voice.py for the injection defenses. Audio is never stored or logged."""
@@ -329,14 +419,39 @@ async def voice_command(
     body = await _read_capped_body(request, MAX_VOICE_BODY_BYTES)
     if not body:
         raise HTTPException(status_code=400, detail="empty recording")
-    offered = [rid for rid in (candidates or "").split(",") if recipes.valid_id(rid)]
+    ctx = voice.VoiceContext.build(language, recipe_id, step_index, (candidates or "").split(","),
+                                   pending=pending, doneness=doneness, timer_remaining_sec=timer_remaining_sec)
     try:
-        return await run_in_threadpool(voice.handle, body, mime, language, recipe_id, step_index, offered)
+        return await run_in_threadpool(voice.handle, body, mime, ctx)
     except voice.VoiceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception:
         logger.exception("voice command failed")
         raise HTTPException(status_code=502, detail="the speech service didn't answer - try again")
+
+
+@app.post(
+    "/voice/text",
+    response_model=VoiceResponse,
+    dependencies=[
+        Depends(auth.require_pairing_token),
+        Depends(_rate_limit_dependency("voice_text", *VOICE_TEXT_RATE_LIMIT)),
+    ],
+)
+def voice_text_command(req: VoiceTextRequest):
+    """Hands-free and typed commands: text the browser already recognized after "Hey chef" (or
+    the talk button), or that a cook who doesn't speak typed. Same understanding, the same
+    closed action list and the same checks as /voice - only the transcription step is skipped."""
+    ctx = voice.VoiceContext.build(req.language, req.recipe_id, req.step_index, req.candidates,
+                                   pending=req.pending, doneness=req.doneness,
+                                   timer_remaining_sec=req.timer_remaining_sec)
+    try:
+        return voice.handle_text(req.text, ctx)
+    except voice.VoiceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception:
+        logger.exception("text command failed")
+        raise HTTPException(status_code=502, detail="the language service didn't answer - try again")
 
 
 @app.get("/recipes", dependencies=[Depends(auth.require_pairing_token)])
