@@ -47,6 +47,7 @@ const el = {
   doneness: document.getElementById("doneness"),
   donenessOptions: document.getElementById("doneness-options"),
   ingredientList: document.getElementById("ingredient-list"),
+  ingredientCount: document.getElementById("ingredient-count"),
   equipment: document.getElementById("equipment"),
   equipmentList: document.getElementById("equipment-list"),
   stepper: document.getElementById("stepper"),
@@ -797,9 +798,17 @@ function renderChecklist(list, lines, done, action) {
   });
 }
 
+// "2 of 5" beside the heading, counted from the boxes on screen: ticked by tap, voice or camera.
+function renderIngredientCount() {
+  const total = el.ingredientList.children.length;
+  const have = el.ingredientList.querySelectorAll('[aria-pressed="true"]').length;
+  el.ingredientCount.textContent = total ? tf("ingredients_count", lang, { have, total }) : "";
+}
+
 function renderIngredients() {
   const recipe = session.getRecipe();
   renderChecklist(el.ingredientList, recipe ? ingredientLines(recipe) : [], ticked, "tick");
+  renderIngredientCount();
   const tools = recipe ? equipmentLines(recipe) : [];
   el.equipment.hidden = tools.length === 0;
   renderChecklist(el.equipmentList, tools, tickedTools, "tick-tool");
@@ -1588,6 +1597,7 @@ const ACTIONS = {
     if (ticked.has(i)) ticked.delete(i);
     else ticked.add(i);
     btn.setAttribute("aria-pressed", String(ticked.has(i)));
+    renderIngredientCount();
   },
   "tick-tool": (btn) => {
     const i = Number(btn.dataset.index);

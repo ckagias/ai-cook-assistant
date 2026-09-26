@@ -716,6 +716,12 @@ input:focus-visible {
   color: var(--muted);
 }
 
+#ingredient-count {
+  margin-left: 4px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

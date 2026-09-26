@@ -172,6 +172,7 @@ export const STRINGS = {
   },
   ingredients_list: { en: "You need: {list}.", el: "Χρειάζεσαι: {list}." },
   ingredients_missing: { en: "Not ticked yet: {list}.", el: "Δεν έχουν σημειωθεί ακόμα: {list}." },
+  ingredients_count: { en: "{have} of {total}", el: "{have} από {total}" },
   ingredients_all: { en: "Everything's ticked. Say “start” when you're ready.", el: "Όλα σημειωμένα. Πες «ξεκίνα» όταν είσαι έτοιμος." },
   // Tools, cookware and appliances: said right after the ingredients, before step 1.
   overview_equipment: { en: "You'll also need: {list}.", el: "Θα χρειαστείς επίσης: {list}." },
