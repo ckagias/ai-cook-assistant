@@ -100,6 +100,20 @@ export function voiceCommand(blob, mimeType, { language, recipeId, stepIndex, ca
   );
 }
 
+export function textCommand(text, { language, recipeId, stepIndex, candidates } = {}) {
+  return requestJson("/voice/text", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      language: language || "el",
+      recipe_id: recipeId,
+      step_index: stepIndex,
+      candidates: candidates || []
+    })
+  }, 15000);
+}
+
 export const health = () => requestJson("/health", {}, 4000);
 export const listRecipes = () => requestJson("/recipes");
 export const getRecipe = (id) => requestJson("/recipes/" + encodeURIComponent(id));

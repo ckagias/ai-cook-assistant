@@ -164,8 +164,8 @@ def _name(candidate: RecipeCandidate, language: str) -> str:
     return candidate.name.get(language) or next(iter(candidate.name.values()), candidate.id)
 
 
-def handle(audio: bytes, mime: str, language: str, recipe_id: Optional[str], step_index: Optional[int],
-           offered_ids: list[str]) -> dict:
+def _handle_transcript(transcript: str, language: str, recipe_id: Optional[str], step_index: Optional[int],
+                       offered_ids: list[str]) -> dict:
     msg = MESSAGES.get(language, MESSAGES["en"])
     offered = []
     for rid in offered_ids[:MAX_CANDIDATES]:
@@ -173,7 +173,6 @@ def handle(audio: bytes, mime: str, language: str, recipe_id: Optional[str], ste
         if recipe is not None:
             offered.append(RecipeCandidate(id=recipe.id, name=recipe.name))
 
-    transcript = transcribe(audio, mime, language)
     if not transcript:
         return VoiceResponse(heard="", action="unclear", spoken_response=msg["not_heard"]).model_dump()
 
@@ -213,3 +212,14 @@ def handle(audio: bytes, mime: str, language: str, recipe_id: Optional[str], ste
 
     logger.info("voice command: action=%s heard_chars=%d", out.action, len(transcript))  # never the words
     return out.model_dump()
+
+
+def handle(audio: bytes, mime: str, language: str, recipe_id: Optional[str], step_index: Optional[int],
+           offered_ids: list[str]) -> dict:
+    transcript = transcribe(audio, mime, language)
+    return _handle_transcript(transcript, language, recipe_id, step_index, offered_ids)
+
+
+def handle_text(transcript: str, language: str, recipe_id: Optional[str], step_index: Optional[int],
+                offered_ids: list[str]) -> dict:
+    return _handle_transcript(transcript, language, recipe_id, step_index, offered_ids)

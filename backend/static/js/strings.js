@@ -1,11 +1,15 @@
 export const STRINGS = {
   greeting: {
-    en: "Ready. Point the camera at what you're cooking.",
-    el: "Έτοιμο. Δείξε την κάμερα σε αυτό που μαγειρεύεις.",
+    en: "What are we cooking?",
+    el: "Τι μαγειρεύουμε;",
   },
   analyzing: {
     en: "Let me take a look.",
     el: "Για να δω.",
+  },
+  model_ready: {
+    en: "Detection model is now ready.",
+    el: "Το μοντέλο ανίχνευσης είναι έτοιμο.",
   },
   network_trouble: {
     en: "I'm having trouble reaching the server. Please try again.",

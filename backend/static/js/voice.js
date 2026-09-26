@@ -98,3 +98,49 @@ export function createPushToTalk({
     isBusy: () => busy,
   };
 }
+
+export function createWakeWordListener({ getLang, onWakeWord, onTranscript }) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return null;
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  let isRunning = false;
+
+  recognition.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const result = e.results[i];
+      if (result.isFinal) {
+        const transcript = result[0].transcript.toLowerCase();
+        if (onTranscript) onTranscript(transcript);
+        
+        // Look for the wake word in Greek or English
+        const wakeWords = ["hey chef", "έι σεφ", "hey, chef", "χέι σεφ", "ει σεφ", "ε σεφ", "hey shef", "he chef"];
+        if (wakeWords.some(w => transcript.includes(w))) {
+          onWakeWord(transcript);
+        }
+      }
+    }
+  };
+
+  recognition.onend = () => {
+    if (isRunning) {
+      try { recognition.start(); } catch (e) {}
+    }
+  };
+
+  return {
+    start: () => {
+      if (isRunning) return;
+      isRunning = true;
+      recognition.lang = getLang();
+      try { recognition.start(); } catch (e) {}
+    },
+    stop: () => {
+      isRunning = false;
+      try { recognition.stop(); } catch (e) {}
+    },
+    isSupported: true
+  };
+}

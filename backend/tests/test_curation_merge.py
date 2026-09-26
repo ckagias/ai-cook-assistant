@@ -56,7 +56,8 @@ def test_invalid_id_is_rejected_before_anything_is_written():
 def test_export_writes_published_recipes_atomically(tmp_path):
     merge_recipe(_recipe("cake", "Cake"))
     out = tmp_path / "export.json"
-    assert export_published_json(out) == 4
+    expected_ids = [r.id for r in recipes.all_recipes()]
+    assert export_published_json(out) == len(expected_ids)
     data = json.loads(out.read_text(encoding="utf-8"))
-    assert [r["id"] for r in data] == ["pasta", "pancakes", "scrambled_eggs", "cake"]
+    assert [r["id"] for r in data] == expected_ids
     assert not (tmp_path / "export.json.tmp").exists()

@@ -175,7 +175,8 @@ class TestRoutes:
         r = client.get("/recipes")
         assert r.status_code == 200
         ids = [x["id"] for x in r.json()]
-        assert ids == ["pasta", "pancakes", "scrambled_eggs"]
+        seed = json.loads(recipes.SEED_PATH.read_text(encoding="utf-8"))
+        assert ids == [item["id"] for item in seed]
 
     def test_recipe_detail(self, client):
         r = client.get("/recipes/pasta")

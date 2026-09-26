@@ -171,6 +171,14 @@ VoiceAction = Literal[
 ]
 
 
+class TextCommandRequest(BaseModel):
+    text: str
+    language: str = "el"
+    recipe_id: Optional[str] = None
+    step_index: Optional[int] = None
+    candidates: list[str] = Field(default_factory=list)
+
+
 class VoiceCommand(BaseModel):
     """What the language model returns for one spoken request (structured output)."""
 

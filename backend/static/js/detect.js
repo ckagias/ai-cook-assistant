@@ -115,6 +115,7 @@ export function createDetector({
   schedule = (fn, ms) => setTimeout(fn, ms),
   cancel = (id) => clearTimeout(id),
   now = () => performance.now(),
+  onReady = () => {},
 }) {
   let running = false;
   let timer = null;
@@ -261,6 +262,9 @@ export function createDetector({
       const { blob } = await capture(video);
       const res = await api.detectFrame(blob, getRecipeId());
       if (!running) return;
+      if (lastFrameAt === null) {
+        onReady();
+      }
       errors = 0;
       lastResult = res;
       const finished = now();

@@ -9,7 +9,7 @@ import { createAimer, guideUntilFramed } from "./aim.js";
 import { createSession } from "./session.js";
 import { createDetector } from "./detect.js";
 import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
-import { createPushToTalk } from "./voice.js";
+import { createPushToTalk, createWakeWordListener } from "./voice.js";
 
 const el = {
   gate: document.getElementById("gate"),
@@ -133,6 +133,10 @@ const detector = createDetector({
   getRecipeId: () => session.getRecipe()?.id ?? null,
   // A vision-LLM call is running: don't compete with it for the camera frame or the CPU.
   isPaused: () => busy,
+  onReady: () => {
+    speak(`${t("model_ready", lang)} ${t("greeting", lang)}`, { priority: "checkin", lang });
+    el.status.textContent = t("greeting", lang);
+  }
 });
 
 function setDetection(on) {
@@ -451,6 +455,37 @@ const talk = createPushToTalk({
   },
 });
 
+let wakeWordListener = null;
+
+async function processTextCommand(text) {
+  if (busy) return;
+  setBusy(true);
+  earcon("ok");
+  buzz(20);
+  el.status.textContent = t("thinking", lang);
+
+  try {
+    const step = session.currentStep();
+    const res = await api.textCommand(text, {
+      language: lang,
+      recipeId: session.getRecipe()?.id,
+      stepIndex: step ? step.index : null,
+      candidates: offered,
+    });
+    runVoiceCommand(res);
+  } catch (err) {
+    earcon("error");
+    if (err instanceof api.HttpError && err.status === 401) {
+      say(t("not_paired", lang), "command");
+    } else {
+      say(t("network_trouble", lang), "command");
+    }
+  } finally {
+    setBusy(false);
+    el.status.textContent = "";
+  }
+}
+
 function startTalking() {
   if (busy || el.app.hidden) return;
   hush(); // don't talk over the cook - except a safety alert
@@ -551,7 +586,9 @@ el.start.addEventListener("click", async () => {
 
     el.debug.textContent = warnings.length ? warnings.join(" | ") : "";
 
-    say(t("greeting", lang), "command");
+    speak(t("detect_loading", lang), { priority: "command", lang });
+    el.status.textContent = t("detect_loading", lang);
+
     if (warnings.some((w) => /greek/i.test(w))) {
       speak(t("no_greek_voice", "en"), { priority: "checkin", lang: "en" });
     }
@@ -559,6 +596,17 @@ el.start.addEventListener("click", async () => {
     el.detectToggle.textContent = t("detect_toggle", lang);
     document.querySelectorAll('[data-action="talk"]').forEach((b) => (b.textContent = t("talk", lang)));
     if (DETECT_ON_START) setDetection(true);
+    
+    if (!wakeWordListener) {
+      wakeWordListener = createWakeWordListener({
+        getLang: () => lang,
+        onWakeWord: (text) => processTextCommand(text),
+        onTranscript: (text) => { el.debug.textContent = `[Mic]: ${text}`; }
+      });
+    }
+    if (wakeWordListener) {
+      wakeWordListener.start();
+    }
   } catch (err) {
     el.start.disabled = false; // fix the setting, press Start again - no reload needed
     const key = cameraProblem(err, {

@@ -1,20 +1,105 @@
 [
   {
     "id": "pasta",
-    "name": { "en": "Pasta", "el": "Ζυμαρικά" },
-    "aliases": {
-      "en": ["spaghetti", "noodles", "macaroni"],
-      "el": ["μακαρόνια", "σπαγγέτι"]
+    "name": {
+      "en": "Pasta",
+      "el": "Ζυμαρικά"
     },
-    "ingredients": ["pasta", "water", "salt"],
+    "aliases": {
+      "en": ["spaghetti", "noodles", "macaroni", "boiled pasta"],
+      "el": ["μακαρόνια", "σπαγγέτι", "πένες"]
+    },
+    "description": {
+      "en": "Classic simple boiled pasta cooked al dente in salted boiling water.",
+      "el": "Κλασικά απλά βραστά ζυμαρικά μαγειρεμένα al dente σε αλατισμένο νερό που βράζει."
+    },
+    "language": "en",
+    "servings": "4 servings",
+    "times": {
+      "prep_min": 2,
+      "cook_min": 10,
+      "total_min": 12
+    },
+    "difficulty": "Easy",
+    "cuisine": "Italian",
+    "category": "Main Dish",
+    "dietary": {
+      "vegetarian": true,
+      "vegan": true,
+      "dairy_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "310 kcal",
+      "carbohydrates": "62g",
+      "protein": "11g",
+      "fat": "1.5g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "seed-pasta",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Pasta",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Pasta"
+      },
+      "imported_at": "2026-09-25T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-25T00:00:00Z"
+    },
+    "ingredients": [
+      "400 g pasta",
+      "3 L water",
+      "1 tbsp salt"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "400 g pasta",
+        "quantity": "400",
+        "unit": "g",
+        "name": "pasta",
+        "vocab_id": "pasta"
+      },
+      {
+        "raw_text": "3 L water",
+        "quantity": "3",
+        "unit": "L",
+        "name": "water"
+      },
+      {
+        "raw_text": "1 tbsp salt",
+        "quantity": "1",
+        "unit": "tbsp",
+        "name": "salt",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "pot",
+        "vocab_id": "pot",
+        "inferred": false
+      },
+      {
+        "name": "colander",
+        "vocab_id": "colander",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
     "steps": [
       {
         "index": 0,
+        "section": "Boil",
         "instruction": {
           "en": "Bring a large pot of salted water to a boil.",
           "el": "Βράστε μια μεγάλη κατσαρόλα με αλατισμένο νερό."
         },
         "expected_duration_sec": 300,
+        "suggested_duration_sec": 300,
         "checkable": true,
         "check_prompt_hint": "Is the water at a rolling boil?",
         "reference_image": "pasta_boiling.jpg",
@@ -22,11 +107,13 @@
       },
       {
         "index": 1,
+        "section": "Cook",
         "instruction": {
           "en": "Add the pasta and cook until tender.",
           "el": "Προσθέστε τα ζυμαρικά και μαγειρέψτε μέχρι να μαλακώσουν."
         },
         "expected_duration_sec": 540,
+        "suggested_duration_sec": 540,
         "checkable": true,
         "check_prompt_hint": "Is the pasta cooked through (al dente)?",
         "reference_image": "pasta_cooked.jpg",
@@ -34,11 +121,13 @@
       },
       {
         "index": 2,
+        "section": "Drain",
         "instruction": {
           "en": "Drain the pasta in a colander.",
           "el": "Στραγγίστε τα ζυμαρικά σε ένα σουρωτήρι."
         },
         "expected_duration_sec": null,
+        "suggested_duration_sec": null,
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
@@ -48,20 +137,122 @@
   },
   {
     "id": "pancakes",
-    "name": { "en": "Pancakes", "el": "Τηγανίτες" },
-    "aliases": {
-      "en": ["flapjacks"],
-      "el": ["πανκέικ"]
+    "name": {
+      "en": "Pancakes",
+      "el": "Τηγανίτες"
     },
-    "ingredients": ["flour", "eggs", "milk", "butter"],
+    "aliases": {
+      "en": ["flapjacks", "hotcakes", "griddle cakes"],
+      "el": ["πανκέικ", "τηγανίτα"]
+    },
+    "description": {
+      "en": "Golden, fluffy American-style pancakes served warm with syrup or butter.",
+      "el": "Αφράτες, χρυσαφένιες τηγανίτες που σερβίρονται ζεστές με μέλι ή βούτυρο."
+    },
+    "language": "en",
+    "servings": "4 servings",
+    "times": {
+      "prep_min": 10,
+      "cook_min": 10,
+      "total_min": 20
+    },
+    "difficulty": "Easy",
+    "cuisine": "American",
+    "category": "Breakfast",
+    "dietary": {
+      "vegetarian": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "220 kcal",
+      "carbohydrates": "30g",
+      "protein": "6g",
+      "fat": "8g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "seed-pancakes",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Pancake",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Pancake"
+      },
+      "imported_at": "2026-09-25T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-25T00:00:00Z"
+    },
+    "ingredients": [
+      "200 g flour",
+      "2 eggs",
+      "250 ml milk",
+      "30 g butter"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "200 g flour",
+        "quantity": "200",
+        "unit": "g",
+        "name": "flour",
+        "vocab_id": "flour"
+      },
+      {
+        "raw_text": "2 eggs",
+        "quantity": "2",
+        "unit": null,
+        "name": "eggs",
+        "vocab_id": "egg"
+      },
+      {
+        "raw_text": "250 ml milk",
+        "quantity": "250",
+        "unit": "ml",
+        "name": "milk",
+        "vocab_id": "milk"
+      },
+      {
+        "raw_text": "30 g butter",
+        "quantity": "30",
+        "unit": "g",
+        "name": "butter",
+        "vocab_id": "butter"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "whisk",
+        "vocab_id": "whisk",
+        "inferred": false
+      },
+      {
+        "name": "frying pan",
+        "vocab_id": "frying_pan",
+        "inferred": false
+      },
+      {
+        "name": "spatula",
+        "vocab_id": "spatula",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
     "steps": [
       {
         "index": 0,
+        "section": "Batter",
         "instruction": {
           "en": "Mix the batter until smooth.",
           "el": "Ανακατέψτε το μείγμα μέχρι να γίνει ομοιογενές."
         },
         "expected_duration_sec": null,
+        "suggested_duration_sec": null,
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
@@ -69,11 +260,13 @@
       },
       {
         "index": 1,
+        "section": "Preheat",
         "instruction": {
           "en": "Heat the pan over medium heat.",
           "el": "Ζεστάνετε το τηγάνι σε μέτρια φωτιά."
         },
         "expected_duration_sec": 120,
+        "suggested_duration_sec": 120,
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
@@ -81,11 +274,13 @@
       },
       {
         "index": 2,
+        "section": "Cook",
         "instruction": {
           "en": "Pour the batter and cook until bubbles form on top.",
           "el": "Ρίξτε το μείγμα και μαγειρέψτε μέχρι να σχηματιστούν φυσαλίδες στην επιφάνεια."
         },
         "expected_duration_sec": 150,
+        "suggested_duration_sec": 150,
         "checkable": true,
         "check_prompt_hint": "Are bubbles forming and the edges set, ready to flip?",
         "reference_image": "pancake_ready_to_flip.jpg",
@@ -93,11 +288,13 @@
       },
       {
         "index": 3,
+        "section": "Cook",
         "instruction": {
           "en": "Flip and cook the other side until golden.",
           "el": "Γυρίστε και μαγειρέψτε την άλλη πλευρά μέχρι να ροδίσει."
         },
         "expected_duration_sec": 90,
+        "suggested_duration_sec": 90,
         "checkable": true,
         "check_prompt_hint": "Is the second side golden brown?",
         "reference_image": "pancake_done.jpg",
@@ -107,20 +304,115 @@
   },
   {
     "id": "scrambled_eggs",
-    "name": { "en": "Scrambled Eggs", "el": "Αυγά Χτυπητά" },
-    "aliases": {
-      "en": ["eggs"],
-      "el": ["αυγά", "ομελέτα"]
+    "name": {
+      "en": "Scrambled Eggs",
+      "el": "Αυγά Χτυπητά"
     },
-    "ingredients": ["eggs", "butter", "salt"],
+    "aliases": {
+      "en": ["eggs", "scramble"],
+      "el": ["αυγά", "ομελέτα", "χτυπητά αυγά"]
+    },
+    "description": {
+      "en": "Soft, creamy scrambled eggs gently cooked with butter and seasoned lightly.",
+      "el": "Απαλά, κρεμώδη αυγά μαγειρεμένα σε σιγανή φωτιά με βούτυρο."
+    },
+    "language": "en",
+    "servings": "2 servings",
+    "times": {
+      "prep_min": 2,
+      "cook_min": 4,
+      "total_min": 6
+    },
+    "difficulty": "Easy",
+    "cuisine": "International",
+    "category": "Breakfast",
+    "dietary": {
+      "vegetarian": true,
+      "gluten_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "190 kcal",
+      "carbohydrates": "1g",
+      "protein": "13g",
+      "fat": "15g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "seed-scrambled-eggs",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Scrambled_Eggs",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Scrambled_Eggs"
+      },
+      "imported_at": "2026-09-25T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-25T00:00:00Z"
+    },
+    "ingredients": [
+      "4 eggs",
+      "20 g butter",
+      "1 pinch salt"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "4 eggs",
+        "quantity": "4",
+        "unit": null,
+        "name": "eggs",
+        "vocab_id": "egg"
+      },
+      {
+        "raw_text": "20 g butter",
+        "quantity": "20",
+        "unit": "g",
+        "name": "butter",
+        "vocab_id": "butter"
+      },
+      {
+        "raw_text": "1 pinch salt",
+        "quantity": "1",
+        "unit": "pinch",
+        "name": "salt",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "whisk",
+        "vocab_id": "whisk",
+        "inferred": false
+      },
+      {
+        "name": "frying pan",
+        "vocab_id": "frying_pan",
+        "inferred": false
+      },
+      {
+        "name": "spatula",
+        "vocab_id": "spatula",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
     "steps": [
       {
         "index": 0,
+        "section": "Prep",
         "instruction": {
           "en": "Crack the eggs into a bowl and whisk.",
           "el": "Σπάστε τα αυγά σε ένα μπολ και χτυπήστε τα."
         },
         "expected_duration_sec": null,
+        "suggested_duration_sec": null,
         "checkable": false,
         "check_prompt_hint": null,
         "reference_image": null,
@@ -128,15 +420,1617 @@
       },
       {
         "index": 1,
+        "section": "Cook",
         "instruction": {
           "en": "Cook over low heat, stirring gently.",
           "el": "Μαγειρέψτε σε χαμηλή φωτιά, ανακατεύοντας απαλά."
         },
         "expected_duration_sec": 180,
+        "suggested_duration_sec": 180,
         "checkable": true,
         "check_prompt_hint": "Are the eggs fully set with no runny parts?",
         "reference_image": "eggs_done.jpg",
         "contains_raw_protein": true
+      }
+    ]
+  },
+  {
+    "id": "greek_salad",
+    "name": {
+      "en": "Greek Salad",
+      "el": "Χωριάτικη Σαλάτα"
+    },
+    "aliases": {
+      "en": ["horiatiki", "village salad", "mediterranean salad"],
+      "el": ["χωριάτικη", "ελληνική σαλάτα", "σαλάτα"]
+    },
+    "description": {
+      "en": "Traditional Greek village salad with ripe tomatoes, crisp cucumber, red onion, kalamata olives, and a slab of creamy feta drizzled with extra virgin olive oil.",
+      "el": "Παραδοσιακή ελληνική χωριάτικη σαλάτα με ώριμες ντομάτες, τραγανό αγγούρι, κρεμμύδι, ελιές Καλαμών και φέτα με έξτρα παρθένο ελαιόλαδο και ρίγανη."
+    },
+    "language": "el",
+    "servings": "4 μερίδες",
+    "times": {
+      "prep_min": 15,
+      "cook_min": 0,
+      "total_min": 15
+    },
+    "difficulty": "Easy",
+    "cuisine": "Greek",
+    "category": "Salad",
+    "dietary": {
+      "vegetarian": true,
+      "gluten_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "280 kcal",
+      "carbohydrates": "12g",
+      "protein": "8g",
+      "fat": "22g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "greek-salad",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Greek_Salad",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Greek_Salad"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "4 ripe tomatoes, cut into wedges",
+      "1 cucumber, sliced",
+      "1 red onion, thinly sliced into rings",
+      "1 green bell pepper, sliced",
+      "200 g feta cheese",
+      "100 g kalamata olives",
+      "4 tbsp extra virgin olive oil",
+      "1 tbsp red wine vinegar",
+      "1 tsp dried oregano",
+      "1 pinch sea salt"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "4 ripe tomatoes, cut into wedges",
+        "quantity": "4",
+        "unit": null,
+        "name": "ripe tomatoes",
+        "vocab_id": "tomato"
+      },
+      {
+        "raw_text": "1 cucumber, sliced",
+        "quantity": "1",
+        "unit": null,
+        "name": "cucumber",
+        "vocab_id": "cucumber"
+      },
+      {
+        "raw_text": "1 red onion, thinly sliced into rings",
+        "quantity": "1",
+        "unit": null,
+        "name": "red onion",
+        "vocab_id": "onion"
+      },
+      {
+        "raw_text": "1 green bell pepper, sliced",
+        "quantity": "1",
+        "unit": null,
+        "name": "green bell pepper",
+        "vocab_id": "bell_pepper"
+      },
+      {
+        "raw_text": "200 g feta cheese",
+        "quantity": "200",
+        "unit": "g",
+        "name": "feta cheese",
+        "vocab_id": "cheese"
+      },
+      {
+        "raw_text": "100 g kalamata olives",
+        "quantity": "100",
+        "unit": "g",
+        "name": "kalamata olives"
+      },
+      {
+        "raw_text": "4 tbsp extra virgin olive oil",
+        "quantity": "4",
+        "unit": "tbsp",
+        "name": "extra virgin olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1 tbsp red wine vinegar",
+        "quantity": "1",
+        "unit": "tbsp",
+        "name": "red wine vinegar",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1 tsp dried oregano",
+        "quantity": "1",
+        "unit": "tsp",
+        "name": "dried oregano"
+      },
+      {
+        "raw_text": "1 pinch sea salt",
+        "quantity": "1",
+        "unit": "pinch",
+        "name": "sea salt",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "plate",
+        "vocab_id": "plate",
+        "inferred": false
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Slice the tomatoes into wedges and the cucumber into half-moons on a cutting board.",
+          "el": "Κόψτε τις ντομάτες σε κυδωνάτες φέτες και το αγγούρι σε ροδέλες στην επιφάνεια κοπής."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "section": "Prep",
+        "instruction": {
+          "en": "Thinly slice the red onion and bell pepper into rings.",
+          "el": "Κόψτε το κρεμμύδι και την πιπεριά σε λεπτές ροδέλες."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "section": "Assemble",
+        "instruction": {
+          "en": "In a large salad bowl, combine tomatoes, cucumber, onion, pepper, and olives.",
+          "el": "Σε ένα μεγάλο μπολ σαλάτας, ανακατέψτε τις ντομάτες, το αγγούρι, το κρεμμύδι, την πιπεριά και τις ελιές."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 3,
+        "section": "Finish",
+        "instruction": {
+          "en": "Place the feta cheese slab on top, drizzle generously with olive oil and vinegar, and sprinkle with oregano and sea salt.",
+          "el": "Τοποθετήστε τη φέτα από πάνω, περιχύστε με άφθονο ελαιόλαδο και ξίδι, και πασπαλίστε με ρίγανη και θαλασσινό αλάτι."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Is the salad dressed with olive oil and topped with feta and oregano?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "lentil_soup",
+    "name": {
+      "en": "Greek Lentil Soup",
+      "el": "Φακές Σούπα"
+    },
+    "aliases": {
+      "en": ["fakes", "greek fakes", "lentil stew"],
+      "el": ["φακές", "φακή", "σούπα φακές", "φακές σουρωτές"]
+    },
+    "description": {
+      "en": "Traditional Greek comforting lentil soup cooked with garlic, onions, bay leaves, tomato, olive oil, and finished with red wine vinegar.",
+      "el": "Παραδοσιακή ελληνική σούπα με καστανές φακές, σκόρδο, κρεμμύδι, δάφνη, ντομάτα, εξαιρετικό παρθένο ελαιόλαδο και ξίδι."
+    },
+    "language": "el",
+    "servings": "4 μερίδες",
+    "times": {
+      "prep_min": 10,
+      "cook_min": 40,
+      "total_min": 50
+    },
+    "difficulty": "Easy",
+    "cuisine": "Greek",
+    "category": "Soup",
+    "dietary": {
+      "vegetarian": true,
+      "vegan": true,
+      "gluten_free": true,
+      "dairy_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "320 kcal",
+      "carbohydrates": "45g",
+      "protein": "16g",
+      "fat": "9g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "fakes-lentil-soup",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Fakes",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Fakes"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "300 g brown lentils",
+      "1 large onion, finely chopped",
+      "3 cloves garlic, minced",
+      "2 carrots, sliced into rounds",
+      "2 tbsp tomato paste",
+      "2 bay leaves",
+      "1 L water or vegetable broth",
+      "4 tbsp extra virgin olive oil",
+      "2 tbsp red wine vinegar",
+      "1 tsp salt and black pepper"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "300 g brown lentils",
+        "quantity": "300",
+        "unit": "g",
+        "name": "brown lentils"
+      },
+      {
+        "raw_text": "1 large onion, finely chopped",
+        "quantity": "1",
+        "unit": null,
+        "name": "onion",
+        "vocab_id": "onion"
+      },
+      {
+        "raw_text": "3 cloves garlic, minced",
+        "quantity": "3",
+        "unit": "cloves",
+        "name": "garlic",
+        "vocab_id": "garlic"
+      },
+      {
+        "raw_text": "2 carrots, sliced into rounds",
+        "quantity": "2",
+        "unit": null,
+        "name": "carrots",
+        "vocab_id": "carrot"
+      },
+      {
+        "raw_text": "2 tbsp tomato paste",
+        "quantity": "2",
+        "unit": "tbsp",
+        "name": "tomato paste",
+        "vocab_id": "tomato"
+      },
+      {
+        "raw_text": "2 bay leaves",
+        "quantity": "2",
+        "unit": null,
+        "name": "bay leaves"
+      },
+      {
+        "raw_text": "1 L water or vegetable broth",
+        "quantity": "1",
+        "unit": "L",
+        "name": "water"
+      },
+      {
+        "raw_text": "4 tbsp extra virgin olive oil",
+        "quantity": "4",
+        "unit": "tbsp",
+        "name": "extra virgin olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "2 tbsp red wine vinegar",
+        "quantity": "2",
+        "unit": "tbsp",
+        "name": "red wine vinegar",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1 tsp salt and black pepper",
+        "quantity": "1",
+        "unit": "tsp",
+        "name": "salt and black pepper",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "pot",
+        "vocab_id": "pot",
+        "inferred": false
+      },
+      {
+        "name": "colander",
+        "vocab_id": "colander",
+        "inferred": false
+      },
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "spoon",
+        "vocab_id": "spoon",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Rinse the lentils thoroughly in a colander under cold water.",
+          "el": "Ξεπλύνετε καλά τις φακές σε ένα σουρωτήρι με κρύο τρεχούμενο νερό."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "section": "Sauté",
+        "instruction": {
+          "en": "In a pot, sauté chopped onion, garlic, and carrots in 2 tablespoons of olive oil over medium heat until soft and fragrant.",
+          "el": "Σε μια κατσαρόλα, σοτάρετε το ψιλοκομμένο κρεμμύδι, το σκόρδο και τα καρότα με 2 κουταλιές ελαιόλαδο σε μέτρια φωτιά μέχρι να μαλακώσουν."
+        },
+        "expected_duration_sec": 240,
+        "suggested_duration_sec": 240,
+        "checkable": true,
+        "check_prompt_hint": "Are the onions soft, translucent, and fragrant?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "section": "Boil",
+        "instruction": {
+          "en": "Add the rinsed lentils, tomato paste, bay leaves, and water, stirring well to combine, and bring to a boil.",
+          "el": "Προσθέστε τις πλυμένες φακές, τον πελτέ ντομάτας, τα φύλλα δάφνης και το νερό, ανακατέψτε καλά και αφήστε να πάρει βράση."
+        },
+        "expected_duration_sec": 300,
+        "suggested_duration_sec": 300,
+        "checkable": true,
+        "check_prompt_hint": "Is the pot boiling?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 3,
+        "section": "Simmer",
+        "instruction": {
+          "en": "Lower heat to medium-low, cover partially with the lid, and simmer until lentils are tender and broth thickens.",
+          "el": "Χαμηλώστε τη φωτιά, σκεπάστε μερικώς και σιγοβράστε μέχρι να μαλακώσουν οι φακές και να χυλώσει η σούπα."
+        },
+        "expected_duration_sec": 1800,
+        "suggested_duration_sec": 1800,
+        "checkable": true,
+        "check_prompt_hint": "Are the lentils tender and the soup thick and creamy?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 4,
+        "section": "Season",
+        "instruction": {
+          "en": "Stir in the remaining olive oil, red wine vinegar, salt, and black pepper, then remove from heat.",
+          "el": "Προσθέστε το υπόλοιπο ελαιόλαδο, το ξίδι, αλάτι και πιπέρι, ανακατέψτε και αποσύρετε από τη φωτιά."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "lemon_chicken_potatoes",
+    "name": {
+      "en": "Greek Lemon Chicken and Potatoes",
+      "el": "Κοτόπουλο με Πατάτες στο Φούρνο"
+    },
+    "aliases": {
+      "en": ["lemon chicken", "roast chicken with potatoes", "kotopoulo sto fourno"],
+      "el": ["κοτόπουλο στο φούρνο", "κοτόπουλο λεμονάτο", "κοτόπουλο με πατάτες"]
+    },
+    "description": {
+      "en": "Tender, juicy roasted chicken and crispy potato wedges baked with garlic, oregano, lemon juice, and olive oil.",
+      "el": "Ζουμερό ψητό κοτόπουλο με τραγανές πατάτες φούρνου, μαριναρισμένα με σκόρδο, ρίγανη, χυμό λεμονιού και ελαιόλαδο."
+    },
+    "language": "el",
+    "servings": "4 μερίδες",
+    "times": {
+      "prep_min": 20,
+      "cook_min": 60,
+      "total_min": 80
+    },
+    "difficulty": "Medium",
+    "cuisine": "Greek",
+    "category": "Main Dish",
+    "dietary": {
+      "gluten_free": true,
+      "dairy_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "520 kcal",
+      "protein": "42g",
+      "fat": "24g",
+      "carbohydrates": "35g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "greek-lemon-chicken",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Greek_Lemon_Chicken",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Greek_Lemon_Chicken"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "1 kg chicken thighs and drumsticks",
+      "1 kg potatoes, peeled and cut into wedges",
+      "4 cloves garlic, minced",
+      "80 ml extra virgin olive oil",
+      "60 ml fresh lemon juice",
+      "2 tbsp dried oregano",
+      "150 ml water or chicken broth",
+      "1 tsp salt and black pepper"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "1 kg chicken thighs and drumsticks",
+        "quantity": "1",
+        "unit": "kg",
+        "name": "chicken pieces",
+        "vocab_id": "chicken"
+      },
+      {
+        "raw_text": "1 kg potatoes, peeled and cut into wedges",
+        "quantity": "1",
+        "unit": "kg",
+        "name": "potatoes",
+        "vocab_id": "potato"
+      },
+      {
+        "raw_text": "4 cloves garlic, minced",
+        "quantity": "4",
+        "unit": "cloves",
+        "name": "garlic",
+        "vocab_id": "garlic"
+      },
+      {
+        "raw_text": "80 ml extra virgin olive oil",
+        "quantity": "80",
+        "unit": "ml",
+        "name": "olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "60 ml fresh lemon juice",
+        "quantity": "60",
+        "unit": "ml",
+        "name": "lemon juice",
+        "vocab_id": "lemon"
+      },
+      {
+        "raw_text": "2 tbsp dried oregano",
+        "quantity": "2",
+        "unit": "tbsp",
+        "name": "dried oregano"
+      },
+      {
+        "raw_text": "150 ml water or chicken broth",
+        "quantity": "150",
+        "unit": "ml",
+        "name": "water"
+      },
+      {
+        "raw_text": "1 tsp salt and black pepper",
+        "quantity": "1",
+        "unit": "tsp",
+        "name": "salt and black pepper",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "baking tray",
+        "vocab_id": "baking_tray",
+        "inferred": false
+      },
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "oven",
+        "vocab_id": "oven",
+        "inferred": false
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Preheat oven to 200°C (400°F). Peel and slice potatoes into wedges on a cutting board.",
+          "el": "Προθερμάνετε τον φούρνο στους 200°C. Καθαρίστε και κόψτε τις πατάτες σε κυδωνάτα κομμάτια."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "section": "Assemble",
+        "instruction": {
+          "en": "Place potatoes and raw chicken pieces in a large baking tray.",
+          "el": "Τοποθετήστε τις πατάτες και τα κομμάτια ωμού κοτόπουλου σε ένα μεγάλο ταψί."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 2,
+        "section": "Season",
+        "instruction": {
+          "en": "In a bowl, whisk olive oil, lemon juice, minced garlic, oregano, salt, and pepper, then pour over the chicken and potatoes and toss well.",
+          "el": "Σε ένα μπολ, χτυπήστε το ελαιόλαδο, τον χυμό λεμονιού, το σκόρδο, τη ρίγανη, αλάτι και πιπέρι. Περιχύστε το κοτόπουλο και τις πατάτες και ανακατέψτε καλά."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 3,
+        "section": "Bake",
+        "instruction": {
+          "en": "Pour the water into the corner of the baking tray and bake in the preheated oven until the chicken is golden and fully cooked with no pink meat, and potatoes are tender.",
+          "el": "Ρίξτε το νερό στη γωνία του ταψιού και ψήστε στον φούρνο μέχρι το κοτόπουλο να ροδίσει και να ψηθεί καλά μέχρι μέσα, και οι πατάτες να μαλακώσουν."
+        },
+        "expected_duration_sec": 3600,
+        "suggested_duration_sec": 3600,
+        "checkable": true,
+        "check_prompt_hint": "Is the chicken skin crisp and deep golden brown with internal temperature reaching 74°C / 165°F?",
+        "reference_image": null,
+        "contains_raw_protein": true
+      }
+    ]
+  },
+  {
+    "id": "tzatziki",
+    "name": {
+      "en": "Tzatziki Dip",
+      "el": "Τζατζίκι"
+    },
+    "aliases": {
+      "en": ["tzatziki sauce", "cucumber yogurt dip", "greek yogurt dip"],
+      "el": ["τζατζίκι", "σως γιαουρτιού", "σκορδάτο γιαούρτι"]
+    },
+    "description": {
+      "en": "Authentic creamy Greek tzatziki dip made with thick strained yogurt, grated cucumber, garlic, olive oil, red wine vinegar, and fresh dill.",
+      "el": "Αυθεντικό, κρεμώδες παραδοσιακό τζατζίκι με στραγγιστό γιαούρτι, τριμμένο αγγούρι, σκόρδο, έξτρα παρθένο ελαιόλαδο, ξίδι και φρέσκο άνηθο."
+    },
+    "language": "el",
+    "servings": "6 μερίδες",
+    "times": {
+      "prep_min": 15,
+      "cook_min": 0,
+      "total_min": 15
+    },
+    "difficulty": "Easy",
+    "cuisine": "Greek",
+    "category": "Appetizer",
+    "dietary": {
+      "vegetarian": true,
+      "gluten_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "110 kcal",
+      "protein": "5g",
+      "fat": "8g",
+      "carbohydrates": "4g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "tzatziki-dip",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Tzatziki",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Tzatziki"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "500 g Greek strained yogurt",
+      "1 large cucumber, coarsely grated",
+      "3 cloves garlic, finely grated",
+      "3 tbsp extra virgin olive oil",
+      "1 tbsp red wine vinegar",
+      "2 tbsp fresh dill, finely chopped",
+      "1/2 tsp salt"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "500 g Greek strained yogurt",
+        "quantity": "500",
+        "unit": "g",
+        "name": "strained yogurt",
+        "vocab_id": "milk"
+      },
+      {
+        "raw_text": "1 large cucumber, coarsely grated",
+        "quantity": "1",
+        "unit": null,
+        "name": "cucumber",
+        "vocab_id": "cucumber"
+      },
+      {
+        "raw_text": "3 cloves garlic, finely grated",
+        "quantity": "3",
+        "unit": "cloves",
+        "name": "garlic",
+        "vocab_id": "garlic"
+      },
+      {
+        "raw_text": "3 tbsp extra virgin olive oil",
+        "quantity": "3",
+        "unit": "tbsp",
+        "name": "olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1 tbsp red wine vinegar",
+        "quantity": "1",
+        "unit": "tbsp",
+        "name": "red wine vinegar",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "2 tbsp fresh dill, finely chopped",
+        "quantity": "2",
+        "unit": "tbsp",
+        "name": "fresh dill"
+      },
+      {
+        "raw_text": "1/2 tsp salt",
+        "quantity": "1/2",
+        "unit": "tsp",
+        "name": "salt",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "grater",
+        "vocab_id": "grater",
+        "inferred": false
+      },
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "spoon",
+        "vocab_id": "spoon",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Coarsely grate the cucumber on a grater and squeeze firmly with your hands or a kitchen towel to remove as much liquid as possible.",
+          "el": "Τρίψτε το αγγούρι στον τρίφτη και στύψτε το καλά με τα χέρια σας ή με μια πετσέτα για να φύγουν όλα τα υγρά."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": true,
+        "check_prompt_hint": "Is the grated cucumber dry and drained of excess water?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "section": "Mix",
+        "instruction": {
+          "en": "In a mixing bowl, combine the strained yogurt, drained cucumber, minced garlic, olive oil, vinegar, chopped dill, and salt.",
+          "el": "Σε ένα μπολ, βάλτε το στραγγιστό γιαούρτι, το στραγγισμένο αγγούρι, το πολτοποιημένο σκόρδο, το ελαιόλαδο, το ξίδι, τον ψιλοκομμένο άνηθο και το αλάτι."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "section": "Chill",
+        "instruction": {
+          "en": "Stir thoroughly until completely smooth and creamy, then chill in the refrigerator for at least 30 minutes before serving.",
+          "el": "Ανακατέψτε καλά μέχρι να ομογενοποιηθεί το μείγμα και βάλτε το στο ψυγείο για τουλάχιστον 30 λεπτά πριν το σερβίρισμα."
+        },
+        "expected_duration_sec": 1800,
+        "suggested_duration_sec": 1800,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "briam",
+    "name": {
+      "en": "Greek Briam",
+      "el": "Μπριάμ"
+    },
+    "aliases": {
+      "en": ["roasted summer vegetables", "greek ratatouille", "briami"],
+      "el": ["μπριάμ", "τουρλού", "λαχανικά στο φούρνο", "ψητά λαχανικά"]
+    },
+    "description": {
+      "en": "Traditional Greek oven-roasted vegetable casserole packed with potatoes, zucchini, eggplant, sweet red onions, and tomatoes baked with fresh herbs and olive oil.",
+      "el": "Παραδοσιακό ελληνικό καλοκαιρινό φαγητό φούρνου με πατάτες, κολοκυθάκια, μελιτζάνες, κρεμμύδια και φρέσκια σάλτσα ντομάτας με μυρωδικά."
+    },
+    "language": "el",
+    "servings": "6 μερίδες",
+    "times": {
+      "prep_min": 25,
+      "cook_min": 60,
+      "total_min": 85
+    },
+    "difficulty": "Easy",
+    "cuisine": "Greek",
+    "category": "Main Dish",
+    "dietary": {
+      "vegetarian": true,
+      "vegan": true,
+      "gluten_free": true,
+      "dairy_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "260 kcal",
+      "carbohydrates": "34g",
+      "protein": "5g",
+      "fat": "14g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "greek-briam",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Briam",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Briam"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "3 medium zucchini, sliced into rounds",
+      "3 medium potatoes, sliced into rounds",
+      "2 medium eggplants, cut into chunks",
+      "2 red onions, cut into wedges",
+      "2 bell peppers, sliced",
+      "4 ripe tomatoes, grated or crushed",
+      "4 cloves garlic, minced",
+      "120 ml extra virgin olive oil",
+      "1/2 cup fresh parsley, chopped",
+      "1 tbsp dried oregano",
+      "1 tsp salt and black pepper"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "3 medium zucchini, sliced into rounds",
+        "quantity": "3",
+        "unit": null,
+        "name": "zucchini",
+        "vocab_id": "zucchini"
+      },
+      {
+        "raw_text": "3 medium potatoes, sliced into rounds",
+        "quantity": "3",
+        "unit": null,
+        "name": "potatoes",
+        "vocab_id": "potato"
+      },
+      {
+        "raw_text": "2 medium eggplants, cut into chunks",
+        "quantity": "2",
+        "unit": null,
+        "name": "eggplants"
+      },
+      {
+        "raw_text": "2 red onions, cut into wedges",
+        "quantity": "2",
+        "unit": null,
+        "name": "red onions",
+        "vocab_id": "onion"
+      },
+      {
+        "raw_text": "2 bell peppers, sliced",
+        "quantity": "2",
+        "unit": null,
+        "name": "bell peppers",
+        "vocab_id": "bell_pepper"
+      },
+      {
+        "raw_text": "4 ripe tomatoes, grated or crushed",
+        "quantity": "4",
+        "unit": null,
+        "name": "ripe tomatoes",
+        "vocab_id": "tomato"
+      },
+      {
+        "raw_text": "4 cloves garlic, minced",
+        "quantity": "4",
+        "unit": "cloves",
+        "name": "garlic",
+        "vocab_id": "garlic"
+      },
+      {
+        "raw_text": "120 ml extra virgin olive oil",
+        "quantity": "120",
+        "unit": "ml",
+        "name": "olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1/2 cup fresh parsley, chopped",
+        "quantity": "1/2",
+        "unit": "cup",
+        "name": "fresh parsley"
+      },
+      {
+        "raw_text": "1 tbsp dried oregano",
+        "quantity": "1",
+        "unit": "tbsp",
+        "name": "dried oregano"
+      },
+      {
+        "raw_text": "1 tsp salt and black pepper",
+        "quantity": "1",
+        "unit": "tsp",
+        "name": "salt and black pepper",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "baking tray",
+        "vocab_id": "baking_tray",
+        "inferred": false
+      },
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "oven",
+        "vocab_id": "oven",
+        "inferred": false
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Preheat oven to 200°C (400°F). Slice potatoes, zucchini, eggplant, onions, and bell peppers on a cutting board.",
+          "el": "Προθερμάνετε τον φούρνο στους 200°C. Κόψτε τις πατάτες, τα κολοκυθάκια, τις μελιτζάνες, τα κρεμμύδια και τις πιπεριές στην επιφάνεια κοπής."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "section": "Assemble",
+        "instruction": {
+          "en": "Arrange all chopped vegetables in a large baking tray or roasting dish.",
+          "el": "Απλώστε όλα τα κομμένα λαχανικά ομοιόμορφα σε ένα μεγάλο ταψί."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "section": "Season",
+        "instruction": {
+          "en": "In a bowl, mix grated tomatoes, minced garlic, chopped parsley, dried oregano, olive oil, salt, and pepper, then pour over vegetables and toss gently to coat.",
+          "el": "Σε ένα μπολ, ανακατέψτε τις τριμμένες ντομάτες, το σκόρδο, τον μαϊντανό, τη ρίγανη, το ελαιόλαδο, αλάτι και πιπέρι. Περιχύστε τα λαχανικά και ανακατέψτε ελαφρά."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 3,
+        "section": "Bake",
+        "instruction": {
+          "en": "Bake in the preheated oven uncovered until the vegetables are tender, sweet, and lightly browned on the edges.",
+          "el": "Ψήστε στον προθερμασμένο φούρνο χωρίς καπάκι μέχρι τα λαχανικά να μαλακώσουν, να μελώσουν και να ροδίσουν στις άκρες."
+        },
+        "expected_duration_sec": 3600,
+        "suggested_duration_sec": 3600,
+        "checkable": true,
+        "check_prompt_hint": "Are the potatoes tender when pierced with a fork and the top caramelized?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "souvlaki",
+    "name": {
+      "en": "Pork Souvlaki Skewers",
+      "el": "Σουβλάκια Χοιρινά"
+    },
+    "aliases": {
+      "en": ["souvlaki", "pork skewers", "kalamaki", "greek skewers"],
+      "el": ["σουβλάκι", "καλαμάκι χοιρινό", "σουβλάκια", "χοιρινό καλαμάκι"]
+    },
+    "description": {
+      "en": "Iconic Greek pork skewers marinated in olive oil, lemon juice, garlic, and wild oregano, pan-grilled to juicy perfection.",
+      "el": "Κλασικά ελληνικά χοιρινά σουβλάκια μαριναρισμένα σε ελαιόλαδο, χυμό λεμονιού, σκόρδο και ρίγανη, ψημένα ζουμερά στο τηγάνι ή στο γκριλ."
+    },
+    "language": "el",
+    "servings": "4 μερίδες",
+    "times": {
+      "prep_min": 20,
+      "cook_min": 10,
+      "total_min": 30
+    },
+    "difficulty": "Medium",
+    "cuisine": "Greek",
+    "category": "Main Dish",
+    "dietary": {
+      "gluten_free": true,
+      "dairy_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "380 kcal",
+      "protein": "32g",
+      "fat": "26g",
+      "carbohydrates": "3g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "pork-souvlaki",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Souvlaki",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Souvlaki"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "800 g pork neck or loin, cut into bite-sized cubes",
+      "4 tbsp extra virgin olive oil",
+      "2 tbsp fresh lemon juice",
+      "2 cloves garlic, minced",
+      "1 tbsp dried Greek oregano",
+      "1 tsp salt and black pepper"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "800 g pork neck or loin, cut into bite-sized cubes",
+        "quantity": "800",
+        "unit": "g",
+        "name": "pork cubes",
+        "vocab_id": "raw_meat"
+      },
+      {
+        "raw_text": "4 tbsp extra virgin olive oil",
+        "quantity": "4",
+        "unit": "tbsp",
+        "name": "olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "2 tbsp fresh lemon juice",
+        "quantity": "2",
+        "unit": "tbsp",
+        "name": "lemon juice",
+        "vocab_id": "lemon"
+      },
+      {
+        "raw_text": "2 cloves garlic, minced",
+        "quantity": "2",
+        "unit": "cloves",
+        "name": "garlic",
+        "vocab_id": "garlic"
+      },
+      {
+        "raw_text": "1 tbsp dried Greek oregano",
+        "quantity": "1",
+        "unit": "tbsp",
+        "name": "dried oregano"
+      },
+      {
+        "raw_text": "1 tsp salt and black pepper",
+        "quantity": "1",
+        "unit": "tsp",
+        "name": "salt and black pepper",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "frying pan",
+        "vocab_id": "frying_pan",
+        "inferred": false
+      },
+      {
+        "name": "tongs",
+        "vocab_id": "tongs",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Cut pork into 2-3 cm cubes on a clean cutting board and thread onto wooden skewers.",
+          "el": "Κόψτε το χοιρινό σε κύβους 2-3 εκ. σε καθαρή επιφάνεια κοπής και περάστε τους σε ξύλινα καλαμάκια."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 1,
+        "section": "Marinate",
+        "instruction": {
+          "en": "In a bowl, whisk olive oil, lemon juice, minced garlic, oregano, salt, and pepper, and brush thoroughly over the raw skewers.",
+          "el": "Σε ένα μπολ, ανακατέψτε το ελαιόλαδο, τον χυμό λεμονιού, το σκόρδο, τη ρίγανη, αλάτι και πιπέρι και αλείψτε καλά τα ωμά σουβλάκια."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 2,
+        "section": "Heat",
+        "instruction": {
+          "en": "Heat a grill pan or heavy frying pan over medium-high heat with a drop of olive oil until hot.",
+          "el": "Ζεστάνετε ένα σχαροτήγανο ή βαρύ τηγάνι σε μέτρια προς δυνατή φωτιά με λίγο ελαιόλαδο μέχρι να κάψει."
+        },
+        "expected_duration_sec": 180,
+        "suggested_duration_sec": 180,
+        "checkable": true,
+        "check_prompt_hint": "Is the pan hot and sizzling?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 3,
+        "section": "Cook",
+        "instruction": {
+          "en": "Cook the skewers for 8-10 minutes, turning with tongs every 2 minutes, until browned on all sides and thoroughly cooked through with no pink inside.",
+          "el": "Ψήστε τα σουβλάκια για 8-10 λεπτά, γυρίζοντας με λαβίδα κάθε 2 λεπτά, μέχρι να ροδίσουν παντού και να ψηθούν καλά στο εσωτερικό χωρίς ροζ σημεία."
+        },
+        "expected_duration_sec": 540,
+        "suggested_duration_sec": 540,
+        "checkable": true,
+        "check_prompt_hint": "Are the pork skewers browned on all sides and thoroughly cooked through to 63°C / 145°F?",
+        "reference_image": null,
+        "contains_raw_protein": true
+      }
+    ]
+  },
+  {
+    "id": "greek_omelette",
+    "name": {
+      "en": "Greek Feta and Tomato Omelette",
+      "el": "Ομελέτα με Φέτα και Ντομάτα"
+    },
+    "aliases": {
+      "en": ["feta omelette", "greek omelette", "mediterranean omelette"],
+      "el": ["ομελέτα", "ομελέτα με φέτα", "ελληνική ομελέτα"]
+    },
+    "description": {
+      "en": "Fluffy Greek country omelette cooked in olive oil with sweet sautéed tomatoes, crumbled feta cheese, and fragrant oregano.",
+      "el": "Αφράτη χωριάτικη ομελέτα με αυγά, σοταρισμένη ντομάτα, τρίμματα φέτας και ρίγανη μαγειρεμένη σε ελαιόλαδο."
+    },
+    "language": "el",
+    "servings": "2 μερίδες",
+    "times": {
+      "prep_min": 5,
+      "cook_min": 6,
+      "total_min": 11
+    },
+    "difficulty": "Easy",
+    "cuisine": "Greek",
+    "category": "Breakfast",
+    "dietary": {
+      "vegetarian": true,
+      "gluten_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "290 kcal",
+      "protein": "16g",
+      "fat": "24g",
+      "carbohydrates": "4g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "greek-omelette",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Omelet",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Omelet"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "4 large eggs",
+      "1 ripe tomato, diced",
+      "80 g feta cheese, crumbled",
+      "2 tbsp extra virgin olive oil",
+      "1/2 tsp dried oregano",
+      "1 pinch salt and black pepper"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "4 large eggs",
+        "quantity": "4",
+        "unit": null,
+        "name": "eggs",
+        "vocab_id": "egg"
+      },
+      {
+        "raw_text": "1 ripe tomato, diced",
+        "quantity": "1",
+        "unit": null,
+        "name": "tomato",
+        "vocab_id": "tomato"
+      },
+      {
+        "raw_text": "80 g feta cheese, crumbled",
+        "quantity": "80",
+        "unit": "g",
+        "name": "feta cheese",
+        "vocab_id": "cheese"
+      },
+      {
+        "raw_text": "2 tbsp extra virgin olive oil",
+        "quantity": "2",
+        "unit": "tbsp",
+        "name": "olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1/2 tsp dried oregano",
+        "quantity": "1/2",
+        "unit": "tsp",
+        "name": "oregano"
+      },
+      {
+        "raw_text": "1 pinch salt and black pepper",
+        "quantity": "1",
+        "unit": "pinch",
+        "name": "salt and black pepper",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "bowl",
+        "vocab_id": "bowl",
+        "inferred": false
+      },
+      {
+        "name": "whisk",
+        "vocab_id": "whisk",
+        "inferred": false
+      },
+      {
+        "name": "frying pan",
+        "vocab_id": "frying_pan",
+        "inferred": false
+      },
+      {
+        "name": "spatula",
+        "vocab_id": "spatula",
+        "inferred": false
+      },
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Prep",
+        "instruction": {
+          "en": "Crack eggs into a bowl, season with a pinch of salt and pepper, and whisk until well blended.",
+          "el": "Σπάστε τα αυγά σε ένα μπολ, ρίξτε λίγο αλάτι και πιπέρι, και χτυπήστε τα με το σύρμα."
+        },
+        "expected_duration_sec": null,
+        "suggested_duration_sec": null,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 1,
+        "section": "Sauté",
+        "instruction": {
+          "en": "Heat olive oil in a frying pan over medium heat, add diced tomatoes, and cook for 1-2 minutes until soft.",
+          "el": "Ζεστάνετε το ελαιόλαδο σε ένα τηγάνι σε μέτρια φωτιά, προσθέστε την ψιλοκομμένη ντομάτα και σοτάρετε για 1-2 λεπτά μέχρι να μαλακώσει."
+        },
+        "expected_duration_sec": 90,
+        "suggested_duration_sec": 90,
+        "checkable": false,
+        "check_prompt_hint": null,
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "section": "Cook",
+        "instruction": {
+          "en": "Pour the whisked eggs into the pan over the tomatoes and cook gently, lifting the edges with a spatula so uncooked egg runs underneath.",
+          "el": "Ρίξτε τα χτυπημένα αυγά στο τηγάνι πάνω από τις ντομάτες και ψήστε απαλά, ανασηκώνοντας τις άκρες με τη σπάτουλα για να τρέχει το ωμό αυγό από κάτω."
+        },
+        "expected_duration_sec": 150,
+        "suggested_duration_sec": 150,
+        "checkable": true,
+        "check_prompt_hint": "Are the eggs mostly set with a lightly golden bottom?",
+        "reference_image": null,
+        "contains_raw_protein": true
+      },
+      {
+        "index": 3,
+        "section": "Finish",
+        "instruction": {
+          "en": "Scatter crumbled feta and oregano over the top, fold the omelette in half, and cook for 1 more minute until cheese begins to melt and eggs are fully set.",
+          "el": "Πασπαλίστε με τη θρυμματισμένη φέτα και τη ρίγανη, διπλώστε την ομελέτα στη μέση και ψήστε για 1 ακόμα λεπτό μέχρι να λιώσει ελαφρά το τυρί και να σταθεροποιηθούν τα αυγά."
+        },
+        "expected_duration_sec": 60,
+        "suggested_duration_sec": 60,
+        "checkable": true,
+        "check_prompt_hint": "Is the omelette golden brown and fully set with no runny liquid egg?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      }
+    ]
+  },
+  {
+    "id": "tomato_basil_soup",
+    "name": {
+      "en": "Tomato Basil Soup",
+      "el": "Ντοματόσουπα με Βασιλικό"
+    },
+    "aliases": {
+      "en": ["tomato soup", "creamy tomato soup"],
+      "el": ["ντοματόσουπα", "σούπα ντομάτας", "βελούδινη ντοματόσουπα"]
+    },
+    "description": {
+      "en": "Smooth and comforting tomato soup prepared with sweet sautéed onions, garlic, aromatic fresh basil, and extra virgin olive oil.",
+      "el": "Βελούδινη, αρωματική σούπα ντομάτας με σοταρισμένο κρεμμύδι, σκόρδο, φρέσκο βασιλικό και παρθένο ελαιόλαδο."
+    },
+    "language": "el",
+    "servings": "4 μερίδες",
+    "times": {
+      "prep_min": 10,
+      "cook_min": 25,
+      "total_min": 35
+    },
+    "difficulty": "Easy",
+    "cuisine": "Mediterranean",
+    "category": "Soup",
+    "dietary": {
+      "vegetarian": true,
+      "vegan": true,
+      "gluten_free": true,
+      "dairy_free": true,
+      "nut_free": true
+    },
+    "nutrition": {
+      "calories": "160 kcal",
+      "carbohydrates": "18g",
+      "protein": "3g",
+      "fat": "9g"
+    },
+    "source": {
+      "site": "open_source",
+      "source_id": "tomato-basil-soup",
+      "url": {
+        "en": "https://en.wikibooks.org/wiki/Cookbook:Tomato_Soup",
+        "el": "https://el.wikibooks.org/wiki/Cookbook:Tomato_Soup"
+      },
+      "imported_at": "2026-09-26T00:00:00Z",
+      "author": "Wikibooks Cookbook Contributors",
+      "fetched_at": "2026-09-26T00:00:00Z"
+    },
+    "ingredients": [
+      "800 g ripe tomatoes or whole peeled tomatoes",
+      "1 medium yellow onion, chopped",
+      "3 cloves garlic, minced",
+      "500 ml vegetable broth",
+      "3 tbsp extra virgin olive oil",
+      "1/4 cup fresh basil leaves",
+      "1 tsp salt and black pepper"
+    ],
+    "ingredient_details": [
+      {
+        "raw_text": "800 g ripe tomatoes or whole peeled tomatoes",
+        "quantity": "800",
+        "unit": "g",
+        "name": "tomatoes",
+        "vocab_id": "tomato"
+      },
+      {
+        "raw_text": "1 medium yellow onion, chopped",
+        "quantity": "1",
+        "unit": null,
+        "name": "yellow onion",
+        "vocab_id": "onion"
+      },
+      {
+        "raw_text": "3 cloves garlic, minced",
+        "quantity": "3",
+        "unit": "cloves",
+        "name": "garlic",
+        "vocab_id": "garlic"
+      },
+      {
+        "raw_text": "500 ml vegetable broth",
+        "quantity": "500",
+        "unit": "ml",
+        "name": "vegetable broth"
+      },
+      {
+        "raw_text": "3 tbsp extra virgin olive oil",
+        "quantity": "3",
+        "unit": "tbsp",
+        "name": "olive oil",
+        "vocab_id": "bottle"
+      },
+      {
+        "raw_text": "1/4 cup fresh basil leaves",
+        "quantity": "1/4",
+        "unit": "cup",
+        "name": "fresh basil"
+      },
+      {
+        "raw_text": "1 tsp salt and black pepper",
+        "quantity": "1",
+        "unit": "tsp",
+        "name": "salt and black pepper",
+        "vocab_id": "salt_pepper"
+      }
+    ],
+    "equipment": [
+      {
+        "name": "pot",
+        "vocab_id": "pot",
+        "inferred": false
+      },
+      {
+        "name": "blender",
+        "vocab_id": "blender",
+        "inferred": false
+      },
+      {
+        "name": "cutting board",
+        "vocab_id": "cutting_board",
+        "inferred": false
+      },
+      {
+        "name": "knife",
+        "vocab_id": "knife",
+        "inferred": false
+      },
+      {
+        "name": "ladle",
+        "vocab_id": "ladle",
+        "inferred": false
+      },
+      {
+        "name": "stove",
+        "vocab_id": "stove",
+        "inferred": true
+      }
+    ],
+    "steps": [
+      {
+        "index": 0,
+        "section": "Sauté",
+        "instruction": {
+          "en": "In a large pot, heat olive oil over medium heat, add chopped onion and garlic, and sauté until soft and translucent.",
+          "el": "Σε μια μεγάλη κατσαρόλα, ζεστάνετε το ελαιόλαδο σε μέτρια φωτιά, προσθέστε το ψιλοκομμένο κρεμμύδι και το σκόρδο και σοτάρετε μέχρι να μαλακώσουν."
+        },
+        "expected_duration_sec": 300,
+        "suggested_duration_sec": 300,
+        "checkable": true,
+        "check_prompt_hint": "Are the onions soft and translucent?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 1,
+        "section": "Simmer",
+        "instruction": {
+          "en": "Add the tomatoes and vegetable broth, bring to a gentle boil, then lower the heat and simmer uncovered for 20 minutes.",
+          "el": "Προσθέστε τις ντομάτες και τον ζωμό λαχανικών, αφήστε να πάρει βράση, χαμηλώστε τη φωτιά και σιγοβράστε για 20 λεπτά."
+        },
+        "expected_duration_sec": 1200,
+        "suggested_duration_sec": 1200,
+        "checkable": true,
+        "check_prompt_hint": "Is the soup gently simmering and thickened?",
+        "reference_image": null,
+        "contains_raw_protein": false
+      },
+      {
+        "index": 2,
+        "section": "Blend",
+        "instruction": {
+          "en": "Remove from heat, stir in fresh basil leaves, salt, and black pepper, and blend with an immersion blender until velvety smooth.",
+          "el": "Αποσύρετε από τη φωτιά, προσθέστε τα φύλλα φρέσκου βασιλικού, αλάτι και πιπέρι, και πολτοποιήστε με ραβδομπλέντερ μέχρι να γίνει βελούδινη."
+        },
+        "expected_duration_sec": 120,
+        "suggested_duration_sec": 120,
+        "checkable": true,
+        "check_prompt_hint": "Is the soup smooth, uniform, and velvety without lumps?",
+        "reference_image": null,
+        "contains_raw_protein": false
       }
     ]
   }

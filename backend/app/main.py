@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import auth, barcode, demo_cache, output_guard, rate_limit, recipes, vision, voice
 from .detection import service as detection_service
-from .schemas import AnalyzeRequest, AnalyzeResponse, DetectResponse, Recipe, VoiceResponse
+from .schemas import AnalyzeRequest, AnalyzeResponse, DetectResponse, Recipe, TextCommandRequest, VoiceResponse
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,16 @@ async def _limit_analyze_content_length(request: Request, call_next):
         content_length = request.headers.get("content-length")
         if content_length is not None and int(content_length) > MAX_ANALYZE_CONTENT_LENGTH:
             return JSONResponse(status_code=413, content={"detail": "request body too large"})
-    return await call_next(request)
+    
+    response = await call_next(request)
+    
+    # Disable aggressive caching for static files so changes apply automatically on restart
+    if request.method == "GET" and not request.url.path.startswith(("/analyze", "/detect", "/voice")):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+    return response
 
 THERMOMETER_NOTE = {
     "en": (
@@ -336,6 +345,31 @@ async def voice_command(
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception:
         logger.exception("voice command failed")
+        raise HTTPException(status_code=502, detail="the speech service didn't answer - try again")
+
+
+@app.post(
+    "/voice/text",
+    response_model=VoiceResponse,
+    dependencies=[
+        Depends(auth.require_pairing_token),
+        Depends(_rate_limit_dependency("voice", *VOICE_RATE_LIMIT)),
+    ],
+)
+async def voice_command_text(req: TextCommandRequest):
+    """Wake-word commands: text from the client's Web Speech API -> one validated action.
+    Bypasses transcription. Same injection defenses as push-to-talk."""
+    if req.language not in ("el", "en"):
+        raise HTTPException(status_code=422, detail="language must be el or en")
+    if not req.text:
+        raise HTTPException(status_code=400, detail="empty text")
+    offered = [rid for rid in req.candidates if recipes.valid_id(rid)]
+    try:
+        return await run_in_threadpool(voice.handle_text, req.text, req.language, req.recipe_id, req.step_index, offered)
+    except voice.VoiceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception:
+        logger.exception("voice text command failed")
         raise HTTPException(status_code=502, detail="the speech service didn't answer - try again")
 
 

@@ -345,19 +345,51 @@ def _rebuild_search_index(conn: sqlite3.Connection) -> None:
         _index_recipe(conn, _row_to_recipe(conn, row))
 
 
-def search_recipes(words: list[str], limit: int = 5) -> list[Recipe]:
-    """Published recipes matching any of `words`, best first (SQLite FTS5 BM25). Words are
-    accent-folded and matched by prefix, so "αυγά" finds "αυγό" and "eggs" finds "egg"."""
+def _stem_tokens(word: str) -> list[str]:
     from .detection.vocab_match import fold
 
-    tokens = []
+    tokens: list[str] = []
+    for token in re.findall(r"\w+", fold(word or "")):
+        if len(token) < 2:
+            continue
+        tokens.append(token)
+        # English plurals
+        if token.endswith("ies") and len(token) > 4:
+            tokens.append(token[:-3] + "y")
+        elif token.endswith("es") and len(token) > 4:
+            tokens.append(token[:-2])
+        elif token.endswith("s") and len(token) > 3:
+            tokens.append(token[:-1])
+        # Greek inflectional endings
+        if token.endswith(("ια", "ες", "ων", "ους", "ατα", "δες")) and len(token) > 4:
+            tokens.append(token[:-2])
+        elif token.endswith(("α", "η", "ο", "ι", "υ", "ε", "ς")) and len(token) > 3:
+            stem = token[:-1]
+            tokens.extend([stem, stem + "α", stem + "ο", stem + "ι", stem + "ης", stem + "ου", stem + "ες"])
+    return tokens
+
+
+def search_recipes(words: list[str], limit: int = 5) -> list[Recipe]:
+    """Published recipes matching any of `words`, best first (SQLite FTS5 BM25). Words are
+    accent-folded and matched by stem/prefix, so "αυγά" finds "αυγό" and "eggs" finds "egg"."""
+    from .detection.vocab_match import fold
+
+    tokens: list[str] = []
     for word in words:
-        for token in re.findall(r"\w+", fold(word or "")):
-            if len(token) >= 2:
-                tokens.append(token[: max(3, len(token) - 2)])  # crude stem: drop inflection
+        tokens.extend(_stem_tokens(word))
     if not tokens:
         return []
-    query = " OR ".join(f'"{t}"*' for t in dict.fromkeys(tokens))
+
+    unique_tokens = list(dict.fromkeys(tokens))
+    # For words of length >= 4, allow prefix match; for short stems (e.g. "egg", "αυγ") use exact tokens
+    query_parts = []
+    for t in unique_tokens:
+        if len(t) >= 4:
+            query_parts.append(f'"{t}"*')
+        else:
+            query_parts.append(f'"{t}"')
+    query = " OR ".join(dict.fromkeys(query_parts))
+
     ensure_ready()
     with db.session() as conn:
         rows = conn.execute(
