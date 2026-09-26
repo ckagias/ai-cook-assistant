@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import ipaddress
+import os
 import re
 import secrets
 import socket
@@ -37,6 +38,10 @@ CA_DAYS = 3650
 
 
 def lan_ip() -> str | None:
+    # LAN_IP pins the address, e.g. the laptop's own hotspot (192.168.137.1) that start.ps1
+    # turns on, so the QR codes printed for the slides never change.
+    if os.getenv("LAN_IP"):
+        return os.environ["LAN_IP"]
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("10.255.255.255", 1))  # a routing lookup only - nothing is sent

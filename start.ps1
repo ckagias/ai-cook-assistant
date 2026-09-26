@@ -20,18 +20,24 @@
     its leftovers (the window's browser profile, QR images, logs) are removed. Kept: the setup
     stamp (fast starts) and the certificates (a phone trusts the local CA once).
   - Prints a QR code for the phone in the terminal (also saved as .run\pairing.png).
+  - Phones use the laptop's own Wi-Fi hotspot, turned on here: the laptop is always
+    192.168.137.1 on it, so the static QR codes for the slides (qr\slide.png: join the Wi-Fi,
+    install the certificate once, open the app) keep working through any code change.
+    -NoHotspot: phones use this Wi-Fi's own address instead (it changes between networks).
   - Object/hand detection is on whenever it's installed.
 
 .EXAMPLE
   .\start.cmd                  # double-click friendly
   .\start.ps1 -NoWindow        # serve only; open the links in any browser; Ctrl+C stops
-  .\start.ps1 -LocalOnly       # this computer only: no LAN address, no firewall prompt
+  .\start.ps1 -LocalOnly       # this computer only: no LAN address, no hotspot, no firewall prompt
+  .\start.ps1 -NoHotspot       # phones on the same Wi-Fi as the laptop, at its current address
   .\start.ps1 -CheckOnly       # what is installed, what a first start would download - changes nothing
 #>
 [CmdletBinding()]
 param(
     [switch]$NoWindow,
     [switch]$LocalOnly,
+    [switch]$NoHotspot,
     [switch]$NoDetection,
     [switch]$CheckOnly
 )
@@ -214,7 +220,51 @@ if ($blocker) {
     exit 1
 }
 
-# --- 3. pairing token, and this machine's LAN address + certificate (one call) ---
+# --- 3. the laptop's own hotspot: phones join it, and on it the laptop is always 192.168.137.1 ---
+$HotspotIp = "192.168.137.1"
+$Hotspot = $null
+function Start-Hotspot {
+    # Windows Mobile Hotspot through its WinRT API: no admin rights, no settings page.
+    try {
+        Add-Type -AssemblyName System.Runtime.WindowsRuntime
+        $null = [Windows.Networking.Connectivity.NetworkInformation, Windows.Networking.Connectivity, ContentType=WindowsRuntime]
+        $null = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager, Windows.Networking.NetworkOperators, ContentType=WindowsRuntime]
+        $internet = [Windows.Networking.Connectivity.NetworkInformation]::GetInternetConnectionProfile()
+        if (-not $internet) { return @{ Ok = $false; Why = "no internet connection to share" } }
+        $manager = [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile($internet)
+        if ("$($manager.TetheringOperationalState)" -ne "On") {
+            $asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+                $_.Name -eq "AsTask" -and $_.GetParameters().Count -eq 1 -and
+                $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1
+            $task = $asTask.MakeGenericMethod([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult]).Invoke(
+                $null, @($manager.StartTetheringAsync()))
+            if (-not $task.Wait(20000)) { return @{ Ok = $false; Why = "timed out turning it on" } }
+            if ("$($task.Result.Status)" -ne "Success") {
+                return @{ Ok = $false; Why = "$($task.Result.Status) $($task.Result.AdditionalErrorMessage)".Trim() }
+            }
+        }
+        $config = $manager.GetCurrentAccessPointConfiguration()
+        for ($i = 0; $i -lt 40 -and -not (Get-NetIPAddress -IPAddress $HotspotIp -ErrorAction SilentlyContinue); $i++) {
+            Start-Sleep -Milliseconds 250
+        }
+        if (-not (Get-NetIPAddress -IPAddress $HotspotIp -ErrorAction SilentlyContinue)) {
+            return @{ Ok = $false; Why = "it is on, but without the address $HotspotIp" }
+        }
+        return @{ Ok = $true; Ssid = $config.Ssid; Password = $config.Passphrase }
+    } catch {
+        return @{ Ok = $false; Why = $_.Exception.Message }
+    }
+}
+if (-not $LocalOnly -and -not $NoHotspot) {
+    $Hotspot = Start-Hotspot
+    if ($Hotspot.Ok) {
+        $env:LAN_IP = $HotspotIp  # lan.py: the certificate and the links are for the hotspot address
+    } else {
+        Write-Warn "Hotspot not available ($($Hotspot.Why)) - phones use this Wi-Fi's own address instead; the slide QR codes need the hotspot."
+    }
+}
+
+# --- 4. pairing token, and this machine's LAN address + certificate (one call) ---
 $lan = (& $VenvPython scripts\lan.py all | Out-String).Trim().Split("|")
 if ($LASTEXITCODE -ne 0 -or $lan.Count -ne 6) { Write-Warn "ERROR: scripts\lan.py failed."; exit 1 }
 $Token, $TokenState, $LanIp, $Cert, $Key, $Spki = $lan
@@ -224,7 +274,7 @@ if ($LocalOnly) { $LanIp = "" }
 $LocalUrl = "http://localhost:$Port/?token=$Token&detect=1"
 $AppProfile = Join-Path $RunDir "app-profile"
 
-# --- 4. the server: both addresses, one process, in the background ---
+# --- 5. the server: both addresses, one process, in the background ---
 $Log = Join-Path $RunDir "server.log"
 $ErrLog = Join-Path $RunDir "server.err.log"
 $serverArgs = "scripts\serve.py --port $Port"
@@ -254,13 +304,19 @@ try {
     Write-Host "  This computer, any browser:  $LocalUrl"
     if ($LanIp) {
         $PhoneUrl = "https://${LanIp}:${LanPort}/?token=$Token&detect=1"
-        Write-Host "  Phone/tablet on this Wi-Fi:  $PhoneUrl"
+        if ($Hotspot -and $Hotspot.Ok) {
+            Write-Host "  Phones: join the laptop's Wi-Fi '$($Hotspot.Ssid)' (password: $($Hotspot.Password)), then:"
+        }
+        Write-Host "  Phone/tablet:  $PhoneUrl"
         Write-Host "      (first time on a phone: open https://${LanIp}:${LanPort}/ca.crt, install it, then no warning; Windows may ask to allow Python on private networks)"
         Write-Host ""
-        Write-Host "  Scan with the phone's camera (same Wi-Fi):"
+        Write-Host "  Scan with the phone's camera:"
         $Png = Join-Path $RunDir "pairing.png"
         & $VenvPython scripts\pairing_qr.py --url $PhoneUrl --png $Png
         if ($LASTEXITCODE -ne 0) { Write-Host "      (QR skipped - qrcode not installed; re-run setup.ps1)" }
+        if ($Hotspot -and $Hotspot.Ok) {
+            & $VenvPython scripts\static_qr.py --ssid $Hotspot.Ssid --password $Hotspot.Password --ip $HotspotIp --port $LanPort --out (Join-Path $Root "qr")
+        }
     }
     Write-Host "  Press the big Start button and allow the camera. Detection starts by itself (first frames: 'loading model')."
     Write-Host "  Server log: .run\server.err.log"
@@ -272,7 +328,7 @@ try {
         exit 0
     }
 
-    # --- 5. the app window: own profile (fresh each start), camera + microphone allowed ---
+    # --- 6. the app window: own profile (fresh each start), camera + microphone allowed ---
     & $VenvPython scripts\app_window.py open --url $LocalUrl --profile $AppProfile
     if ($LASTEXITCODE -ne 0) {
         Write-Host "No Edge/Chrome for an app window - open the link above in any browser. Ctrl+C stops the server."

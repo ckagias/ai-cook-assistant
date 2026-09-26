@@ -86,3 +86,27 @@ def test_lan_all_prints_token_even_offline(monkeypatch, capsys):
     monkeypatch.setattr(lan, "lan_ip", lambda: None)
     assert lan.main(["all"]) == 0
     assert capsys.readouterr().out.strip().split("|") == ["tok", "existing", "", "", "", ""]
+
+
+def test_lan_ip_can_be_pinned_to_the_hotspot(monkeypatch):
+    lan = _load("lan")
+    monkeypatch.setenv("LAN_IP", "192.168.137.1")
+    assert lan.lan_ip() == "192.168.137.1"
+
+
+def test_static_qr_codes_hold_the_hotspot_links(tmp_path):
+    static_qr = _load("static_qr")
+    # The standard Wi-Fi QR escapes \ ; , : " so an odd password can't end a field early.
+    assert static_qr.wifi_payload("Cook 1", r'a;b:c,d"e\f') == r'WIFI:T:WPA;S:Cook 1;P:a\;b\:c\,d\"e\\f;;'
+    info = static_qr.write(tmp_path, "192.168.137.1", 8443, "tok", "Cook 1", "secret12")
+    assert info["app"] == "https://192.168.137.1:8443/?token=tok&detect=1"
+    assert info["certificate"] == "https://192.168.137.1:8443/ca.crt"
+    for name in ("1-wifi.png", "2-certificate.png", "3-app.png", "slide.png", "README.txt"):
+        assert (tmp_path / name).exists(), name
+    try:
+        import cv2
+    except ImportError:
+        return  # decoding needs OpenCV (installed with detection)
+    detector = cv2.QRCodeDetector()
+    text, _, _ = detector.detectAndDecode(cv2.resize(cv2.imread(str(tmp_path / "3-app.png")), (400, 400)))
+    assert text == info["app"]

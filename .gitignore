@@ -19,3 +19,6 @@ backend/data/*.db-shm
 .wheelhouse/
 .run/
 backend/certs/
+
+# Static QR codes for the slides (scripts/static_qr.py) - they carry the pairing token and Wi-Fi password
+qr/
