@@ -753,7 +753,7 @@ function showRecipeButtons(recipes) {
   backBtn.textContent = t("back", lang);
   backBtn.dataset.action = "close-recipes";
   backBtn.dataset.speak = "back";
-  el.recipeList.appendChild(backBtn);
+  el.recipeList.prepend(backBtn); // first: in view without scrolling a long list
   showPanel("list");
 }
 

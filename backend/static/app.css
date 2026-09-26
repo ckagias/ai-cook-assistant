@@ -617,10 +617,7 @@ input:focus-visible {
 }
 
 #recipe-list button[data-action="close-recipes"] {
-  position: sticky;
-  bottom: 0;
   text-align: center;
-  border-color: var(--ink);
 }
 
 /* --- yes/no question, alerts that stay until dismissed, and a full-screen flash --- */
