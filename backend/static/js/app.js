@@ -1069,6 +1069,7 @@ function announceStep({ repeat = false, intro = "" } = {}) {
   el.stepText.textContent = step.instruction[lang] || step.instruction.en;
   updateStepButtons();
   renderStepActions(step);
+  panelToTop(); // the step's text, not the buttons the cook scrolled down to
 
   const speech = stepSpeech(step);
   say(intro ? `${intro} ${speech}` : speech, "command");
