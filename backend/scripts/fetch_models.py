@@ -34,12 +34,12 @@ def main() -> int:
     config = DetectionConfig.from_env()
     before = set(p.name for p in detector.MODELS_DIR.glob("**/*")) if detector.MODELS_DIR.exists() else set()
     t0 = time.perf_counter()
-    detector.load_detector(config.model, config.imgsz, config.fmt)  # downloads + exports only if missing
+    detector.load_detector(config.model, config.imgsz, config.fmt, rect=config.rect)  # downloads + exports only if missing
     if config.hands in ("mediapipe", "hybrid"):
         hands.ensure_hand_model()
     after = set(p.name for p in detector.MODELS_DIR.glob("**/*"))
     new = sorted(after - before)
-    label = f"{config.model}@{config.imgsz}/{config.fmt}, hands: {config.hands}"
+    label = f"{config.model}@{config.imgsz}{'r' if config.rect else ''}/{config.fmt}, hands: {config.hands}"
     if new:
         print(f"  models ready for {label} in {time.perf_counter() - t0:.0f}s - added: {', '.join(new[:6])}{' ...' if len(new) > 6 else ''}")
     else:

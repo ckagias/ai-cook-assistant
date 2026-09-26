@@ -14,6 +14,10 @@ export const GROUP_COLORS = {
 };
 
 const TABLE_INTERVAL_MS = 250; // the table is for reading, not animation - <=4 updates/s
+// At most ~6 frames/s, above the 4-5 FPS goal. Sending the next frame the instant a reply lands
+// keeps a laptop CPU at 100%; a 15 W chip then hits its power limit within ~30 s and every
+// frame gets slower (measured 90 ms -> 385 ms). Headroom keeps each frame's latency low.
+export const MIN_FRAME_MS = 160;
 const MAX_ROWS = 20;
 
 // #video uses object-fit: cover, so the frame is scaled to fill the element and the overflow
@@ -265,6 +269,7 @@ export function createDetector({
         fps = fps ? fps * 0.8 + instant * 0.2 : instant;
       }
       lastFrameAt = finished;
+      delay = Math.max(0, MIN_FRAME_MS - (finished - started));
       draw(res);
       if (finished - lastTableAt >= TABLE_INTERVAL_MS) {
         lastTableAt = finished;

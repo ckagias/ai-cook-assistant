@@ -286,6 +286,20 @@ The endpoint reads its own body with a running byte cap *after* the auth and rat
 dependencies run. So an unauthenticated or chunked upload can't make the server buffer
 anything; the older Content-Length middleware can't stop a chunked body.
 
+**Speed on a 15 W laptop CPU.** The benchmark measured each frame alone. In the app it's
+continuous load, and that behaves differently: sending the next frame the instant a reply
+landed kept the CPU at 100%, and within ~30 s the chip hit its power limit (the same inference
+went from ~90 ms to 385 ms median, 808 ms peak). Three changes, measured together under load,
+took a frame from 318 ms to 195 ms (−39%) with the same detections:
+- **Letterbox to the frame's own shape** (`DETECTOR_RECT=true`, a dynamic-shape export of the
+  same model). A 16:9 webcam frame becomes 480×288 instead of 480×480 with padding, 24–42%
+  less work at the same resolution. Dropping to 320 px was faster still but missed the knife
+  on real frames, although the Open Images scores for 320 and 480 were nearly equal.
+- **MediaPipe hands run alongside the detector** on their own thread. Both release the GIL,
+  so a frame costs max(detector, hands), not the sum.
+- **At most ~6 frames/s** (`MIN_FRAME_MS` in `detect.js`, above the 4–5 FPS goal), which
+  leaves the CPU headroom so it doesn't throttle.
+
 The camera has no depth, so relations are "touching" (overlap in the image), "over" (inside a
 much larger object's box, e.g. a stove) and "near". They are shown visually only. Speaking
 them as reassurance ("your hand is clear of the knife") would be a safety claim a 2D detector

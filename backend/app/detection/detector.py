@@ -69,18 +69,22 @@ def merge_duplicates(dets: list[Detection], iou_thr: float = MERGE_IOU) -> list[
 class UltralyticsDetector:
     """One loaded model plus the mapping from its class indices onto vocabulary ids."""
 
-    def __init__(self, label: str, model, index_to_id: dict[int, str], imgsz: int, filter_classes: bool):
+    def __init__(self, label: str, model, index_to_id: dict[int, str], imgsz: int, filter_classes: bool,
+                 rect: bool = False):
         self.label = label
         self.model = model
         self.index_to_id = index_to_id
         self.imgsz = imgsz
+        # rect: letterbox to the frame's own shape (a 16:9 frame -> 480x288) instead of a padded
+        # square (480x480) - same resolution, ~40% less work. Needs a dynamic-shape export.
+        self.rect = rect
         # Only the closed-vocabulary model needs filtering; a YOLOE model only knows our prompts.
         self._classes = sorted(index_to_id) if filter_classes else None
 
     def detect(self, image_bgr: np.ndarray, conf: float) -> list[Detection]:
         h, w = image_bgr.shape[:2]
         result = self.model.predict(
-            image_bgr, imgsz=self.imgsz, conf=conf, classes=self._classes, verbose=False
+            image_bgr, imgsz=self.imgsz, conf=conf, classes=self._classes, rect=self.rect, verbose=False
         )[0]
         boxes = result.boxes
         if boxes is None or len(boxes) == 0:
@@ -102,10 +106,12 @@ def weights_path(model_name: str) -> Path:
     return MODELS_DIR / f"{model_name}.pt"
 
 
-def exported_path(model_name: str, imgsz: int, fmt: str, vocab: Vocabulary) -> Path:
+def exported_path(model_name: str, imgsz: int, fmt: str, vocab: Vocabulary, dynamic: bool = False) -> Path:
     stem = f"{model_name}_{imgsz}"
     if family(model_name) == "yoloe":
         stem += f"_{vocab.fingerprint()}"  # the vocabulary is baked in - a new list needs a new export
+    if dynamic:
+        stem += "_dyn"
     return EXPORT_DIR / (f"{stem}.onnx" if fmt == "onnx" else f"{stem}_openvino_model")
 
 
@@ -142,20 +148,22 @@ def _load_torch(model_name: str, vocab: Vocabulary):
     return YOLO(path)
 
 
-def export(model_name: str, imgsz: int, fmt: str, vocab: Optional[Vocabulary] = None) -> Path:
-    """Export once to ONNX / OpenVINO (FP32) at a fixed input size; cached by file name."""
+def export(model_name: str, imgsz: int, fmt: str, vocab: Optional[Vocabulary] = None, dynamic: bool = False) -> Path:
+    """Export once to ONNX / OpenVINO (FP32); cached by file name. dynamic: any input shape up
+    to imgsz on the long side, so frames can be letterboxed to their own aspect ratio."""
     vocab = vocab or load_vocabulary()
-    target = exported_path(model_name, imgsz, fmt, vocab)
+    target = exported_path(model_name, imgsz, fmt, vocab, dynamic)
     if target.exists():
         return target
     model = _load_torch(model_name, vocab)
-    produced = Path(model.export(format=fmt, imgsz=imgsz, dynamic=False, verbose=False))
+    produced = Path(model.export(format=fmt, imgsz=imgsz, dynamic=dynamic, verbose=False))
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
     shutil.move(str(produced), str(target))
     return target
 
 
-def load_detector(model_name: str, imgsz: int = 640, fmt: str = "torch", vocab: Optional[Vocabulary] = None) -> UltralyticsDetector:
+def load_detector(model_name: str, imgsz: int = 640, fmt: str = "torch", vocab: Optional[Vocabulary] = None,
+                  rect: bool = False) -> UltralyticsDetector:
     if fmt not in FORMATS:
         raise ValueError(f"unknown format {fmt!r}, expected one of {FORMATS}")
     disable_ultralytics_telemetry()
@@ -167,9 +175,10 @@ def load_detector(model_name: str, imgsz: int = 640, fmt: str = "torch", vocab: 
     else:
         from ultralytics import YOLO
 
-        model = YOLO(str(export(model_name, imgsz, fmt, vocab)), task="segment" if fam == "yoloe" else "detect")
+        model = YOLO(str(export(model_name, imgsz, fmt, vocab, dynamic=rect)), task="segment" if fam == "yoloe" else "detect")
 
     mapping = _index_to_id(model.names, model_name, vocab)
     if not mapping:
         raise RuntimeError(f"{model_name}: none of the model's classes map onto the vocabulary")
-    return UltralyticsDetector(f"{model_name}@{imgsz}/{fmt}", model, mapping, imgsz, filter_classes=fam == "oiv7")
+    label = f"{model_name}@{imgsz}{'r' if rect else ''}/{fmt}"
+    return UltralyticsDetector(label, model, mapping, imgsz, filter_classes=fam == "oiv7", rect=rect)

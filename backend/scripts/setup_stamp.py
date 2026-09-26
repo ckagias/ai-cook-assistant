@@ -17,7 +17,7 @@ from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 RUN_DIR = BACKEND_DIR.parent / ".run"
-DETECTOR_KEYS = ("DETECTOR_MODEL", "DETECTOR_IMGSZ", "DETECTOR_FORMAT", "HANDS_BACKEND")
+DETECTOR_KEYS = ("DETECTOR_MODEL", "DETECTOR_IMGSZ", "DETECTOR_FORMAT", "DETECTOR_RECT", "HANDS_BACKEND")
 
 
 def stamp_path() -> Path:

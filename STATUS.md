@@ -30,6 +30,11 @@ reflects real state as of this writing, not the plan's projections.
   drive is too slow. The Linux venv now lives in `~/.local/share/ai-cook-assistant/`. The old
   partial `backend/.venv-linux` is left in place and can be deleted by hand.
 
+- **Detection speed.** Under the app's continuous load this laptop throttled (the same
+  inference went from ~90 ms to 385 ms). Three changes, measured together under load, took a
+  frame from 318 ms to 195 ms with identical detections: letterboxing to the frame's shape
+  (`DETECTOR_RECT`), hands in parallel with the detector, and a ~6 FPS cap. See DESIGN.md #17.
+
 **Known, not fixed yet:**
 - **Silent recordings echo the prompt.** A silent or unintelligible recording makes the
   transcription echo its hint text, and the reply becomes a generic "which command?". It

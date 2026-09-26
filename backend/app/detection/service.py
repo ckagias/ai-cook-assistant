@@ -9,6 +9,7 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -38,6 +39,9 @@ class DetectionConfig:
     fmt: str = "openvino"
     conf: float = 0.25
     hands: str = "hybrid"
+    # Letterbox each frame to its own shape (16:9 -> 480x288) instead of a padded square: same
+    # resolution, 24-42% less work measured. Uses a dynamic-shape export of the same model.
+    rect: bool = True
 
     @classmethod
     def from_env(cls) -> "DetectionConfig":
@@ -47,6 +51,7 @@ class DetectionConfig:
             fmt=os.getenv("DETECTOR_FORMAT", cls.fmt),
             conf=float(os.getenv("DETECTOR_CONF", cls.conf)),
             hands=os.getenv("HANDS_BACKEND", cls.hands),
+            rect=os.getenv("DETECTOR_RECT", "true").lower() != "false",
         )
         if cfg.hands not in HANDS_BACKENDS:
             raise DetectionUnavailable(f"HANDS_BACKEND must be one of {HANDS_BACKENDS}, got {cfg.hands!r}")
@@ -63,11 +68,20 @@ class _DetectorHand:
     fingertips: list = field(default_factory=list)
 
 
+def _timed(fn, *args):
+    t = time.perf_counter()
+    result = fn(*args)
+    return result, (time.perf_counter() - t) * 1000
+
+
 class DetectionService:
     def __init__(self, config: DetectionConfig, vocab: Optional[Vocabulary] = None):
         self.config = config
         self.vocab = vocab or load_vocabulary()
         self._lock = threading.Lock()  # neither model is safe to call from two threads at once
+        # Hands run on their own thread *while* the detector runs: both release the GIL in native
+        # code, so a frame costs max(detector, hands) instead of the sum.
+        self._hands_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="hands")
         self._detector = None
         self._hands = None
         self._warming = False
@@ -85,7 +99,7 @@ class DetectionService:
     @property
     def label(self) -> str:
         c = self.config
-        return f"{c.model}@{c.imgsz}/{c.fmt}+hands:{c.hands}"
+        return f"{c.model}@{c.imgsz}{'r' if c.rect else ''}/{c.fmt}+hands:{c.hands}"
 
     def _ensure_loaded(self) -> None:
         if self._detector is not None:
@@ -96,7 +110,8 @@ class DetectionService:
             import numpy as np
 
             t0 = time.perf_counter()
-            detector = load_detector(self.config.model, self.config.imgsz, self.config.fmt, self.vocab)
+            detector = load_detector(self.config.model, self.config.imgsz, self.config.fmt, self.vocab,
+                                     rect=self.config.rect)
             hands = None
             if self.config.hands in ("mediapipe", "hybrid"):
                 from .hands import HandTracker
@@ -141,20 +156,25 @@ class DetectionService:
             self._ensure_loaded()
             # Waiting for another frame (or the first-time model load) is "queue", not inference.
             t_start = time.perf_counter()
+            landmarked = None
+            if self.config.hands in ("mediapipe", "hybrid"):
+                landmarked = self._hands_thread.submit(_timed, self._hands.detect, image)
             detections = self._detector.detect(image, self.config.conf)
-            t2 = time.perf_counter()
+            detect_ms = (time.perf_counter() - t_start) * 1000
+            hands_ms = 0.0
+            if landmarked is not None:
+                found, hands_ms = landmarked.result()
             if self.config.hands == "mediapipe":
-                hands = self._hands.detect(image)
+                hands = found
             elif self.config.hands == "hybrid":
                 from .hands import merge_hands
 
                 boxes = [(d.box, d.confidence) for d in detections if d.class_id == "hand"]
-                hands = merge_hands(self._hands.detect(image), boxes)
+                hands = merge_hands(found, boxes)
             elif self.config.hands == "detector":
                 hands = [_DetectorHand(d.box, d.confidence) for d in detections if d.class_id == "hand"]
             else:
                 hands = []
-            t3 = time.perf_counter()
 
         objects = [d for d in detections if d.class_id != "hand"]
         if allowed_ids is not None:
@@ -169,8 +189,8 @@ class DetectionService:
             "latency_ms": {
                 "decode": round((t1 - t0) * 1000, 1),
                 "queue": round((t_start - t1) * 1000, 1),
-                "detect": round((t2 - t_start) * 1000, 1),
-                "hands": round((t3 - t2) * 1000, 1),
+                "detect": round(detect_ms, 1),
+                "hands": round(hands_ms, 1),  # in parallel with detect, not after it
                 "total": round((time.perf_counter() - t0) * 1000, 1),
             },
             "detections": [self._object_json(d) for d in objects],

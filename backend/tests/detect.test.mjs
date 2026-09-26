@@ -100,6 +100,7 @@ async function testLoopKeepsOneRequestInFlight() {
   let concurrent = 0;
   let maxConcurrent = 0;
   const scheduled = [];
+  const waits = [];
   const api = {
     detectFrame: () => {
       concurrent++;
@@ -114,7 +115,7 @@ async function testLoopKeepsOneRequestInFlight() {
     getLang: () => "en",
     capture: async () => ({ blob: "jpeg", width: 640, height: 480 }),
     api,
-    schedule: (fn) => { scheduled.push(fn); return scheduled.length; },
+    schedule: (fn, ms) => { scheduled.push(fn); waits.push(ms); return scheduled.length; },
     cancel: () => {},
     now: () => (clock += 100),
   });
@@ -128,6 +129,8 @@ async function testLoopKeepsOneRequestInFlight() {
   pending.shift()();
   await new Promise((r) => setTimeout(r, 0));
   assert(scheduled.length === 1, `next frame scheduled only after the reply, got ${scheduled.length}`);
+  // The frame took 100 ms (fake clock): wait out the rest of MIN_FRAME_MS so the CPU keeps headroom.
+  assert(waits[0] === detect.MIN_FRAME_MS - 100, `frame-rate cap: waited ${waits[0]} ms`);
   assert(table.children.length === 2, "table rendered (thead + tbody)");
   assert(stats.textContent.includes("FPS") || stats.textContent === "", `stats text "${stats.textContent}"`);
 
