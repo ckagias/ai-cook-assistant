@@ -177,10 +177,10 @@ function setup() {
 
 function testLongPressSpeaksAndSwallowsTheClick() {
   const s = setup();
-  const check = makeButton("check", "Είναι έτοιμο;");
+  const check = makeButton("check", "Έλεγξε");
   s.root.dispatch("pointerdown", ev(check));
   s.runTimers();
-  assert(s.said.length === 1 && s.said[0].startsWith("Είναι έτοιμο; Βγάζει"), `spoke the Greek description: ${s.said}`);
+  assert(s.said.length === 1 && s.said[0].startsWith("Έλεγξε. Βγάζει"), `spoke the Greek description: ${s.said}`);
   assert(s.vibrations[0] === 20, "short haptic tick");
   s.root.dispatch("pointerup", ev(check));
   const click = s.root.dispatch("click", ev(check));

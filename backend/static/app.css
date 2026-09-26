@@ -236,9 +236,7 @@ button {
   text-align: center;
 }
 
-#controls,
-#stepper,
-#clarify {
+.button-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
@@ -252,10 +250,9 @@ button {
   padding: 12px;
 }
 
-#controls button,
-#stepper button,
-#clarify button,
-#recipe-list button {
+.button-grid button,
+#recipe-list button,
+#alert button {
   min-height: var(--touch);
   min-width: var(--touch);
   background: #222;
@@ -266,10 +263,10 @@ button {
   padding: 8px 12px;
 }
 
-#stepper button[data-action="check"] {
+.button-grid button.primary {
   background: var(--accent);
   color: #111;
-  grid-column: 1 / -1;
+  font-weight: bold;
 }
 
 footer {
@@ -315,8 +312,7 @@ footer {
 
 /* --- push-to-talk: full width, green; red while recording (both >= 4.5:1 with white text) --- */
 
-#controls button.talk,
-#stepper button.talk {
+.button-grid button.talk {
   grid-column: 1 / -1;
   background: #0b6e4f;
   border-color: #3ddc97;
@@ -326,8 +322,396 @@ footer {
   touch-action: none;
 }
 
-#controls button.talk[aria-pressed="true"],
-#stepper button.talk[aria-pressed="true"] {
+.button-grid button.talk[aria-pressed="true"] {
   background: #c8102e;
   border-color: #ff8a8a;
+}
+
+/* --- hands-free: always-visible listening state over the camera view --- */
+
+#wake-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+#wake-status {
+  padding: 6px 12px 6px 30px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 0.8em;
+  position: relative;
+}
+
+#wake-status:empty {
+  display: none;
+}
+
+/* A dot, not colour alone: its fill and motion also change with the state. */
+#wake-status::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  border: 2px solid #aaa;
+}
+
+#wake-status[data-state="idle"]::before {
+  background: #3ddc97;
+  border-color: #3ddc97;
+}
+
+#wake-status[data-state="armed"] {
+  background: #c8102e;
+  font-weight: bold;
+}
+
+#wake-status[data-state="armed"]::before {
+  background: #fff;
+  border-color: #fff;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+#wake-status[data-state="error"]::before {
+  border-color: var(--danger);
+}
+
+#interim {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+#interim:empty {
+  display: none;
+}
+
+#wake-toggle[aria-pressed="true"] {
+  background: #0b6e4f;
+  border-color: #3ddc97;
+}
+
+/* --- alerts that stay until dismissed, and a full-screen flash, for a cook who can't hear --- */
+
+#alert {
+  margin: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #111;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+#alert[data-kind="safety"] {
+  background: var(--danger);
+  color: #fff;
+}
+
+#alert p {
+  flex: 1 1 12em;
+  margin: 0;
+}
+
+#alert button {
+  background: #111;
+  border-color: #111;
+}
+
+#flash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: var(--accent);
+  opacity: 0;
+}
+
+#flash[data-kind="safety"] {
+  background: var(--danger);
+}
+
+#flash.go {
+  animation: flash 0.9s ease-in-out 3;
+}
+
+@keyframes flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* --- the yes/no question the app is waiting on --- */
+
+#question {
+  margin: 0 12px;
+  border: 3px solid var(--accent);
+  border-radius: 12px;
+}
+
+#question p {
+  margin: 12px 12px 0;
+  font-size: 1.2em;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* --- recipe overview: ingredients checklist, doneness --- */
+
+#overview,
+#stepper {
+  padding: 4px 0 0;
+}
+
+#overview h2,
+#overview h3,
+#overview > p {
+  margin: 8px 16px;
+}
+
+#overview h3 {
+  font-size: 0.9em;
+  color: #aaa;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#ingredient-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px;
+  display: grid;
+  gap: 6px;
+}
+
+#ingredient-list button {
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px 8px 48px;
+  text-align: left;
+  background: #1b1b1b;
+  border: 2px solid #444;
+  border-radius: 10px;
+  position: relative;
+}
+
+/* Tick box drawn with a border + check mark, so "have it" isn't shown by colour alone. */
+#ingredient-list button::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border: 2px solid #aaa;
+  border-radius: 4px;
+}
+
+#ingredient-list button[aria-pressed="true"] {
+  border-color: #3ddc97;
+  color: #cfe;
+}
+
+#ingredient-list button[aria-pressed="true"]::before {
+  content: "✓";
+  border-color: #3ddc97;
+  background: #3ddc97;
+  color: #111;
+  font-weight: bold;
+  line-height: 22px;
+  text-align: center;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.chips button {
+  min-height: 56px;
+  padding: 8px 14px;
+  background: #222;
+  border: 2px solid #666;
+  border-radius: 999px;
+}
+
+.chips button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #111;
+  font-weight: bold;
+}
+
+/* --- steps: the step in writing, big, and every running timer --- */
+
+#step-count {
+  margin: 8px 16px 0;
+  color: #aaa;
+}
+
+#step-text {
+  margin: 4px 16px 8px;
+  font-size: 1.35em;
+  line-height: 1.35;
+}
+
+#timers {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+/* Label and clock on top, then +1 / -1 / stop - built once per timer, only the clock updates. */
+.timer-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+}
+
+.timer-label {
+  grid-column: 1 / 3;
+  color: #ccc;
+  overflow-wrap: anywhere;
+}
+
+.timer-clock {
+  grid-column: 3;
+  text-align: right;
+  font-size: 2em;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-row button {
+  min-height: 56px;
+  background: #222;
+  border: 2px solid #666;
+  border-radius: 10px;
+}
+
+/* --- typing instead of speaking --- */
+
+#ask {
+  padding: 4px 12px 0;
+}
+
+#ask label {
+  display: block;
+  font-size: 0.85em;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+
+.ask-row {
+  display: flex;
+  gap: 8px;
+}
+
+#ask input {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--fg);
+  background: #1b1b1b;
+  border: 2px solid #666;
+  border-radius: 10px;
+}
+
+#ask input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#ask button {
+  min-height: 56px;
+  min-width: 88px;
+  background: var(--accent);
+  color: #111;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+}
+
+/* --- the conversation, in writing --- */
+
+#log-wrap h3 {
+  margin: 12px 16px 4px;
+  font-size: 0.9em;
+  color: #aaa;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#log {
+  max-height: 16em;
+  overflow-y: auto;
+  margin: 0 12px;
+  padding: 4px 8px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  font-size: 0.9em;
+}
+
+#log:empty {
+  display: none;
+}
+
+#log p {
+  margin: 6px 0;
+}
+
+#log .log-you {
+  color: #9fd8ff;
+}
+
+#log .log-you b,
+#log .log-chef b {
+  font-weight: bold;
+}
+
+button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #flash.go {
+    animation: none;
+    opacity: 0.35;
+  }
+
+  #wake-status[data-state="armed"]::before {
+    animation: none;
+  }
 }

@@ -1,85 +1,43 @@
-export function createSession({ onTick, onExpired } = {}) {
+// Where the cook is in the open recipe. Timers live in timers.js: the cook starts them, and one
+// may keep running while the cook moves on to the next step.
+//
+// phase "overview": the recipe is open at its ingredients, no step started yet.
+// phase "steps":    working through recipe.steps[stepIndex].
+export function createSession() {
   let recipe = null;
   let stepIndex = 0;
-  // Absolute end timestamp, never a decrementing counter - a backgrounded tab
-  // throttles to 1 tick/s then 1/min, and a locked screen can freeze JS
-  // outright; only an absolute deadline survives that.
-  let endsAt = null;
-  let firedFor = null;
-
-  function recompute() {
-    if (endsAt === null) return;
-    const remaining = Math.max(0, endsAt - Date.now());
-    if (onTick) onTick(remaining, stepIndex);
-    if (remaining === 0 && firedFor !== stepIndex) {
-      firedFor = stepIndex;
-      endsAt = null;
-      if (onExpired) onExpired(stepIndex);
-    }
-  }
-
-  setInterval(recompute, 1000);
-  // A deadline that passed while backgrounded still fires on resume instead of being lost.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      recompute();
-    }
-  });
-
-  function setRecipe(newRecipe) {
-    recipe = newRecipe;
-    stepIndex = 0;
-    endsAt = null;
-    firedFor = null;
-  }
-
-  function getRecipe() {
-    return recipe;
-  }
-
-  function getStepIndex() {
-    return stepIndex;
-  }
-
-  function currentStep() {
-    if (!recipe) return null;
-    return recipe.steps[stepIndex] ?? null;
-  }
-
-  function goTo(index) {
-    if (!recipe || index < 0 || index >= recipe.steps.length) return false;
-    stepIndex = index;
-    endsAt = null;
-    firedFor = null;
-    return true;
-  }
-
-  function next() {
-    return goTo(stepIndex + 1);
-  }
-
-  function startTimer(durationSec) {
-    endsAt = Date.now() + durationSec * 1000;
-    firedFor = null;
-  }
-
-  function clearTimer() {
-    endsAt = null;
-  }
-
-  function remainingMs() {
-    return endsAt === null ? null : Math.max(0, endsAt - Date.now());
-  }
+  let phase = null;
 
   return {
-    setRecipe,
-    getRecipe,
-    getStepIndex,
-    currentStep,
-    goTo,
-    next,
-    startTimer,
-    clearTimer,
-    remainingMs,
+    setRecipe(newRecipe) {
+      recipe = newRecipe;
+      stepIndex = 0;
+      phase = newRecipe ? "overview" : null;
+    },
+    getRecipe: () => recipe,
+    getPhase: () => phase,
+    getStepIndex: () => stepIndex,
+    // null during the overview, so nothing step-shaped happens before the cook starts.
+    currentStep() {
+      if (!recipe || phase !== "steps") return null;
+      return recipe.steps[stepIndex] ?? null;
+    },
+    beginSteps() {
+      if (!recipe || !recipe.steps.length) return false;
+      phase = "steps";
+      stepIndex = 0;
+      return true;
+    },
+    goTo(index) {
+      if (!recipe || index < 0 || index >= recipe.steps.length) return false;
+      phase = "steps";
+      stepIndex = index;
+      return true;
+    },
+    next() {
+      if (phase === "overview") return this.beginSteps();
+      return this.goTo(stepIndex + 1);
+    },
+    isLastStep: () => Boolean(recipe) && phase === "steps" && stepIndex === recipe.steps.length - 1,
   };
 }

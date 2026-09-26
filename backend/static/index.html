@@ -25,11 +25,16 @@
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
+        <!-- Hands-free state, always visible: whether the microphone is listening for "Hey chef". -->
+        <div id="wake-bar">
+          <span id="wake-status" data-state="off"></span>
+          <span id="interim" aria-hidden="true"></span>
+        </div>
       </div>
 
       <div id="detect-panel">
         <div class="detect-bar">
-          <button id="detect-toggle" data-action="detect-toggle" data-speak="detect_toggle" aria-pressed="false">Ανίχνευση</button>
+          <button id="detect-toggle" data-action="detect-toggle" data-speak="detect_toggle" data-label="detect_toggle" aria-pressed="false">Ανίχνευση</button>
           <span id="detect-stats" aria-hidden="true"></span>
         </div>
         <div class="table-scroll">
@@ -40,33 +45,87 @@
 
     <div id="status" role="status" aria-live="assertive" aria-atomic="true"></div>
 
-    <div id="controls">
-      <!-- Hold to talk: data-hold keeps the long-press description from firing on it. -->
-      <button class="talk" data-action="talk" data-speak="talk" data-hold="1" aria-pressed="false">Μίλα</button>
-      <button data-action="identify" data-speak="identify">Τι είναι αυτό;</button>
-      <button data-action="recipes" data-speak="recipes">Συνταγές</button>
+    <!-- Timer ends, fire warnings: stays on screen until dismissed, for a cook who can't hear it. -->
+    <div id="alert" role="alert" hidden>
+      <p id="alert-text"></p>
+      <button data-action="alert-ok" data-speak="alert_ok" data-label="alert_ok">Εντάξει</button>
+    </div>
+
+    <!-- A yes/no question the app is waiting on: move on? add time? stop? -->
+    <div id="question" hidden>
+      <p id="question-text"></p>
+      <div class="button-grid">
+        <button data-action="answer-yes" data-speak="answer_yes" data-label="answer_yes">Ναι</button>
+        <button data-action="answer-no" data-speak="answer_no" data-label="answer_no">Όχι</button>
+      </div>
+    </div>
+
+    <div id="controls" class="button-grid">
+      <!-- data-hold keeps the long-press description from firing on the talk button. -->
+      <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
+      <button id="wake-toggle" data-action="wake-toggle" data-speak="wake_toggle" data-label="wake_toggle" aria-pressed="false">Χωρίς χέρια</button>
+      <button data-action="recipes" data-speak="recipes" data-label="recipes">Συνταγές</button>
+      <button data-action="identify" data-speak="identify" data-label="identify">Τι είναι αυτό;</button>
     </div>
 
     <div id="recipe-list" hidden></div>
 
-    <div id="stepper" hidden>
-      <button class="talk" data-action="talk" data-speak="talk" data-hold="1" aria-pressed="false">Μίλα</button>
-      <button data-action="check" data-speak="check">Είναι έτοιμο;</button>
-      <button data-action="repeat" data-speak="repeat">Επανάλαβε</button>
-      <button data-action="next" data-speak="next">Επόμενο</button>
-      <button data-action="stop" data-speak="stop">Διακοπή</button>
-    </div>
+    <section id="overview" hidden aria-labelledby="overview-title">
+      <h2 id="overview-title"></h2>
+      <p id="overview-meta"></p>
+      <div id="doneness" hidden>
+        <h3 data-label="doneness_title">Ψήσιμο</h3>
+        <div id="doneness-options" class="chips"></div>
+      </div>
+      <h3 data-label="ingredients">Υλικά</h3>
+      <ul id="ingredient-list"></ul>
+      <div class="button-grid">
+        <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
+        <button class="primary" data-action="start-cooking" data-speak="start_cooking" data-label="start_cooking">Ξεκίνα</button>
+        <button data-action="check-ingredients" data-speak="check_ingredients" data-label="check_ingredients">Έλεγχος με κάμερα</button>
+        <button data-action="read-ingredients" data-speak="read_ingredients" data-label="read_ingredients">Πες τα υλικά</button>
+        <button data-action="stop" data-speak="stop" data-label="stop">Διακοπή</button>
+      </div>
+    </section>
 
-    <div id="clarify" hidden>
-      <button data-action="answer-yes" data-speak="answer_yes">Ναι</button>
-      <button data-action="answer-no" data-speak="answer_no">Όχι</button>
-    </div>
+    <section id="stepper" hidden aria-labelledby="step-count">
+      <p id="step-count"></p>
+      <p id="step-text"></p>
+      <div id="timers"></div>
+      <div class="button-grid">
+        <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
+        <button class="primary" data-action="check" data-speak="check" data-label="check">Έλεγξε</button>
+        <button id="start-timer" data-action="start-timer" data-speak="start_timer" hidden></button>
+        <button data-action="repeat" data-speak="repeat" data-label="repeat">Επανάλαβε</button>
+        <button data-action="previous" data-speak="previous" data-label="previous">Προηγούμενο</button>
+        <button data-action="next" data-speak="next" data-label="next">Επόμενο</button>
+        <button data-action="read-ingredients" data-speak="ingredients" data-label="ingredients">Υλικά</button>
+        <button data-action="stop" data-speak="stop" data-label="stop">Διακοπή</button>
+      </div>
+    </section>
+
+    <!-- Typing instead of speaking: the same commands and questions as the voice. -->
+    <form id="ask" autocomplete="off">
+      <label for="ask-input" data-label="ask_label">Γράψε αντί να μιλήσεις</label>
+      <div class="ask-row">
+        <input id="ask-input" type="text" enterkeyhint="send" maxlength="500" />
+        <button type="submit" data-speak="send" data-label="send">Στείλε</button>
+      </div>
+    </form>
+
+    <section id="log-wrap" aria-labelledby="log-title">
+      <h3 id="log-title" data-label="log_title">Συνομιλία</h3>
+      <!-- Everything said, both ways, in writing. Not a live region: the status line above is. -->
+      <div id="log" role="log" aria-live="off"></div>
+    </section>
 
     <footer>
       <span id="timer"></span>
       <span id="debug"></span>
     </footer>
   </div>
+
+  <div id="flash" aria-hidden="true" hidden></div>
 
   <script type="module" src="js/app.js"></script>
 </body>

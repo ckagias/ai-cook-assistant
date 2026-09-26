@@ -110,6 +110,7 @@ export function createDetector({
   getLang = () => "el",
   getRecipeId = () => null,
   isPaused = () => false,
+  onResult = () => {}, // (response) every frame - e.g. ticking off ingredients the camera sees
   capture = captureJpegBlob,
   api = defaultApi,
   schedule = (fn, ms) => setTimeout(fn, ms),
@@ -271,6 +272,11 @@ export function createDetector({
       lastFrameAt = finished;
       delay = Math.max(0, MIN_FRAME_MS - (finished - started));
       draw(res);
+      try {
+        onResult(res);
+      } catch {
+        // a listener's bug must not stop the preview
+      }
       if (finished - lastTableAt >= TABLE_INTERVAL_MS) {
         lastTableAt = finished;
         renderTable(res);

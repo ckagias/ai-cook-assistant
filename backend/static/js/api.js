@@ -88,14 +88,35 @@ export function detectFrame(blob, recipeId) {
 
 // Push-to-talk: the recording plus what the server needs to understand it. Never retried -
 // a second transcription of the same audio would just cost twice.
-export function voiceCommand(blob, mimeType, { language, recipeId, stepIndex, candidates } = {}) {
-  const params = new URLSearchParams({ language: language || "el" });
-  if (recipeId) params.set("recipe_id", recipeId);
-  if (stepIndex !== undefined && stepIndex !== null) params.set("step_index", String(stepIndex));
-  if (candidates && candidates.length) params.set("candidates", candidates.join(","));
+export function voiceCommand(blob, mimeType, ctx = {}) {
+  const params = new URLSearchParams({ language: ctx.language || "el" });
+  if (ctx.recipeId) params.set("recipe_id", ctx.recipeId);
+  if (ctx.stepIndex !== undefined && ctx.stepIndex !== null) params.set("step_index", String(ctx.stepIndex));
+  if (ctx.candidates && ctx.candidates.length) params.set("candidates", ctx.candidates.join(","));
+  if (ctx.pending) params.set("pending", ctx.pending);
+  if (ctx.doneness) params.set("doneness", ctx.doneness);
+  if (ctx.timerRemainingSec !== undefined && ctx.timerRemainingSec !== null) {
+    params.set("timer_remaining_sec", String(ctx.timerRemainingSec));
+  }
   return requestJson(
     "/voice?" + params.toString(),
     { method: "POST", headers: { "Content-Type": mimeType || "audio/webm" }, body: blob },
+    30000
+  );
+}
+
+// Words the browser recognized (hands-free / talk button) or the cook typed. Same context as
+// voiceCommand; never retried - a second call would just answer the same words twice.
+export function voiceText(text, ctx = {}) {
+  const body = { text, language: ctx.language || "el", candidates: (ctx.candidates || []).slice(0, 5) };
+  if (ctx.recipeId) body.recipe_id = ctx.recipeId;
+  if (ctx.stepIndex !== undefined && ctx.stepIndex !== null) body.step_index = ctx.stepIndex;
+  if (ctx.pending) body.pending = ctx.pending;
+  if (ctx.doneness) body.doneness = ctx.doneness;
+  if (ctx.timerRemainingSec !== undefined && ctx.timerRemainingSec !== null) body.timer_remaining_sec = ctx.timerRemainingSec;
+  return requestJson(
+    "/voice/text",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     30000
   );
 }

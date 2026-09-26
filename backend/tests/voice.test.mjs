@@ -2,7 +2,8 @@
 // an accidental tap, releasing before the microphone is ready, the 15 s cap, and no second
 // recording while the first is still being understood.
 
-const { createPushToTalk, pickMimeType, MIN_MS, MAX_MS } = await import("../static/js/voice.js");
+const { createPushToTalk, pickMimeType, createSilenceDetector, MIN_MS, MAX_MS, CALIBRATE_MS, SILENCE_MS, NO_SPEECH_MS } =
+  await import("../static/js/voice.js");
 
 function assert(cond, message) {
   if (!cond) throw new Error("assertion failed: " + message);
@@ -40,7 +41,7 @@ globalThis.Blob = class {
   }
 };
 
-function setup({ send, getStream } = {}) {
+function setup({ send, getStream, meter } = {}) {
   let clock = 0;
   const timers = [];
   const states = [];
@@ -58,6 +59,7 @@ function setup({ send, getStream } = {}) {
     onResult: (res, reason) => results.push(res || reason),
     onError: (err) => errors.push(err),
     Recorder: FakeRecorder,
+    meter,
     setTimer: (fn, ms) => { timers.push({ fn, ms, live: true }); return timers.length - 1; },
     clearTimer: (id) => { if (timers[id]) timers[id].live = false; },
     now: () => clock,
@@ -167,5 +169,92 @@ await testHeldTooLongStopsItself();
 await testNoSecondRecordingWhileThinking();
 await testErrorsReachTheApp();
 testPickMimeType();
+
+// --- tap to talk (no browser speech recognition): record until the cook stops talking ---
+
+function testSilenceDetector() {
+  let clock = 0;
+  const feed = createSilenceDetector({ now: () => clock });
+  const run = (level, ms) => {
+    let out;
+    for (let t = 0; t < ms; t += 50) {
+      clock += 50;
+      out = feed(level);
+    }
+    return out;
+  };
+  assert(feed(0.02) === "calibrating", "calibrates on the room first");
+  run(0.02, CALIBRATE_MS); // a humming fan: the floor
+  assert(run(0.03, 400) === "waiting", "the fan a bit louder is not speech (2.5x the floor)");
+  assert(run(0.2, 400) === "speaking", "speech");
+  assert(run(0.02, SILENCE_MS - 100) === "speaking", "a pause mid-sentence is not the end");
+  assert(run(0.02, 300) === "done", "quiet after speech: done");
+
+  clock = 0;
+  const idle = createSilenceDetector({ now: () => clock });
+  let out;
+  for (let t = 0; t <= NO_SPEECH_MS; t += 50) {
+    clock = t;
+    out = idle(0.001);
+  }
+  assert(out === "no_speech", "nobody said anything");
+  console.log("test h (silence detector) OK");
+}
+
+function fakeMeter(levels) {
+  const gauge = { closed: false, read: () => levels.shift() ?? 0.001, close() { gauge.closed = true; } };
+  return { gauge, meter: () => gauge };
+}
+
+async function testTapRecordsUntilTheCookStopsTalking() {
+  const levels = [...Array(6).fill(0.01), ...Array(10).fill(0.3), ...Array(40).fill(0.01)];
+  const { gauge, meter } = fakeMeter(levels);
+  const s = setup({ meter });
+  await s.ptt.start();
+  s.advance(100);
+  await s.ptt.autoStop(); // released quickly: a tap
+  s.timers.forEach((t) => { if (t.ms === MAX_MS) t.live = false; }); // runTimers ignores time - keep the 15 s cap out
+  assert(s.ptt.isRecording(), "a tap keeps recording");
+  for (let i = 0; i < 60 && s.ptt.isRecording(); i++) {
+    s.advance(50);
+    s.runTimers();
+  }
+  await tick();
+  await tick();
+  assert(!s.ptt.isRecording() && s.sent.length === 1, "stopped after the speech ended, and sent");
+  assert(gauge.closed, "the level meter is released");
+  console.log("test i (tap to talk stops on silence) OK");
+}
+
+async function testTapWithNothingSaidSendsNothing() {
+  const { meter } = fakeMeter([]);
+  const s = setup({ meter });
+  await s.ptt.start();
+  await s.ptt.autoStop();
+  s.timers.forEach((t) => { if (t.ms === MAX_MS) t.live = false; }); // the no-speech path must end it, not the cap
+  for (let i = 0; i < 200 && s.ptt.isRecording(); i++) {
+    s.advance(50);
+    s.runTimers();
+  }
+  await tick();
+  assert(!s.ptt.isRecording() && s.sent.length === 0, "nothing sent");
+  assert(s.results[0] === "no_speech", `told why: ${s.results}`);
+  console.log("test j (a tap with nothing said) OK");
+}
+
+async function testCancelDiscards() {
+  const s = setup();
+  await s.ptt.start();
+  s.advance(2000);
+  s.ptt.cancel();
+  await tick();
+  assert(!s.ptt.isRecording() && s.sent.length === 0 && s.results.length === 0, "cancelled silently");
+  console.log("test k (cancel discards) OK");
+}
+
+testSilenceDetector();
+await testTapRecordsUntilTheCookStopsTalking();
+await testTapWithNothingSaidSendsNothing();
+await testCancelDiscards();
 
 console.log("all passed");
