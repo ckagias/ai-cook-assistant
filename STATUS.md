@@ -3,6 +3,78 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
+## Update: hands-free "Hey chef", recipe flow, deaf-friendly UI (branch `feature/hands-free-chef`, 2026-09-26)
+
+See DESIGN.md #21-#26 for the why. **Built and verified:**
+- **Wake phrase "Γεια σου σεφ" / "Hey chef"** (`static/js/wake.js`), with the talk button as a
+  tap-to-listen. Common commands are matched on the device (`static/js/commands.js`), and free
+  speech or typed text goes to the new `POST /voice/text`.
+- **Voice text understood with any one key.** Measured live with the Gemini key on this machine
+  (text only, no audio):
+  - 8 of 8 real Greek/English requests got the right action:
+    - "θέλω να φτιάξω ροσμπίφ" opened roast beef directly;
+    - "πόσο λάδι βάζω;" was answered from the recipe;
+    - "τελείωσα με το κόψιμο" became a check;
+    - "βάλε δύο λεπτά ακόμα" added 120 s;
+    - "το θέλω μέτρια ψημένο" set medium, target 60°C;
+    - "yeah go ahead" became yes to the pending question;
+  - 3-11 s each - mostly Gemini's 503s and the free tier's 5 requests/minute per model. That
+    is why simple commands never leave the device.
+- **Recipe flow:**
+  - an overview with an ingredient checklist (tap, camera check via the new `check_ingredients`
+    mode, or live detection);
+  - a doneness choice for meat, with curated thermometer targets;
+  - steps whose timers start only when the cook says so, several at once;
+  - check -> "shall we move on?" / "add 5 minutes?" - never advances on its own;
+  - cut and prep steps judged on the work.
+- **Deaf / non-speaking use:** a text box for every command and question, a conversation log,
+  the step and timers shown large, and alerts that stay with a flash until dismissed.
+- **10 curated bilingual seed recipes** (roast beef, steak, Greek salad, lemon potatoes, oven
+  chicken, tomato pasta, tzatziki + the original 3). They reach existing databases
+  automatically when `recipes.json` changes.
+- **End to end in headless Edge 153 against the real server (Gemini):**
+  - real `app.js`, a fake camera, and scripted stand-ins for the recognizer and the speech voice;
+  - 13 scenarios passed, no page errors. Among them:
+    - nothing happens without the wake phrase;
+    - "Hey chef, I want to make roast beef" -> overview in 4.4-13.2 s;
+    - "medium", "start", "timer" and "next" are handled locally;
+    - timer +1 min; the app's own voice is ignored;
+    - "done" on the garlic step -> a camera check in 10-13 s, not moved on;
+    - a typed reminder question gets "2 tbsp";
+    - a 3-second timer -> an alert stays on screen;
+    - "stop the recipe" asks first;
+    - hands-free off -> the talk button still works.
+- Fixed along the way:
+  - **a Gemini `504 DEADLINE_EXCEEDED` ended the model fallback chain** instead of trying the
+    next model (seen live; affected `/analyze` too);
+  - **the seed file was hashed from one path and seeded from another** (a default argument
+    bound at import time);
+  - **silent recordings echoing the transcription hint** (the "Known, not fixed yet" item
+    below) now count as "not heard".
+- Test suite: 307 passing (Python + Node). New: `test_hands_free.py`, `/voice/text` tests in
+  `test_voice.py`, `commands.test.mjs`, `wake.test.mjs`, `timers.test.mjs`, and tap-to-talk
+  tests in `voice.test.mjs`.
+
+**Not verified yet:**
+- **A real microphone with real browser recognition.** Everything above used a scripted
+  `SpeechRecognition`. Not yet measured:
+  - how reliably Chrome/Edge's `el-GR` recognizer writes "Γεια σου σεφ" or "Hey chef" (the
+    matcher accepts the Latin and Greek spellings seen in `commands.test.mjs`);
+  - false wakes from a TV;
+  - kitchen noise.
+- **Android Chrome** beeps each time continuous recognition restarts, and it restarts often.
+  Test on the tablet before relying on hands-free there.
+- **On-device recognition (`processLocally`)** is used when the browser reports it available.
+  No browser here did, so every run was cloud mode.
+- **Firefox tap-to-talk** (records until silence) is unit-tested only, and needs `OPENAI_API_KEY`.
+- **The Anthropic voice path** has never been called live (no key here).
+- **The new recipes are hand-written, not cooked.** Times and temperatures follow standard
+  guidance; a person should read them through like any curated recipe. The ingredient camera
+  check has only seen the fake camera's pasta pot.
+- **Imported recipes (Akis Petretzikis, any-URL) are still `staged`** until curated with
+  `scripts/curate_recipe.py`, so hands-free search can't find them yet. That is on purpose
+  (DESIGN #18): their safety fields need a human.
+
 ## Update: instant start, camera in any browser, voice commands (2026-09-26)
 
 **Built and verified:**
@@ -36,9 +108,8 @@ reflects real state as of this writing, not the plan's projections.
   (`DETECTOR_RECT`), hands in parallel with the detector, and a ~6 FPS cap. See DESIGN.md #17.
 
 **Known, not fixed yet:**
-- **Silent recordings echo the prompt.** A silent or unintelligible recording makes the
-  transcription echo its hint text, and the reply becomes a generic "which command?". It
-  should say "I didn't hear you" instead.
+- ~~**Silent recordings echo the prompt.**~~ Fixed on `feature/hands-free-chef`: a transcript
+  that is mostly the hint's own words now counts as "not heard" (`voice._echoes_hint`).
 - **Voice in Firefox isn't verified.** Headless Firefox recorded silence from the test's fake
   microphone.
 - **`start.sh` hasn't been run end to end on WSL.** It's only syntax-checked, because a full

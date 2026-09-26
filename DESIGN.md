@@ -12,7 +12,11 @@ backend over USB in one command. A native app buys nothing here that the
 browser doesn't already give for free, at a much higher setup cost for a
 demo.
 
-## 2. No speech-to-text
+## 2. No speech-to-text (superseded - see #21)
+
+Kept for the record: push-to-talk replaced this first, then the hands-free wake phrase (#21).
+The failure mode named here (a misheard word while a pan sizzles) is why every spoken command
+is checked against a closed list and anything consequential asks before acting.
 
 The interaction surface is deliberately small: point-and-ask, yes/no,
 check/repeat/next/stop, all reachable by touch or a Bluetooth shutter
@@ -341,3 +345,119 @@ would follow. Mouse hover (PC demo) and keyboard focus speak too.
 These "hints" are the lowest TTS priority: a hint never interrupts real speech, and only
 replaces another hint. The same change fixed an older ordering bug: a routine command
 ("Let me take a look") could cut off a safety alert mid-sentence. It now queues behind it.
+
+## 21. Hands-free: a wake phrase in the browser, simple commands matched on the device
+
+A cook with both hands in raw chicken can't hold a button, so "Γεια σου σεφ" / "Hey chef" starts
+listening (`static/js/wake.js`). Options considered:
+
+- **An on-device wake-word model** (Porcupine, openWakeWord, Vosk in WASM): private, but a custom
+  "Hey chef" needs training or a vendor account, and there is no small Greek model. Too much
+  for the time we had.
+- **Always recording and sending clips to the server:** every kitchen conversation would go to a
+  paid transcription API. Rejected.
+- **The browser's own speech recognition** (`SpeechRecognition`, continuous) - chosen. It
+  already hears Greek well, costs nothing per command, and returns text, so the server
+  skips transcription. The trade-off: unless the browser supports on-device recognition
+  (`processLocally`, used whenever `SpeechRecognition.available()` says so), audio streams to
+  the browser vendor's speech service while hands-free is on. The badge on the camera view says
+  which mode is active; the toggle turns it off and the talk button keeps working.
+
+What keeps it from acting on the wrong words:
+- **Nothing happens without the wake phrase** or a tap, so a TV saying "next step" is ignored.
+- **The recognizer is paused while the app speaks.** `setGate(false)` from the TTS acoustic gate
+  aborts recognition and discards its audio, so the app never obeys its own voice. That includes
+  hints that contain "Γεια σου σεφ".
+- **Common commands are matched on the device** (`static/js/commands.js`): whole utterances
+  only, both languages. They are instant, never leave the device and need no API key. Measured
+  here, Gemini's free tier allows 5 requests a minute per model and took 3-11 s per command, so
+  "next" or "yes" must not depend on it.
+- **Everything else goes to `/voice/text`**, which uses the same closed action list and the same
+  code checks as push-to-talk. "Yes"/"no" only count against a question the app actually asked.
+  "Stop the recipe" always asks first.
+- **Any one key is enough:** OpenAI, Gemini or Anthropic interpret text, because one machine here
+  only had a Gemini key. Recorded audio (the Firefox fallback) still needs OpenAI.
+
+"Hey chef, I want to make roast beef" starts the recipe directly when the dish name is
+unambiguous (`voice.auto_pick`). An ingredient word ("eggs", "πατάτες") doesn't count as a dish
+name, so "something with eggs" still offers a choice.
+
+## 22. Timers start when the cook says so, and several run at once
+
+Before this, reading a step aloud started its timer. People work at different speeds, and a
+blind cook may still be finding the pan. Now the step says "about 40 minutes - say timer when
+you begin", and nothing counts until they do.
+
+A single countdown also broke on real recipes: the tomato sauce simmers for 20 minutes while
+the pasta water boils. `static/js/timers.js` keeps any number of timers, keyed by step, with
+absolute deadlines as before. Moving to the next step never cancels one, because the cook
+started it. "Two more minutes" and "take a minute off" go to the current step's timer, or else
+to the one ending soonest.
+
+## 23. The camera proposes, the cook agrees
+
+`check_doneness` returns a structured `verdict` (`ready` / `not_ready` / `unsure`) and, when
+not ready, `suggested_extra_sec`. The client never advances on its own:
+- `ready` asks "shall we move on?";
+- `not_ready` asks "add 5 minutes to the timer?";
+- `unsure` asks the model's one clarifying question.
+The cook answers yes/no by voice, button or typing.
+
+A curated step `kind` decides what "ready" means. For `prep` (cutting, grating, mixing) the
+prompt judges the work itself - piece size, evenness - and never doneness. That is how "cut the
+garlic, tell me when you're done, let me look" works. For a cooking step the prompt gets the
+timer's progress too ("15 of 25 minutes"), because colour alone misleads: pale at minute 5 is
+fine, pale at minute 40 is not.
+
+Server-side bounds, the same idea as #4:
+- `ready` with low confidence becomes `unsure`;
+- extra time only comes with `not_ready` and is capped at an hour;
+- an alarm clears the verdict;
+- `ingredients_seen` keeps only numbers that exist in the recipe.
+
+## 24. Meat: the cook's doneness choice, the thermometer's number
+
+The raw-protein rule (#4) still replaces any looks-based verdict on a meat step, and now also
+drops `ready` and extra time. What changed is what the cook hears instead of a generic lecture:
+- A step can carry curated `by_doneness` targets (`{"medium_rare": {"temp_c": 54,
+  "duration_sec": 1800}}`). With a preference chosen, the cook hears "for medium-rare, take it
+  off at 54°C". Food-safety guidance (63°C for whole cuts) is always said next to it, because a
+  rare preference is the cook's decision, not the app's.
+- The same targets set that step's default timer.
+
+A curated `prep` step with raw meat in it (seasoning the roast, cutting chicken) is judged on
+the prep, with a hand-washing note instead of a thermometer. Judging a cut is not judging
+doneness.
+
+## 25. Two groups, one app: blind cooks, and deaf cooks who don't speak
+
+Every function has three ways in and two ways out.
+- **In:** voice, a button, or the text box. Typed text goes through the same `/voice/text` path as
+  speech.
+- **Out:** speech, plus the same words on screen - the status line and a conversation log that is
+  navigable but not a second live region (no double announcements).
+
+Things a deaf cook would otherwise miss:
+- A timer's end or a fire warning stays on screen until dismissed, with a full-screen flash
+  (static under `prefers-reduced-motion`) and vibration.
+- The current step and every running timer are shown large.
+- The hands-free badge shows whether the microphone is listening.
+
+## 26. Seed recipes follow `data/recipes.json`
+
+The database used to be seeded only when empty, so recipes added to `recipes.json` never
+reached a database that already existed on a teammate's laptop. `ensure_ready()` now stores the
+seed file's hash (`meta` table, migration 003) and re-applies the seed when it changes. That is
+the same effect as `db_init.py --reseed`: seed recipes are written as published, and staged
+imports are left alone.
+
+The seed now has ten hand-curated, bilingual recipes, chosen to cover the use cases above:
+- roast beef and steak: doneness targets;
+- Greek salad and tzatziki: cutting and grating checks;
+- lemon potatoes: colour + time in the oven;
+- oven chicken: 74°C, no doneness choice;
+- tomato pasta: two timers at once.
+
+Ingredient lines carry per-language text, and the Greek text is indexed for search. A side
+effect: a 5-letter query word such as "σούσι" was stemmed to the 3-letter prefix "σου*", which
+matched every "κουτ. σούπας" (tablespoon). Words of 5+ letters now keep at least 4.

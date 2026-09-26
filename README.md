@@ -232,30 +232,65 @@ Every big button says what it does before you press it:
 
 Screen-reader (TalkBack) users can turn this off per device with `?speakButtons=0`.
 
-## Voice commands (push-to-talk)
+## Hands-free: "Γεια σου σεφ" / "Hey chef"
 
-Hold the green **Μίλα / Talk** button, or the **V** key on a PC, say what you need, and let go.
-Examples: "next step", "repeat", "set a timer for five minutes", "is it ready?", "what is
-this?", "I want to make eggs" and then "the first one", or a short cooking question.
+Say **"Γεια σου σεφ"** or **"Hey chef"**, then what you need - in one breath ("Hey chef, next
+step") or after the beep. Tapping the green **Μίλα / Talk** button (or the **V** key) does the
+same without the wake phrase. A cook who doesn't speak **types** the same commands in the box
+under the buttons, and every button does what a voice command does.
 
-- **What it needs:** `OPENAI_API_KEY`. Audio is transcribed (`gpt-4o-mini-transcribe`) and the
-  command understood (`gpt-5-mini`), about 2-3 s after release.
-- **Recipe search:** BM25 over a local SQLite FTS5 index, with no embeddings.
-- **Push-to-talk only:** the microphone records only while the button is held, so a TV or a
-  visitor can't issue commands.
+A cooking session, start to finish:
+
+1. "Γεια σου σεφ, θέλω να φτιάξω ροσμπίφ" - a dish named outright starts at once; a vaguer
+   request ("something with eggs") lists up to three to pick from ("the second one").
+2. The **ingredients** are read out and shown as a checklist. "Έλεγξε τα υλικά" shows them to the
+   camera and ticks what it sees (the live detection preview ticks them too); a tap ticks one.
+   Meat recipes ask how you like it (σενιάν ... καλοψημένο).
+3. "Ξεκίνα" - step by step. A step with a usual time says so, but **timers start only when you
+   say "χρονόμετρο"** (or tap it): people work at different speeds. Several run at once, and
+   "two more minutes" / "+1 λεπτό" adjust them.
+4. Cutting, grating, mixing: "τελείωσα" / "έλεγξε" and the camera judges the **work** (piece
+   size, evenness). On the heat it judges **colour and the timer together**. When it looks ready
+   it **asks** "shall we move on?" - it never moves on by itself. Not ready: "add 5 minutes?".
+   Meat is never judged done by looks: you hear the thermometer target for your doneness choice.
+5. Any time: a question or reminder ("πόσο λάδι βάζω;", "what's next?") is answered from the
+   open recipe.
+
+Everything said is also on screen (status line and conversation log), timer ends and fire
+warnings stay up with a flash and a buzz until dismissed, and the step and its timers are shown
+large - so the whole app works without hearing it.
+
+- **Speech recognition is the browser's** (Chrome, Edge, Safari). On-device where the browser
+  offers it; otherwise audio goes to the browser's speech service (Google / Microsoft) while
+  hands-free is on - the badge on the camera view says which. The **Χωρίς χέρια / Hands-free**
+  button turns it off (remembered per device, or `?wake=0`); the talk button still works.
+  `?listen=en` listens for English instead of Greek.
+- **Nothing is acted on without the wake phrase** or a tap, and whatever the microphone hears
+  while the app is speaking is thrown away - it never takes its own voice for a command.
+- **Common commands never leave the device** ("next", "yes", "timer", "check it", "σενιάν"...,
+  `static/js/commands.js`): instant, free, and they work with no API key at all. Free speech goes
+  to `POST /voice/text`, understood by whichever key is set - OpenAI (`gpt-5-mini`), Gemini, or
+  Anthropic (`VOICE_PROVIDER` picks one explicitly).
+- **Browsers without speech recognition (Firefox):** tap Talk and it records until you stop
+  talking, or hold it while you speak; the recording is transcribed on the server
+  (`gpt-4o-mini-transcribe`, needs `OPENAI_API_KEY`).
 - **A closed set of actions:** the model can only pick one from a fixed list. Code checks the
   result: timer bounds, that a chosen recipe was actually offered, that a step action has an
-  open recipe. Recipe text is passed as tagged data, never as instructions, and every reply
-  goes through the same output guard as the vision answers.
-- **Nothing kept:** audio and transcripts are never stored or logged.
+  open recipe, that "yes" answers a question the app asked. Recipe text is passed as tagged
+  data, never as instructions, and every reply goes through the same output guard as the
+  vision answers.
+- **Nothing kept:** audio, transcripts and typed text are never stored or logged.
 
 ## API surface
 
 ```
-GET  /health                              -> {"status": "ok", "demo_mode": bool}
-POST /analyze                             -> AnalyzeResponse
+GET  /health                              -> {"status": "ok", "demo_mode": bool, "voice": {"text": bool, "audio": bool}}
+POST /analyze                             -> AnalyzeResponse (modes incl. check_doneness, check_ingredients)
 POST /detect[?recipe_id=...]              -> DetectResponse (raw image/jpeg body, <= 2 MB); 503 if detection is off
-POST /voice?language=..[&recipe_id&step_index&candidates] -> VoiceResponse (raw audio body, <= 2 MB); 503 without OPENAI_API_KEY
+POST /voice/text                          -> VoiceResponse (JSON {text, language, recipe_id, step_index, candidates,
+                                             pending, doneness, timer_remaining_sec}); 503 with no API key at all
+POST /voice?language=..[&recipe_id&step_index&candidates&pending&doneness&timer_remaining_sec]
+                                          -> VoiceResponse (raw audio body, <= 2 MB); 503 without OPENAI_API_KEY
 GET  /recipes                             -> [{"id", "name"}]   (published recipes only)
 GET  /recipes/{recipe_id}                 -> full Recipe, 404 if unknown
 GET  /barcode/{code}                      -> Open Food Facts proxy, 404 if not found
