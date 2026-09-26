@@ -13,6 +13,14 @@ let currentRank = -1;
 // What is still to be said, in order: the utterance playing, then the queue behind it. Kept so an
 // interruption ("Hey chef") can pick up where it stopped - see interrupt().
 let unsaid = []; // [{ text, priority, lang, u, spokenTo }]
+// What the app said lately, for taking its own voice out of what the microphone heard (echo.js).
+let spokenLog = []; // [{ text, at }]
+export const RECENT_SPEECH_MS = 15000;
+
+export function recentSpeech(withinMs = RECENT_SPEECH_MS, now = Date.now()) {
+  spokenLog = spokenLog.filter((x) => now - x.at < withinMs);
+  return [...spokenLog.map((x) => x.text), ...unsaid.map((x) => x.text)];
+}
 
 export function registerAcousticGate(fn) {
   gateListener = fn;
@@ -123,6 +131,7 @@ function buildUtterance(text, lang, entry) {
 
   u.onstart = () => {
     speaking = true;
+    spokenLog.push({ text, at: Date.now() });
     setAcousticMonitor(false, text);
     clearInterval(keepAlive);
     // Chrome cuts speech off after ~15s of silence from the tab; a pause/resume

@@ -23,7 +23,19 @@ export const MAX_BACKOFF_MS = 15000;
 // επόμενο βήμα" on a loop). English finalizes on its own within ~0.5 s. So once the wake phrase
 // is heard and the words stop changing for SETTLE_MS, stop() the session: that hands over the
 // final result at once (measured ~0.1 s later), and onend starts a fresh session.
-export const SETTLE_MS = 1000;
+// 1.8 s, not 1 s: a cook thinking mid-sentence ("I have the eggs... and the milk") was cut off and
+// half a sentence was acted on. Holding the talk button never cuts off at all (hold()).
+export const SETTLE_MS = 1800;
+// Released the talk button: how long to wait for the recognizer's final words before acting on
+// what was heard so far.
+export const RELEASE_FINAL_MS = 1200;
+
+// Of the recognizer's alternatives, the one that woke with a command after it, else any that woke:
+// "χέρι σεφ" / "χέι σεφ επανάλαβε" -> the second.
+function bestWake(alternatives) {
+  const woke = alternatives.map(splitWake).filter((w) => w.woke);
+  return woke.find((w) => w.rest.trim()) || woke[0] || null;
+}
 
 export function getRecognition(g = globalThis) {
   return g.SpeechRecognition || g.webkitSpeechRecognition || null;
@@ -54,6 +66,7 @@ export function createWakeListener({
   setTimer = (fn, ms) => setTimeout(fn, ms),
   clearTimer = (id) => clearTimeout(id),
   probeLocal = localAvailable,
+  cleanEcho = (text) => text, // takes the app's own words out of what was heard (echo.js)
 } = {}) {
   let rec = null;
   let enabled = false;
@@ -69,6 +82,15 @@ export function createWakeListener({
   let wokeOn = -1; // result index whose wake phrase already fired onWake
   let mode = "cloud";
   let oneShot = false; // listenNow() with hands-free off: stop again after this one command
+  // The talk button, held: listen until it's let go - no wake word, no cut-off on a pause.
+  let held = false;
+  let releasing = false; // let go: waiting for the recognizer's last words
+  let releaseTimer = null;
+  let heldWords = []; // final results while held
+  let heldInterim = ""; // the words still being recognized
+  // The lock: commands without the wake word, one after another, until it's unlocked.
+  let locked = false;
+  let lockTurnedOn = false; // the lock started the recognizer (hands-free was off)
 
   function report(state, detail) {
     onState(state, detail);
@@ -101,7 +123,7 @@ export function createWakeListener({
   // would restart the session just as the cook starts the command).
   function settleLater(text) {
     unsettle();
-    if (!text) return;
+    if (!text || held || releasing) return; // held: the cook decides when it's over
     settleTimer = setTimer(() => {
       settleTimer = null;
       if (rec && running && (armed || wokeOn !== -1)) rec.stop();
@@ -118,15 +140,19 @@ export function createWakeListener({
   function arm() {
     armed = true;
     if (armTimer !== null) clearTimer(armTimer);
-    armTimer = setTimer(() => {
-      armTimer = null;
-      if (!armed) return;
-      armed = false;
-      report("idle", mode);
-      endOneShot();
-      onTimeout();
-    }, ARM_MS);
-    report("armed", mode);
+    armTimer = null;
+    // Held or locked, nothing times out: the cook decides.
+    if (!held && !releasing && !locked) {
+      armTimer = setTimer(() => {
+        armTimer = null;
+        if (!armed) return;
+        armed = false;
+        report("idle", mode);
+        endOneShot();
+        onTimeout();
+      }, ARM_MS);
+    }
+    report(locked ? "locked" : "armed", mode);
   }
 
   function endOneShot() {
@@ -138,11 +164,38 @@ export function createWakeListener({
   }
 
   function fire(text) {
+    if (locked) {
+      // Locked: act on it and keep listening for the next one.
+      unsettle();
+      wokeOn = -1;
+      onCommand(text);
+      return;
+    }
     disarm();
     wokeOn = -1;
     report("idle", mode);
     endOneShot();
     onCommand(text);
+  }
+
+  // Let go of the talk button: everything said while it was held, once the last words are in.
+  function finishRelease() {
+    if (!releasing) return;
+    releasing = false;
+    if (releaseTimer !== null) clearTimer(releaseTimer);
+    releaseTimer = null;
+    const text = [...heldWords, heldInterim].join(" ").trim();
+    heldWords = [];
+    heldInterim = "";
+    if (text) {
+      fire(text);
+      return;
+    }
+    disarm();
+    wokeOn = -1;
+    report(locked ? "locked" : "idle", mode);
+    endOneShot();
+    onTimeout(); // held, nothing said
   }
 
   function onResult(event) {
@@ -152,7 +205,7 @@ export function createWakeListener({
       const result = event.results[i];
       const alternatives = Array.from({ length: result.length }, (_, k) => (result[k] && result[k].transcript) || "");
       if (!armed) {
-        const hit = alternatives.map(splitWake).find((w) => w.woke);
+        const hit = bestWake(alternatives);
         if (!hit) continue;
         if (wokeOn !== i) {
           wokeOn = i;
@@ -167,10 +220,22 @@ export function createWakeListener({
         continue;
       }
       // Armed: the command, possibly repeating the wake phrase in front.
-      const heard = alternatives.map(splitWake).find((w) => w.woke);
+      const heard = bestWake(alternatives);
       // Still talking (a safety alert plays on): what's heard now is the app's own voice.
       if (appSpeaking && !heard) continue;
-      const text = (heard ? heard.rest : alternatives[0]).trim();
+      const text = cleanEcho((heard ? heard.rest : alternatives[0]).trim());
+      if (held || releasing) {
+        // Held: gather everything until release - a pause is not the end.
+        if (result.isFinal) {
+          if (text) heldWords.push(text);
+          heldInterim = "";
+          if (releasing) finishRelease();
+        } else {
+          heldInterim = text;
+          if (text) onInterim([...heldWords, text].join(" "));
+        }
+        continue;
+      }
       if (!result.isFinal) {
         if (text) {
           onInterim(text);
@@ -232,6 +297,7 @@ export function createWakeListener({
         return false;
       }
       oneShot = false; // a running one-shot becomes the real thing
+      lockTurnedOn = false; // ...and so does listening the lock started: unlocking won't stop it
       if (enabled && rec) return true;
       enabled = true;
       failures = 0;
@@ -244,6 +310,10 @@ export function createWakeListener({
     stop() {
       enabled = false;
       oneShot = false;
+      held = false;
+      releasing = false;
+      locked = false;
+      lockTurnedOn = false;
       disarm();
       if (restartTimer !== null) clearTimer(restartTimer);
       restartTimer = null;
@@ -264,6 +334,60 @@ export function createWakeListener({
       ensureRunning();
       return true;
     },
+    // The talk button pressed (or V held): listening from now until release() - no wake word
+    // needed, and a pause doesn't end it. Works with hands-free off too (one command, then off).
+    hold() {
+      if (!Recognition) return false;
+      if (!enabled) {
+        enabled = true;
+        oneShot = !locked;
+      }
+      gateOpen = true;
+      held = true;
+      releasing = false;
+      heldWords = [];
+      heldInterim = "";
+      wokeOn = -1;
+      arm();
+      ensureRunning();
+      return true;
+    },
+    // Let go: whatever was said while held is acted on, after the recognizer's last words.
+    release() {
+      if (!held) return;
+      held = false;
+      releasing = true;
+      if (rec && running) rec.stop(); // hands over the final words
+      releaseTimer = setTimer(finishRelease, RELEASE_FINAL_MS);
+    },
+    // The lock: listen for commands without the wake word, one after another, until unlocked.
+    setLocked(on) {
+      if (Boolean(on) === locked || !Recognition) return;
+      locked = Boolean(on);
+      if (locked) {
+        if (!enabled) {
+          enabled = true;
+          lockTurnedOn = true;
+        }
+        oneShot = false;
+        gateOpen = true;
+        wokeOn = -1;
+        arm();
+        ensureRunning();
+        return;
+      }
+      disarm();
+      if (lockTurnedOn) {
+        lockTurnedOn = false;
+        enabled = false;
+        if (rec && (running || starting)) rec.abort();
+        report("off");
+      } else {
+        report("idle", mode);
+      }
+    },
+    isLocked: () => locked,
+    isHeld: () => held,
     // Closed: nothing is heard at all (the recognizer is aborted). Opening restarts it.
     setGate,
     // The app started or stopped talking. Listening goes on - "Hey chef" can interrupt - unless

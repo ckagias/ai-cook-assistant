@@ -971,7 +971,8 @@ input:focus-visible {
 .bottombar {
   grid-area: bar;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  /* Phones: talk, lock and "what is this?" in a row, typing under them. */
+  grid-template-columns: auto auto minmax(0, 1fr);
   gap: 8px;
   padding: 10px 12px;
   padding-bottom: max(10px, env(safe-area-inset-bottom));
@@ -992,6 +993,48 @@ button.talk {
 button.talk[aria-pressed="true"] {
   background: var(--danger);
   border-color: var(--danger-edge);
+}
+
+button.lock {
+  min-width: var(--touch);
+  padding: 8px 12px;
+  font-size: 1.2em;
+  touch-action: manipulation;
+}
+
+/* Locked = listening all the time: the same color as the talk button, so it reads "on". */
+button.lock[aria-pressed="true"] {
+  background: var(--voice);
+  border-color: var(--voice-edge);
+  color: var(--on-accent);
+}
+
+button.see {
+  min-width: 0;
+  padding: 8px 12px;
+}
+
+#ask {
+  grid-column: 1 / -1;
+}
+
+/* What a button does, shown by it (hover, long-press, keyboard focus) - the spoken words too. */
+.tip {
+  position: fixed;
+  z-index: 50;
+  max-width: min(340px, calc(100vw - 16px));
+  padding: 8px 12px;
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  font-size: 0.95em;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.tip[hidden] {
+  display: none;
 }
 
 #ask {

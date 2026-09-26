@@ -202,7 +202,8 @@ class DetectResponse(BaseModel):
 VoiceAction = Literal[
     "next_step", "previous_step", "repeat_step", "start_timer", "add_time", "stop_timer",
     "check_doneness", "check_ingredients", "list_ingredients", "identify", "find_recipe",
-    "choose_recipe", "set_doneness", "stop_recipe", "yes", "no", "answer", "add_preference", "unclear",
+    "choose_recipe", "set_doneness", "stop_recipe", "yes", "no", "answer", "add_preference", "start_cooking",
+    "have_ingredients", "unclear",
 ]
 
 # A question the app asked and is waiting on - "yes"/"no" only mean something against one.
@@ -218,6 +219,11 @@ class VoiceCommand(BaseModel):
     choice: Optional[int] = None  # choose_recipe: 1-based number of an offered recipe
     doneness: Optional[Doneness] = None  # set_doneness
     preference: Optional[str] = None  # add_preference: the need in a few words ("nut allergy")
+    # have_ingredients / start_cooking: numbers from <recipe>, one numbering for the ingredients and
+    # then the equipment (the server splits them) - so a number can't point into the wrong list
+    have: list[int] = Field(default_factory=list)
+    missing: list[int] = Field(default_factory=list)
+    have_all: bool = False  # "I have everything"
     spoken_response: str
 
 
@@ -234,6 +240,12 @@ class VoiceResponse(BaseModel):
     candidates: list[RecipeCandidate] = Field(default_factory=list)  # find_recipe results
     doneness: Optional[Doneness] = None
     preference: Optional[str] = None  # add_preference: stored in the session memory by the client
+    # have_ingredients / start_cooking: validated against the recipe (1-based positions)
+    have: list[int] = Field(default_factory=list)
+    missing: list[int] = Field(default_factory=list)
+    have_tools: list[int] = Field(default_factory=list)
+    missing_tools: list[int] = Field(default_factory=list)
+    have_all: bool = False
     spoken_response: str
 
 

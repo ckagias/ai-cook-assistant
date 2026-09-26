@@ -17,17 +17,24 @@ export function fold(text) {
     .trim();
 }
 
-// --- the wake phrase: "Hey chef", the same in every language ---
+// --- the wake word: "σεφ" / "chef", said to the app ---
 
-// "Hey" travels: a Greek cook says it too, and nobody greets the same person with "Γεια σου σεφ"
-// twenty times a meal - so that one was dropped, and "ok chef" with it (fewer false wakes while
-// the app itself is talking). A Greek recognizer may write "Hey chef" in Latin letters or in
-// Greek ("χέι σεφ", "έι σεφ"); "ε σεφ" and "he chef" were seen on a real microphone.
-const GREETINGS = ["hey", "hi", "hei", "he", "hay", "χει", "χαι", "ει", "ε"];
+// Measured with Chrome's Greek recognizer, a Greek speaker played through a real speaker into the
+// microphone: "Γεια σου σεφ" came out whole every time, but "hey chef" mostly didn't - the "χέι" /
+// "έι" / "hey" was dropped ("Χέι σεφ, επόμενο βήμα" -> "chef επόμενο βήμα"), or the whole phrase
+// ("Έι σεφ, πόση ώρα μένει" -> "πόση ώρα μένει"). So what wakes the app is the name itself,
+// "σεφ" / "chef", when it's said *to* the app: at the start, after a greeting ("hey chef", "γεια
+// σου σεφ") or after any other word - but never after an article or a word like "like" ("ο σεφ
+// είπε", "the chef said", "σαν σεφ"): that's talk *about* a chef, on the TV or at the table.
 const NAMES = new Set(["chef", "shef", "sef", "chief", "σεφ", "τσεφ"]);
-const JOINED = new Set(["heychef", "heyshef", "χεισεφ", "εισεφ"]);
+const JOINED = new Set(["heychef", "heyshef", "χεισεφ", "εισεφ", "γειασουσεφ"]);
+const ABOUT_A_CHEF = new Set([
+  "ο", "η", "οι", "το", "τον", "την", "του", "της", "των", "τους", "στον", "στο", "στη", "στην", "στου", "στους",
+  "ενας", "εναν", "ενος", "μια", "μιας", "σαν", "σου", "μου", "μας", "σας", "απο", "με",
+  "the", "a", "an", "my", "your", "his", "her", "our", "their", "this", "that", "like", "as", "top", "head",
+]);
 // Chrome's Greek recognizer drops the φ once more words follow ("... σε επόμενο βήμα", measured).
-// Accepted only after an unmistakable "hey" - never after "ε"/"ει", which are everyday Greek
+// Accepted only after an unmistakable greeting - never after "ε"/"ει", which are everyday Greek
 // ("ε, σε λίγο") - and only with a command after it.
 const CLEAR_HEY = new Set(["hey", "hei", "χει", "χαι"]);
 const SHORT_NAME = "σε";
@@ -36,17 +43,24 @@ function words(text) {
   return (text || "").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 }
 
-// { woke, rest }: whether the wake phrase is anywhere in `text`, and the original words after it
+// { woke, rest }: whether the wake word is anywhere in `text`, and the original words after it
 // (so "Hey chef, I want to make roast beef" acts at once, without a second round).
 export function splitWake(text) {
   const original = words(text);
   const folded = original.map(fold);
   for (let i = 0; i < folded.length; i++) {
-    if (JOINED.has(folded[i])) return { woke: true, rest: original.slice(i + 1).join(" ") };
-    if (!GREETINGS.includes(folded[i])) continue;
-    const name = folded[i + 1];
-    const short = CLEAR_HEY.has(folded[i]) && name === SHORT_NAME && i + 2 < folded.length;
-    if (NAMES.has(name) || short) return { woke: true, rest: original.slice(i + 2).join(" ") };
+    const word = folded[i];
+    if (JOINED.has(word)) return { woke: true, rest: original.slice(i + 1).join(" ") };
+    const prev = folded[i - 1];
+    // "γεια σου σεφ": "σου" is a possessive before a name everywhere else ("σου σεφ" = your chef),
+    // but right after "γεια" it's the greeting (written "για" too - they sound the same).
+    const greeted = prev === "σου" && (folded[i - 2] === "γεια" || folded[i - 2] === "για");
+    if (NAMES.has(word) && (greeted || !ABOUT_A_CHEF.has(prev))) {
+      return { woke: true, rest: original.slice(i + 1).join(" ") };
+    }
+    if (CLEAR_HEY.has(word) && folded[i + 1] === SHORT_NAME && i + 2 < folded.length) {
+      return { woke: true, rest: original.slice(i + 2).join(" ") };
+    }
   }
   return { woke: false, rest: "" };
 }
@@ -57,7 +71,10 @@ const PHRASES = {
   next_step: ["next", "next step", "go on", "continue", "επομενο", "επομενο βημα", "παμε", "παμε παρακατω", "παρακατω", "συνεχεια", "συνεχισε"],
   previous_step: ["previous", "previous step", "back", "go back", "προηγουμενο", "προηγουμενο βημα", "πισω", "γυρνα πισω"],
   repeat_step: ["repeat", "again", "say again", "say that again", "repeat that", "επαναλαβε", "ξανα", "πες ξανα", "πες το ξανα", "τι ειπες"],
-  start: ["start", "begin", "lets start", "ξεκινα", "ξεκιναμε", "αρχισε", "παμε να ξεκινησουμε"],
+  start: [
+    "start", "begin", "lets start", "lets begin", "go to the steps", "ξεκινα", "ξεκιναμε", "αρχισε", "παμε να ξεκινησουμε",
+    "μπορουμε να ξεκινησουμε", "παμε στα βηματα", "πηγαινε στα βηματα", "στα βηματα",
+  ],
   done: ["done", "finished", "im done", "i am done", "i m done", "i finished", "ready", "εγινε", "τελειωσα", "τελειωσε", "ετοιμο", "ετοιμος", "ετοιμη", "το εκανα"],
   start_timer: ["start timer", "start the timer", "timer", "set timer", "set the timer", "χρονομετρο", "ξεκινα χρονομετρο", "ξεκινα το χρονομετρο", "βαλε χρονομετρο", "βαλε το χρονομετρο"],
   stop_timer: ["stop timer", "stop the timer", "cancel timer", "cancel the timer", "σταματα χρονομετρο", "σταματα το χρονομετρο", "ακυρωσε το χρονομετρο", "κλεισε το χρονομετρο"],

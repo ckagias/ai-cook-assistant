@@ -61,4 +61,4 @@ def test_equipment_without_a_translation_borrows_the_vocabulary_word():
 
 def test_the_voice_model_knows_the_equipment():
     text = voice.build_user_text("do I need a blender?", "en", "pasta", None, [])
-    assert "Equipment: large pot; colander; stove" in text
+    assert "Equipment: 4. large pot; 5. colander; 6. stove" in text  # numbered on from the 3 ingredients

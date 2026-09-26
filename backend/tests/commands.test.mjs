@@ -18,19 +18,30 @@ function testWakePhrase() {
     ["Hey chef", true, ""],
     ["hey chef, next step", true, "next step"],
     ["Hey Chef I want to make roast beef", true, "I want to make roast beef"],
-    // One phrase in every language: "Hey chef", however the recognizer spells it.
+    // "Hey chef" however the recognizer spells it.
     ["Χέι σεφ επόμενο", true, "επόμενο"],
     ["Χέι Σεφ, θέλω να φτιάξω ροσμπίφ", true, "θέλω να φτιάξω ροσμπίφ"],
     ["έι σεφ", true, ""],
     ["εϊ σεφ πόση ώρα μένει", true, "πόση ώρα μένει"],
     ["okay so hey chef repeat", true, "repeat"],
     ["heychef stop", true, "stop"],
-    ["the chef said it's done", false, ""],
     ["hey there", false, ""],
-    ["σεφ", false, ""],
-    // Dropped: nobody says "Γεια σου" twenty times a meal, and "ok chef" woke on the app's own words.
-    ["Γεια σου σεφ", false, ""],
-    ["ok chef next", false, ""],
+    // The name, said to the app, is the wake word - measured: Chrome's Greek recognizer drops the
+    // "Χέι" ("Χέι σεφ, επόμενο βήμα" -> "chef επόμενο βήμα") but writes "γεια σου σεφ" whole.
+    ["chef επόμενο βήμα", true, "επόμενο βήμα"],
+    ["σεφ, επόμενο βήμα", true, "επόμενο βήμα"],
+    ["Σεφ", true, ""],
+    ["Γεια σου σεφ", true, ""],
+    ["γεια σου σεφ επόμενο βήμα", true, "επόμενο βήμα"],
+    ["για σου σεφ πόση ώρα μένει", true, "πόση ώρα μένει"], // "γεια" and "για" sound the same
+    ["πόση ώρα μένει σεφ", true, ""], // the name last: waits for the command
+    ["ok chef next", true, "next"],
+    // Talk *about* a chef - the TV, the table - doesn't wake it.
+    ["the chef said it's done", false, ""],
+    ["ο σεφ είπε ότι είναι έτοιμο", false, ""],
+    ["μαγειρεύει σαν σεφ", false, ""],
+    ["ρώτα τον σεφ", false, ""],
+    ["my chef friend", false, ""],
     // Heard on a real microphone (feature/detection-db's list): "ε σεφ", "he chef".
     ["ε σεφ επόμενο", true, "επόμενο"],
     ["he chef next step", true, "next step"],

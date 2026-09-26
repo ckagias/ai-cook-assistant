@@ -27,7 +27,7 @@
       <p class="lede">Βλέπει με την κάμερα, σου μιλά και σε ακούει. Μαγειρεύεις χωρίς να κοιτάς την οθόνη.</p>
       <ol class="how">
         <li>Στρέψε την κάμερα στον πάγκο ή στο φαγητό.</li>
-        <li>Πες «Γεια σου σεφ» ή πάτα Μίλα.</li>
+        <li>Πες «Χέι σεφ» ή κράτα πατημένο το Μίλα.</li>
         <li>Διάλεξε συνταγή και ακολούθησε τα βήματα.</li>
       </ol>
       <button id="start" data-action="start" data-speak="start">ΞΕΚΙΝΑ</button>
@@ -95,8 +95,7 @@
       </div>
 
       <div id="controls" class="button-grid">
-        <button class="primary" data-action="recipes" data-speak="recipes" data-label="recipes">Συνταγές</button>
-        <button data-action="identify" data-speak="identify" data-label="identify">Τι είναι αυτό;</button>
+        <button class="primary wide" data-action="recipes" data-speak="recipes" data-label="recipes">Συνταγές</button>
         <button id="wake-toggle" class="wide" data-action="wake-toggle" data-speak="wake_toggle" data-label="wake_toggle" aria-pressed="false">Χωρίς χέρια</button>
         <!-- Things to say, built per language: one tap runs each exactly as if it were said. -->
         <div id="examples" class="wide">
@@ -172,10 +171,13 @@
       </section>
     </main>
 
-    <!-- Always on screen: one talk button, and typing instead of speaking (the same commands). -->
+    <!-- Always on screen: hold to talk, the lock (listening on), "what is this?", and typing
+         instead of speaking (the same commands). -->
     <div class="bottombar">
       <!-- data-hold keeps the long-press description from firing on the talk button. -->
       <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
+      <button class="lock" data-action="lock" data-speak="lock" data-aria-label="lock" aria-label="Κλείδωμα" aria-pressed="false"><span aria-hidden="true">🔒</span></button>
+      <button class="see" data-action="identify" data-speak="identify" data-label="identify">Τι είναι αυτό;</button>
       <form id="ask" autocomplete="off">
         <label for="ask-input" class="visually-hidden" data-label="ask_label">Γράψε αντί να μιλήσεις</label>
         <input id="ask-input" type="text" enterkeyhint="send" maxlength="500" />

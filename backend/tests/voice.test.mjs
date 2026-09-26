@@ -213,7 +213,7 @@ async function testTapRecordsUntilTheCookStopsTalking() {
   await s.ptt.start();
   s.advance(100);
   await s.ptt.autoStop(); // released quickly: a tap
-  s.timers.forEach((t) => { if (t.ms === MAX_MS) t.live = false; }); // runTimers ignores time - keep the 15 s cap out
+  s.timers.forEach((t) => { if (t.ms === MAX_MS) t.live = false; }); // runTimers ignores time - keep the cap out
   assert(s.ptt.isRecording(), "a tap keeps recording");
   for (let i = 0; i < 60 && s.ptt.isRecording(); i++) {
     s.advance(50);

@@ -191,6 +191,7 @@ function ev(target, extra = {}) {
 function setup() {
   const root = makeRoot();
   const said = [];
+  const tips = []; // what the bubble showed; null = hidden
   const vibrations = [];
   const timers = [];
   let clock = 0;
@@ -198,6 +199,8 @@ function setup() {
     root,
     getLang: () => "el",
     say: (text) => said.push(text),
+    showTip: (_button, text) => tips.push(text),
+    hideTip: () => tips.push(null),
     vibrate: (ms) => vibrations.push(ms),
     setTimer: (fn, ms) => { timers.push({ fn, ms, live: true }); return timers.length - 1; },
     clearTimer: (id) => { if (timers[id]) timers[id].live = false; },
@@ -208,7 +211,7 @@ function setup() {
   const runTimers = () => {
     for (const t of timers.splice(0)) if (t.live) t.fn();
   };
-  return { root, said, vibrations, appClicks, runTimers, advance: (ms) => (clock += ms) };
+  return { root, said, tips, vibrations, appClicks, runTimers, advance: (ms) => (clock += ms) };
 }
 
 function testLongPressSpeaksAndSwallowsTheClick() {
@@ -292,8 +295,41 @@ function testOptOut() {
   s.root.dispatch("pointerdown", ev(makeButton("check", "x")));
   s.runTimers();
   assert(s.said.length === 0, "opted out: silent");
+  assert(s.tips[0] && s.tips[0].startsWith("Έλεγξε. Βγάζει"), `...but the description still shows: ${s.tips}`);
   a11y.setSpeakButtons(true);
-  console.log("test h (per-device opt-out) OK");
+  console.log("test h (per-device opt-out: silent, still shown) OK");
+}
+
+// The same words in a bubble, for cooks who can't hear them.
+function testTheDescriptionIsShownToo() {
+  const s = setup();
+  const talk = makeButton("talk", "Μίλα");
+  talk.dataset.hold = "1";
+  s.root.dispatch("pointerover", ev(talk, { pointerType: "mouse" }));
+  s.runTimers();
+  assert(s.tips[0] === s.said[0] && s.tips[0].startsWith("Μίλα. Κράτα"), `hover: shown and said: ${s.tips}`);
+  s.root.dispatch("pointerout", ev(talk, { pointerType: "mouse" }));
+  assert(s.tips.at(-1) === null, "moving off hides it");
+  s.root.dispatch("pointerover", ev(talk, { pointerType: "mouse" }));
+  s.runTimers();
+  assert(s.tips.at(-1).startsWith("Μίλα.") && s.said.length === 1, "back on it: shown again, not said again");
+
+  const u = setup();
+  const check = makeButton("check", "Έλεγξε");
+  u.root.dispatch("pointerdown", ev(check));
+  u.runTimers(); // long-press
+  assert(u.tips[0].startsWith("Έλεγξε."), "long-press shows it");
+  u.root.dispatch("pointerup", ev(check));
+  u.runTimers(); // the reading time runs out (and the click suppression window)
+  assert(u.tips.at(-1) === null, `hidden after a while: ${u.tips}`);
+
+  const k = setup();
+  const lock = makeButton("lock", "🔒", { focusVisible: true });
+  k.root.dispatch("focusin", ev(lock));
+  assert(k.tips[0].startsWith("Κλείδωμα."), `keyboard focus shows it: ${k.tips}`);
+  k.root.dispatch("focusout", ev(lock));
+  assert(k.tips.at(-1) === null, "focus leaves: hidden");
+  console.log("test j (the description is shown as well as said) OK");
 }
 
 await testHintNeverInterruptsRealSpeech();
@@ -329,6 +365,7 @@ testDragCancelsAndStaleSuppressionExpires();
 testHoverSpeaksOnceAndFocusOnlyWhenKeyboard();
 testHoldToTalkIsNeverALongPress();
 testOptOut();
+testTheDescriptionIsShownToo();
 await testGreekVoiceArrivesLate(); // last: it leaves a Greek voice set
 tts.stopAll();
 

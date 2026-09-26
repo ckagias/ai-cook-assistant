@@ -1,19 +1,48 @@
 import { speak } from "./tts.js";
 import { t } from "./strings.js";
 
-// Speak what a button does before it's pressed:
+// Say and show what a button does before it's pressed:
 //   touch/pen: long-press (~0.5 s) speaks and does NOT activate; a normal tap still activates
 //   mouse:     hovering ~1/4 s speaks (PC demo)
 //   keyboard:  focusing a button (Tab, Bluetooth remote) speaks
-// Browsers only allow speech after the page has had one real tap, so this starts working
-// once the Start button has been pressed.
+// The same words appear in a bubble by the button, for cooks who can't hear them - also when
+// speaking them is turned off. Browsers only allow speech after the page has had one real tap,
+// so the spoken part starts working once the Start button has been pressed.
 
 export const LONG_PRESS_MS = 500;
 export const MOVE_TOLERANCE_PX = 10;
 export const HOVER_DWELL_MS = 250;
 const REPEAT_GUARD_MS = 1500;
 const CLICK_SUPPRESS_WINDOW_MS = 1000;
+export const TOUCH_TIP_MS = 3500; // a long-press bubble stays this long after the finger lifts
 const STORAGE_KEY = "speakButtons";
+
+// The bubble: one element, placed above the button (below it when there's no room), inside the
+// screen. aria-hidden: screen readers already have the button's name and hear the description.
+let tipEl = null;
+function showTipOnScreen(button, text) {
+  const doc = globalThis.document;
+  if (!doc || !doc.body || !button.getBoundingClientRect) return;
+  if (!tipEl) {
+    tipEl = doc.createElement("div");
+    tipEl.className = "tip";
+    tipEl.setAttribute("aria-hidden", "true");
+    doc.body.appendChild(tipEl);
+  }
+  tipEl.textContent = text;
+  tipEl.hidden = false;
+  const r = button.getBoundingClientRect();
+  const width = doc.documentElement.clientWidth;
+  const gap = 8;
+  const left = Math.min(Math.max(gap, r.left + r.width / 2 - tipEl.offsetWidth / 2), width - tipEl.offsetWidth - gap);
+  let top = r.top - tipEl.offsetHeight - gap;
+  if (top < gap) top = r.bottom + gap;
+  tipEl.style.left = `${Math.max(gap, left)}px`;
+  tipEl.style.top = `${top}px`;
+}
+function hideTipOnScreen() {
+  if (tipEl) tipEl.hidden = true;
+}
 
 // Per-viewer opt-out, e.g. for TalkBack users who'd otherwise hear every label twice.
 export function speakButtonsEnabled() {
@@ -42,6 +71,8 @@ export function installSpeakOnPress({
   root = document,
   getLang = () => "el",
   say = (text, lang) => speak(text, { priority: "hint", lang }),
+  showTip = showTipOnScreen,
+  hideTip = hideTipOnScreen,
   vibrate = (ms) => globalThis.navigator?.vibrate?.(ms),
   setTimer = (fn, ms) => setTimeout(fn, ms),
   clearTimer = (id) => clearTimeout(id),
@@ -52,14 +83,33 @@ export function installSpeakOnPress({
   let suppressTimer = null;
   let hover = null; // { button, timer }
   let lastSpoken = { button: null, at: -Infinity };
+  let tipFor = null; // the button whose bubble is showing
+  let tipTimer = null;
 
   const buttonFrom = (target) => (target && target.closest ? target.closest("button") : null);
 
-  function announce(button) {
-    if (!speakButtonsEnabled()) return false;
+  function tip(button, text) {
+    if (tipTimer !== null) clearTimer(tipTimer);
+    tipTimer = null;
+    tipFor = button;
+    showTip(button, text);
+  }
+
+  function untip(button = tipFor) {
+    if (!tipFor || button !== tipFor) return;
+    if (tipTimer !== null) clearTimer(tipTimer);
+    tipTimer = null;
+    tipFor = null;
+    hideTip();
+  }
+
+  // Shown always; spoken unless this device turned speaking off. `speakIt` false: shown only.
+  function announce(button, { speakIt = true } = {}) {
     const lang = getLang();
     const text = describe(button, lang);
     if (!text) return false;
+    tip(button, text);
+    if (!speakIt || !speakButtonsEnabled()) return false;
     say(text, lang);
     lastSpoken = { button, at: now() };
     return true;
@@ -88,9 +138,11 @@ export function installSpeakOnPress({
     press.timer = setTimer(() => {
       if (!press) return;
       vibrate(20);
-      announce(press.button);
-      suppressClickOn = press.button; // the finger lifting must not also press it
+      const button = press.button;
+      announce(button);
+      suppressClickOn = button; // the finger lifting must not also press it
       press = null;
+      tipTimer = setTimer(() => untip(button), TOUCH_TIP_MS); // time to read it
     }, LONG_PRESS_MS);
   });
 
@@ -137,14 +189,16 @@ export function installSpeakOnPress({
     hover = {
       button,
       timer: setTimer(() => {
-        if (lastSpoken.button === button && now() - lastSpoken.at < REPEAT_GUARD_MS) return;
-        announce(button);
+        // Back on it right away: the bubble again, the voice not again.
+        announce(button, { speakIt: !(lastSpoken.button === button && now() - lastSpoken.at < REPEAT_GUARD_MS) });
       }, HOVER_DWELL_MS),
     };
   });
   root.addEventListener("pointerout", (e) => {
     if (e.pointerType !== "mouse") return;
-    if (!hover || buttonFrom(e.relatedTarget) !== hover.button) clearHover();
+    const leftFor = buttonFrom(e.relatedTarget);
+    if (!hover || leftFor !== hover.button) clearHover();
+    if (leftFor !== tipFor) untip();
   });
 
   // --- keyboard focus ---
@@ -154,4 +208,5 @@ export function installSpeakOnPress({
     // button must not double up with the long-press/hover speech.
     if (button && button.matches && button.matches(":focus-visible")) announce(button);
   });
+  root.addEventListener("focusout", (e) => untip(buttonFrom(e.target)));
 }

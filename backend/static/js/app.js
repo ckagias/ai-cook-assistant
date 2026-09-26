@@ -1,7 +1,7 @@
 import { boot, caps, earcon, buzz } from "./boot.js";
 import {
   speak, isSpeaking, fireSafetyInterrupt, hush, interrupt, probeVoices, registerAcousticGate, onGreekVoice,
-  greekVoiceHelpKey,
+  greekVoiceHelpKey, recentSpeech,
 } from "./tts.js";
 import { cameraProblem } from "./camera_help.js";
 import { t, tf, humanDuration } from "./strings.js";
@@ -16,6 +16,7 @@ import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
 import { createPushToTalk } from "./voice.js";
 import { createWakeListener, getRecognition } from "./wake.js";
 import { matchLocal, splitWake } from "./commands.js";
+import { stripEcho } from "./echo.js";
 import { createMemory } from "./memory.js";
 
 // Three ways in, two ways out, for everything the app does:
@@ -106,7 +107,7 @@ const DETECT_ON_START = (() => {
 // Greek cook on a device without a Greek voice still speaks Greek.
 const LISTEN_LANG = params.get("listen") === "en" ? "en" : "el";
 const LOG_MAX = 40;
-const TAP_MS = 300; // talk button released sooner = a tap: keep listening until they stop talking
+const TAP_MS = 300; // talk button released sooner = a tap, not a hold: say how it works
 
 let lang = "el";
 let busy = false;
@@ -255,7 +256,7 @@ function setBusy(on) {
   el.busy.hidden = !on;
   // Talking, typing and dismissing an alert stay possible while the camera call runs.
   document.querySelectorAll("[data-action]").forEach((btn) => {
-    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme", "text-size"].includes(btn.dataset.action)) btn.disabled = on;
+    if (!["talk", "lock", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme", "text-size"].includes(btn.dataset.action)) btn.disabled = on;
   });
 }
 
@@ -280,6 +281,10 @@ function localize() {
   document.querySelectorAll("[data-label]").forEach((node) => {
     const text = t(node.dataset.label, lang);
     if (text) node.textContent = text;
+  });
+  document.querySelectorAll("[data-aria-label]").forEach((node) => {
+    const text = t(node.dataset.ariaLabel, lang);
+    if (text) node.setAttribute("aria-label", text); // an icon button: the name is for screen readers
   });
   el.askInput.placeholder = t("ask_placeholder", lang);
   el.textToggle.setAttribute("aria-label", t("text_size", lang)); // it only shows "Aa"
@@ -330,6 +335,10 @@ function answer(yes) {
       } else {
         say(t("ok", lang), "command");
       }
+      break;
+    case "start_offer":
+      if (yes) beginSteps();
+      else say(t("ok_wait", lang), "command");
       break;
     case "resume":
       if (yes) {
@@ -1051,6 +1060,34 @@ function sayMissingIngredients() {
 
 // The live detection preview ticks what it sees, silently apart from a click - a spoken
 // announcement per ingredient would talk over everything else.
+// "I have the eggs and the milk, no butter" (have_ingredients): the boxes follow what was said.
+function tickFromWords(res) {
+  const recipe = session.getRecipe();
+  if (!recipe) return;
+  if (res.have_all) tickAll();
+  for (const n of res.have || []) ticked.add(n - 1);
+  for (const n of res.missing || []) ticked.delete(n - 1);
+  for (const n of res.have_tools || []) tickedTools.add(n - 1);
+  for (const n of res.missing_tools || []) tickedTools.delete(n - 1);
+  renderIngredients();
+}
+
+function tickAll() {
+  const recipe = session.getRecipe();
+  if (!recipe) return;
+  ingredientLines(recipe).forEach((_, i) => ticked.add(i));
+  equipmentLines(recipe).forEach((_, i) => tickedTools.add(i));
+  renderIngredients();
+}
+
+// Everything ticked, still at the ingredients: offer to start (a yes/no question, not a jump).
+function offerToStartWhenAllTicked() {
+  const recipe = session.getRecipe();
+  if (!recipe || session.getPhase() !== "overview") return;
+  const all = ingredientLines(recipe).every((_, i) => ticked.has(i)) && equipmentLines(recipe).every((_, i) => tickedTools.has(i));
+  if (all) askQuestion("start_offer", t("all_ticked", lang));
+}
+
 function tickFromDetections(res) {
   const recipe = session.getRecipe();
   if (!recipe || session.getPhase() !== "overview") return;
@@ -1486,6 +1523,16 @@ function runActionNow(res, action) {
     case "detect_off":
       setDetection(action === "detect_on", { announce: true });
       break;
+    case "start_cooking":
+      if (res.have_all) tickAll();
+      if (session.getPhase() === "overview") beginSteps();
+      else reply();
+      break;
+    case "have_ingredients":
+      tickFromWords(res);
+      reply();
+      offerToStartWhenAllTicked();
+      break;
     case "add_preference":
       // Said at any point - "Hey chef, my son is allergic to nuts" - kept for the whole recipe and
       // replayed to the assistant with every question; checked against the recipe in the reply.
@@ -1523,7 +1570,9 @@ function stopForTheCook() {
 }
 
 function setListening(on) {
-  document.querySelectorAll('[data-action="talk"]').forEach((b) => b.setAttribute("aria-pressed", String(on)));
+  // Listening because of the lock: the lock shows it, not the talk button.
+  const talkOn = on && (talkHeld || !isLocked());
+  document.querySelectorAll('[data-action="talk"]').forEach((b) => b.setAttribute("aria-pressed", String(talkOn)));
   if (on) el.status.textContent = t("listening", lang);
   else el.interim.textContent = "";
 }
@@ -1535,18 +1584,23 @@ function renderWakeState(state, detail) {
   // speech service" wrapped the pill to three lines beside a phone's camera.
   if (state === "idle") text = t("wake_idle", lang);
   else if (state === "armed") text = t("wake_armed", lang);
+  else if (state === "locked") text = t("wake_locked", lang);
   // The browser's own error code stays on screen (feature/detection-db showed it too): it tells
   // whoever is helping whether it's the microphone, the network or the language.
   else if (state === "error") text = detail === "unsupported" ? t("wake_unsupported", lang) : `${t("wake_blocked", lang)} (${detail})`;
   else text = Recognition ? t("wake_off", lang) : t("wake_unsupported", lang);
   el.wakeStatus.textContent = text;
   el.wakeStatus.title = state === "idle" ? tf("wake_where", lang, { where: t(detail === "local" ? "wake_local" : "wake_cloud", lang) }) : "";
-  el.wakeToggle.setAttribute("aria-pressed", String(state === "idle" || state === "armed"));
-  if (state !== "armed") setListening(false);
+  // Hands-free is the saved choice, not whether the recognizer happens to run (a hold, the lock).
+  el.wakeToggle.setAttribute("aria-pressed", String(state !== "off" && state !== "error" && loadPref("wake") !== "0"));
+  document.querySelectorAll('[data-action="lock"]').forEach((b) => b.setAttribute("aria-pressed", String(isLocked())));
+  if (state === "locked") setListening(true);
+  else if (state !== "armed") setListening(false);
 }
 
 const wake = createWakeListener({
   lang: recognitionLang(),
+  cleanEcho: (text) => stripEcho(text, recentSpeech()),
   onWake: () => {
     stopForTheCook();
     earcon("ok");
@@ -1647,7 +1701,9 @@ const talk = createPushToTalk({
   send: (blob, type) => api.voiceCommand(blob, type, voiceContext()),
   onState: setRecordState,
   onResult: (res, reason) => {
+    if (lockedRecording) setTimeout(recordUntilPause, 600); // locked: listen for the next one
     if (!res) {
+      if (lockedRecording) return; // a pause with nothing said, while locked: just listen again
       if (reason === "too_short") say(t("hold_to_talk", lang), "command");
       else if (reason === "no_speech") say(t("no_speech", lang), "command");
       return;
@@ -1655,17 +1711,23 @@ const talk = createPushToTalk({
     if (res.heard) logLine("you", res.heard);
     runAction(res);
   },
-  onError: voiceError,
+  onError: (err) => {
+    lockedRecording = false;
+    voiceError(err);
+  },
 });
 
 let pressedAt = 0;
+let talkHeld = false;
 
+// Hold to talk, let go to send - a pause while holding never cuts the cook off.
 function talkPressed() {
-  if (el.app.hidden) return;
+  if (el.app.hidden || talkHeld) return;
+  talkHeld = true;
   pressedAt = Date.now();
   stopForTheCook();
   if (Recognition) {
-    wake.listenNow();
+    wake.hold();
     earcon("ok");
     buzz(20);
     setListening(true);
@@ -1675,9 +1737,39 @@ function talkPressed() {
 }
 
 function talkReleased() {
-  if (Recognition) return; // the recognizer hears when they've finished on its own
-  if (Date.now() - pressedAt < TAP_MS) talk.autoStop();
+  if (!talkHeld) return;
+  talkHeld = false;
+  const tapped = Date.now() - pressedAt < TAP_MS;
+  if (Recognition) wake.release();
   else talk.stop();
+  // A tap is too short to say anything (without a recognizer, the recorder says so itself).
+  if (tapped && Recognition) say(t("hold_to_talk", lang), "command");
+}
+
+// The lock: listening without holding Talk and without the wake word, one command after another,
+// until it's tapped again. Firefox (no recognizer) records until each pause, then starts again.
+let lockedRecording = false;
+function isLocked() {
+  return Recognition ? wake.isLocked() : lockedRecording;
+}
+function setLock(on) {
+  if (on === isLocked()) return;
+  if (Recognition) {
+    wake.setLocked(on);
+  } else {
+    lockedRecording = on;
+    if (on) recordUntilPause();
+    else talk.stop();
+  }
+  document.querySelectorAll('[data-action="lock"]').forEach((b) => b.setAttribute("aria-pressed", String(on)));
+  setListening(on);
+  earcon(on ? "ok" : "done");
+  say(t(on ? "lock_on_said" : "lock_off_said", lang), "checkin");
+}
+function recordUntilPause() {
+  if (!lockedRecording || talk.isRecording() || talk.isBusy()) return;
+  talk.start();
+  talk.autoStop();
 }
 
 // pointerdown starts; lifting (anywhere - the pointer is captured) ends a hold.
@@ -1703,12 +1795,13 @@ document.addEventListener("pointerup", endTalkPointer);
 document.addEventListener("pointercancel", endTalkPointer);
 // Focus leaving the window mid-hold would otherwise leave the V key "held" until MAX_MS.
 window.addEventListener("blur", () => {
-  if (!Recognition) talk.stop();
+  if (talkHeld) talkReleased();
 });
 
 // --- buttons, keys, typing ---
 
 const ACTIONS = {
+  lock: () => setLock(!isLocked()),
   theme: () => toggleTheme(),
   "text-size": () => toggleTextSize(),
   identify: () => identify(),

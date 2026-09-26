@@ -2,7 +2,7 @@
 // same breath, nothing acted on without it, the app's own speech ignored, restarts after the
 // browser ends a session, a blocked microphone, and the talk button's one-shot listening.
 
-const { createWakeListener, ARM_MS, SETTLE_MS } = await import("../static/js/wake.js");
+const { createWakeListener, ARM_MS, SETTLE_MS, RELEASE_FINAL_MS } = await import("../static/js/wake.js");
 
 function assert(cond, message) {
   if (!cond) throw new Error("assertion failed: " + message);
@@ -50,7 +50,7 @@ class FakeRecognition {
   }
 }
 
-async function setup() {
+async function setup({ cleanEcho } = {}) {
   FakeRecognition.instances = [];
   const log = { woke: 0, commands: [], interim: [], timeouts: 0, states: [] };
   const timers = [];
@@ -70,6 +70,7 @@ async function setup() {
       if (timers[id]) timers[id].live = false;
     },
     probeLocal: async () => false,
+    ...(cleanEcho ? { cleanEcho } : {}),
   });
   const fire = (ms) => {
     for (const t of timers.splice(0)) if (t.live && (ms === undefined || t.ms === ms)) t.fn();
@@ -260,10 +261,79 @@ async function testArmedWhileAnAlertPlaysOn() {
   console.log("test o (armed while a safety alert plays on) OK");
 }
 
+// Held talk button: a pause is not the end ("I have the eggs... and the milk"), letting go is.
+async function testHeldListensUntilRelease() {
+  const s = await setup();
+  assert(s.listener.hold() && s.listener.isHeld(), "listening while held, no wake word");
+  s.rec().hear("έχω τα αυγά", false, 1);
+  s.fire(SETTLE_MS);
+  assert(s.rec().stopped === 0 && s.log.commands.length === 0, "a pause while held doesn't cut it off");
+  s.rec().hear("έχω τα αυγά και το γάλα", false, 1);
+  assert(s.log.interim.at(-1) === "έχω τα αυγά και το γάλα", "live caption while held");
+  s.listener.release();
+  assert(s.rec().stopped === 1, "let go: asked the recognizer for its last words");
+  s.rec().hear("έχω τα αυγά και το γάλα", true, 1);
+  assert(s.log.commands[0] === "έχω τα αυγά και το γάλα", `command at release: ${s.log.commands}`);
+  assert(!s.listener.isOn(), "hands-free was off: back off after the one command");
+  console.log("test p (held: no cut-off on a pause, the command on release) OK");
+
+  const t = await setup();
+  t.listener.hold();
+  t.rec().hear("πόσο αλάτι", false, 1);
+  t.listener.release();
+  t.fire(RELEASE_FINAL_MS); // Greek never finalizes: act on the words heard so far
+  assert(t.log.commands[0] === "πόσο αλάτι", `no final result: the interim words count: ${t.log.commands}`);
+  const u = await setup();
+  u.listener.hold();
+  u.listener.release();
+  u.fire(RELEASE_FINAL_MS);
+  assert(u.log.commands.length === 0 && u.log.timeouts === 1, "held, nothing said: nothing acted on");
+  console.log("test p2 (released: the last words, or nothing) OK");
+}
+
+// The lock: commands one after another without the wake word, until unlocked.
+async function testLockedTakesCommandsWithoutTheWakeWord() {
+  const s = await setup();
+  s.listener.setLocked(true);
+  assert(s.listener.isLocked() && s.rec().active && s.listener.isArmed(), "listening, no wake word needed");
+  s.rec().hear("επόμενο βήμα", true, 1);
+  assert(s.log.commands[0] === "επόμενο βήμα" && s.listener.isArmed(), "acted on, and still listening");
+  s.fire(ARM_MS);
+  assert(s.log.timeouts === 0 && s.listener.isArmed(), "a lock doesn't time out");
+  s.listener.setSpeaking(true); // the app answers
+  s.rec().hear("Βήμα 2 από 8 προθέρμανε τον φούρνο", true, 2);
+  assert(s.log.commands.length === 1, "the app's own answer is no command");
+  s.listener.setSpeaking(false);
+  s.rec().hear("πόση ώρα μένει", true, 3);
+  assert(s.log.commands[1] === "πόση ώρα μένει", `next command: ${s.log.commands}`);
+  s.listener.setLocked(false);
+  assert(!s.listener.isOn() && !s.rec().active, "unlocked: hands-free was off, so listening stops");
+
+  const h = await setup();
+  h.listener.setLocked(true);
+  await h.listener.start(); // hands-free switched on while locked
+  h.listener.setLocked(false);
+  assert(h.listener.isOn() && !h.listener.isArmed(), "unlocked: hands-free stays on, waiting for the wake word");
+  console.log("test q (locked: commands without the wake word until unlocked) OK");
+}
+
+// What the app itself said is taken out of the command before it's acted on (echo.js).
+async function testEchoIsTakenOut() {
+  const s = await setup({ cleanEcho: (text) => text.replace(/^2 αυγά\s*/, "") });
+  await s.listener.start();
+  s.rec().hear("σεφ", true, 0);
+  s.rec().hear("2 αυγά έχω συλλέξει τα πάντα", true, 1);
+  assert(s.log.commands[0] === "έχω συλλέξει τα πάντα", `the app's words gone: ${s.log.commands}`);
+  console.log("test r (the app's own words are taken out of the command) OK");
+}
+
 await testGreekInterimSettles();
 await testArmedAlternativeStripsTheWakePhrase();
 await testWakeWhileTheAppTalks();
 await testArmedWhileAnAlertPlaysOn();
+await testHeldListensUntilRelease();
+await testLockedTakesCommandsWithoutTheWakeWord();
+await testEchoIsTakenOut();
 await testWakeAndCommandInOneBreath();
 await testWakeThenCommand();
 await testNothingWithoutTheWakePhrase();

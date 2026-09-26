@@ -1,11 +1,11 @@
 export const STRINGS = {
   greeting: {
-    en: "Ready. Say “Hey chef” or tap Talk, then tell me what you'd like to cook.",
-    el: "Έτοιμο. Πες «Χέι σεφ» ή πάτα Μίλα, και πες μου τι θέλεις να μαγειρέψεις.",
+    en: "Ready. Say “Hey chef” or hold Talk, then tell me what you'd like to cook.",
+    el: "Έτοιμο. Πες «Χέι σεφ» ή κράτα πατημένο το Μίλα, και πες μου τι θέλεις να μαγειρέψεις.",
   },
   greeting_no_wake: {
-    en: "Ready. Tap Talk, or type below what you'd like to cook.",
-    el: "Έτοιμο. Πάτα Μίλα, ή γράψε από κάτω τι θέλεις να μαγειρέψεις.",
+    en: "Ready. Hold Talk, or type below what you'd like to cook.",
+    el: "Έτοιμο. Κράτα πατημένο το Μίλα, ή γράψε από κάτω τι θέλεις να μαγειρέψεις.",
   },
   analyzing: {
     en: "Let me take a look.",
@@ -80,8 +80,12 @@ export const STRINGS = {
   speak_answer_no: { en: "No. Answers no to my question.", el: "Όχι. Απαντά όχι στην ερώτησή μου." },
   speak_back: { en: "Back. Returns to the main buttons.", el: "Πίσω. Επιστρέφει στα κύρια κουμπιά." },
   speak_talk: {
-    en: "Talk. Tap it, then say what you need. For example: I want to make roast beef, next step, start the timer, or check it.",
-    el: "Μίλα. Πάτα το και πες τι θέλεις. Για παράδειγμα: θέλω να φτιάξω ροσμπίφ, επόμενο βήμα, χρονόμετρο, ή έλεγξε.",
+    en: "Talk. Hold it while you speak and let go when you're done. For example: I want to make roast beef, next step, start the timer, or check it.",
+    el: "Μίλα. Κράτα το πατημένο όσο μιλάς και άφησέ το όταν τελειώσεις. Για παράδειγμα: θέλω να φτιάξω ροσμπίφ, επόμενο βήμα, χρονόμετρο, ή έλεγξε.",
+  },
+  speak_lock: {
+    en: "Lock. Keeps listening without holding Talk and without saying chef: say one thing after another. Tap again to stop listening.",
+    el: "Κλείδωμα. Ακούω συνέχεια χωρίς να κρατάς το Μίλα και χωρίς «σεφ»: λες το ένα μετά το άλλο. Πάτα ξανά για να σταματήσω να ακούω.",
   },
   speak_detect_toggle: {
     en: "Detection. Turns the on-screen object detection preview on or off.",
@@ -136,6 +140,14 @@ export const STRINGS = {
 
   // --- push-to-talk voice commands, see voice.js ---
   talk: { en: "Talk", el: "Μίλα" },
+  lock: { en: "Lock", el: "Κλείδωμα" },
+  wake_locked: { en: "Listening - just say it", el: "Σε ακούω - πες το απλά" },
+  lock_on_said: {
+    en: "Listening until you tap the lock again. No need to say chef.",
+    el: "Σε ακούω μέχρι να ξαναπατήσεις το κλείδωμα. Δεν χρειάζεται «σεφ».",
+  },
+  lock_off_said: { en: "Stopped listening.", el: "Σταμάτησα να ακούω." },
+  all_ticked: { en: "You have everything. Shall we start?", el: "Τα έχεις όλα. Ξεκινάμε;" },
   listening: { en: "Listening…", el: "Σε ακούω…" },
   thinking: { en: "One moment…", el: "Μια στιγμή…" },
   hold_to_talk: {
@@ -164,17 +176,17 @@ export const STRINGS = {
   // Said before picking up what "Hey chef" interrupted (app.js resumeInterrupted).
   resuming: { en: "As I was saying:", el: "Όπως έλεγα:" },
   wake_armed: { en: "Listening…", el: "Σε ακούω…" },
-  wake_off: { en: "Hands-free is off. Tap Talk", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα" },
+  wake_off: { en: "Hands-free is off. Hold Talk", el: "Χωρίς χέρια: ανενεργό. Κράτα το Μίλα" },
   wake_unsupported: {
-    en: "This browser can't listen hands-free. Tap Talk (Chrome, Edge or Safari can)",
-    el: "Αυτός ο browser δεν ακούει χωρίς χέρια. Πάτα Μίλα (μπορούν Chrome, Edge, Safari)",
+    en: "This browser can't listen hands-free. Hold Talk (Chrome, Edge or Safari can)",
+    el: "Αυτός ο browser δεν ακούει χωρίς χέρια. Κράτα το Μίλα (μπορούν Chrome, Edge, Safari)",
   },
   wake_blocked: { en: "The microphone is blocked, so hands-free is off", el: "Το μικρόφωνο είναι μπλοκαρισμένο. Χωρίς χέρια: ανενεργό" },
   wake_local: { en: "on this device", el: "στη συσκευή" },
   wake_cloud: { en: "via the browser's speech service", el: "μέσω της υπηρεσίας ομιλίας του browser" },
   wake_where: { en: "Speech recognition {where}", el: "Αναγνώριση ομιλίας {where}" },
-  wake_on_said: { en: "Hands-free on. Say “Hey chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Χέι σεφ»." },
-  wake_off_said: { en: "Hands-free off. Tap Talk when you need me.", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα όταν με χρειαστείς." },
+  wake_on_said: { en: "Hands-free on. Say “Hey chef”, or just “chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Χέι σεφ», ή απλά «σεφ»." },
+  wake_off_said: { en: "Hands-free off. Hold Talk when you need me.", el: "Χωρίς χέρια: ανενεργό. Κράτα το Μίλα όταν με χρειαστείς." },
   wake_timeout: { en: "I'm here when you need me.", el: "Είμαι εδώ όταν με χρειαστείς." },
   still_busy: { en: "One moment, I'm still looking.", el: "Μια στιγμή, ακόμα κοιτάζω." },
   no_recipe_open: {

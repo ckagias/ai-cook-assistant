@@ -4,7 +4,7 @@
 const PREFERRED_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
 
 export const MIN_MS = 300; // shorter than this is an accidental tap, not a command
-export const MAX_MS = 15000; // a held button stops itself
+export const MAX_MS = 30000; // a held button stops itself (room to list what they have)
 
 export function pickMimeType(Recorder) {
   if (!Recorder || typeof Recorder.isTypeSupported !== "function") return "";
@@ -16,7 +16,7 @@ export function pickMimeType(Recorder) {
 // floor, so a humming extractor fan isn't mistaken for speech.
 export const CALIBRATE_MS = 250;
 export const SPEECH_MIN_MS = 150; // this long above the threshold = someone is talking
-export const SILENCE_MS = 1200; // this long below it after speech = they've finished
+export const SILENCE_MS = 1800; // this long below it after speech = they've finished (a breath is not the end)
 export const NO_SPEECH_MS = 6000; // nothing said at all
 
 export function createSilenceDetector({ now = () => Date.now(), minThreshold = 0.015, factor = 2.5 } = {}) {

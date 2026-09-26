@@ -73,6 +73,8 @@ Actions:
 - stop_recipe: they want to quit the recipe altogether.
 - yes / no: they answer the question in <pending_question>. Only when there is one.
 - answer: a cooking question, or a reminder about the open recipe (amounts, temperatures, what comes next, what a step means, how long is left). Use <recipe>, <current_step> and the timer. 1-3 sentences.
+- start_cooking: at the ingredients (the steps not started yet), they're ready to begin ("let's start", "I have everything, let's go", "πάμε στα βήματα", "ξεκινάμε"). have_all = true if they say they have everything. spoken_response: a few words ("Let's start."); the app reads the first step itself - don't. Never list_ingredients for this.
+- have_ingredients: they say which ingredients or tools they have or don't have ("I have the eggs and the milk", "no butter", "I have everything but the whisk"). <recipe> numbers the Ingredients and then the Equipment in one run (the equipment numbers go on after the last ingredient). have = the numbers of what they said they have; missing = the numbers of what they said they lack or ran out of. Only what they named: something they didn't mention is in neither list ("I have the flour and the spatula" -> have = those two, missing = none). "everything but X": have_all = false, X in missing, every other number in have. have_all = true only for everything with no exception. spoken_response: confirm in a few words; for each missing one, a substitute or whether it can be left out, using the recipe - or say it's needed. Never say something is missing that they didn't say. Say the names, never the numbers. 1-3 sentences.
 - add_preference: at any point, they state a need, allergy, diet or taste for this cooking ("I'm allergic to nuts", "less salt", "my son is vegetarian", "no garlic"). preference = that need in a few words, in their language. spoken_response: check it against <recipe> - name the ingredients or steps it affects and what to do instead (leave out, substitute), or say the recipe already fits. 1-3 sentences.
 - unclear: anything else, or you're not sure - ask one short question back.
 
@@ -145,7 +147,7 @@ MESSAGES = {
 # Only mean something with a recipe open.
 NEEDS_RECIPE = {
     "next_step", "previous_step", "repeat_step", "check_doneness", "check_ingredients", "list_ingredients",
-    "stop_recipe",
+    "stop_recipe", "start_cooking", "have_ingredients",
 }
 
 
@@ -295,6 +297,17 @@ def interpret(user_text: str) -> VoiceCommand:
 # ---------------------------------------------------------------- prompt
 
 
+# Words that say something is lacking - without one, "missing" from the model is a guess.
+# Matched on fold()ed text: no accents, and casefold() turns a final ς into σ.
+_LACKING = re.compile(
+    r"\b(no|not|dont|don't|without|except|missing|lack\w*|ran out|out of|none|δεν|δε|οχι|χωρι[σς]|εκτο[σς]|λειπ\w*|τελειωσ\w*)\b"
+)
+
+
+def says_something_is_lacking(text: str) -> bool:
+    return bool(_LACKING.search(output_guard.fold(text or "")))
+
+
 def _data(text: str) -> str:
     """Untrusted text can't close the wrapper it sits in."""
     return (text or "").replace("<", "‹").replace(">", "›")
@@ -316,7 +329,9 @@ def build_user_text(transcript: str, language: str, recipe_id: Optional[str], st
         lines.append(f"Open recipe: {_data(name)} ({len(recipe.steps)} steps)")
         ingredients = "; ".join(f"{i}. {_data(t)}" for i, t in enumerate(recipes_module.ingredient_lines(recipe, language), 1))
         steps = " ".join(f"{s.index + 1}. {_data(recipes_module.text_in(s.instruction, language))}" for s in recipe.steps)
-        equipment = "; ".join(_data(t) for t in recipes_module.equipment_lines(recipe, language)) or "not listed"
+        # Numbered on from the ingredients: one number, one thing (have_ingredients).
+        first_tool = len(recipes_module.ingredient_lines(recipe, language)) + 1
+        equipment = "; ".join(f"{i}. {_data(t)}" for i, t in enumerate(recipes_module.equipment_lines(recipe, language), first_tool)) or "not listed"
         lines.append(f"<recipe>\nIngredients: {ingredients}\nEquipment: {equipment}\nSteps: {steps}\n</recipe>")
         if step is not None:
             text = recipes_module.text_in(step.instruction, language)
@@ -485,6 +500,23 @@ def handle_text(transcript: str, ctx: VoiceContext) -> dict:
         out.action, out.spoken_response = "unclear", msg["no_question"]
     elif cmd.action == "stop_recipe":
         out.spoken_response = msg["confirm_stop"]
+    elif cmd.action in ("have_ingredients", "start_cooking") and recipe is not None:
+        # One numbering in the prompt: 1..n the ingredients, then the equipment. Split it back, and
+        # keep only numbers the recipe really has, once each.
+        n_ing = len(recipes_module.ingredient_lines(recipe, language))
+        n_tools = len(recipes_module.equipment_lines(recipe, language))
+        valid = {int(n) for n in cmd.have if isinstance(n, int) and 1 <= n <= n_ing + n_tools}
+        # Nothing lacking was said ("I have the flour and the spatula"): nothing is missing, whatever
+        # the model guessed about the rest.
+        lacking = {int(n) for n in cmd.missing if isinstance(n, int) and 1 <= n <= n_ing + n_tools}
+        if not says_something_is_lacking(transcript):
+            lacking = set()
+        valid -= lacking
+        out.have = sorted(n for n in valid if n <= n_ing)
+        out.missing = sorted(n for n in lacking if n <= n_ing)
+        out.have_tools = sorted(n - n_ing for n in valid if n > n_ing)
+        out.missing_tools = sorted(n - n_ing for n in lacking if n > n_ing)
+        out.have_all = bool(cmd.have_all) and not lacking
     elif cmd.action == "add_preference":
         # Kept in the session memory and replayed to the model as data - short, one line.
         note = " ".join((cmd.preference or transcript).split())[:MAX_PREFERENCE_CHARS]

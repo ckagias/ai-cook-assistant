@@ -311,3 +311,41 @@ def test_the_prompt_allows_interruptions_and_puts_safety_first(client, say):
         recipe_id="beef_steak", step_index=2)
     assert "interrupt you at any moment" in voice.SYSTEM_PROMPT and "add_preference" in voice.SYSTEM_PROMPT
     assert "immediate safety step" in voice.SYSTEM_PROMPT
+
+
+def test_the_checklist_by_voice_only_ticks_what_the_recipe_has(client, say):
+    # Pancakes: 4 ingredients, then the equipment numbered on from 5 (bowl 5, whisk 6, pan 7...).
+    body = say(client, "I have the flour and the eggs and the pan, no butter",
+               cmd("have_ingredients", "Ticked flour and eggs. Butter: use oil instead.",
+                   have=[1, 2, 2, 7, 99], missing=[4]),
+               recipe_id="pancakes")
+    assert body["action"] == "have_ingredients"
+    assert body["have"] == [1, 2] and body["missing"] == [4]
+    assert body["have_tools"] == [3] and body["missing_tools"] == []  # 7 = the third tool
+    assert body["spoken_response"].startswith("Ticked flour and eggs")
+    assert "Ingredients: 1. " in say.seen["prompt"] and "Equipment: 5. " in say.seen["prompt"]
+    # "Everything" can't also have something missing.
+    body = say(client, "I have everything except the butter",
+               cmd("have_ingredients", "OK.", have_all=True, missing=[4]), recipe_id="pancakes")
+    assert body["have_all"] is False and body["missing"] == [4]
+    # Nothing lacking was said: the ones not mentioned are not "missing".
+    body = say(client, "έχω αλεύρι και τη σπάτουλα",
+               cmd("have_ingredients", "OK.", have=[1, 8], missing=[2, 3, 4, 5]), recipe_id="pancakes")
+    assert body["have"] == [1] and body["have_tools"] == [4] and body["missing"] == [] and body["missing_tools"] == []
+
+
+def test_lacking_is_heard_in_both_languages():
+    for text in ["no butter", "I don't have the whisk", "everything except the pan", "I ran out of milk",
+                 "δεν έχω βούτυρο", "όχι γάλα", "τα έχω όλα εκτός από το σύρμα", "μου λείπει το αλεύρι", "χωρίς αυγά"]:
+        assert voice.says_something_is_lacking(text), text
+    for text in ["I have the flour and the spatula", "έχω αλεύρι και τη σπάτουλα", "τα έχω όλα", "notebook"]:
+        assert not voice.says_something_is_lacking(text), text
+
+
+def test_ready_to_start_is_its_own_action(client, say):
+    body = say(client, "I have everything, let's start", cmd("start_cooking", "Let's go.", have_all=True),
+               recipe_id="pancakes")
+    assert body["action"] == "start_cooking" and body["have_all"] is True
+    body = say(client, "let's start", cmd("start_cooking", "Let's go."))
+    assert body["action"] == "unclear" and "No recipe is open" in body["spoken_response"]
+    assert "Never list_ingredients for this" in voice.SYSTEM_PROMPT
