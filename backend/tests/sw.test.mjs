@@ -1,5 +1,5 @@
 // Evaluates sw.js as a classic worker script against a shimmed self/caches.
-// No browser, no network: only shellPath's allow-list.
+// No browser, no network: shellPath allow-list + notificationclick registration.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -9,9 +9,12 @@ import vm from "node:vm";
 const ORIGIN = "https://192.168.1.15:8443";
 const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../static/sw.js"), "utf8");
 
+const listeners = {};
 const self = {
   location: { origin: ORIGIN },
-  addEventListener() {},
+  addEventListener(type, fn) {
+    (listeners[type] ||= []).push(fn);
+  },
   skipWaiting() {},
   clients: { claim() {} },
 };
@@ -53,5 +56,10 @@ assert(
   "navigation with pairing query still caches as /"
 );
 assert(shellPath(req("GET", "/js/app.js"), ORIGIN) === "/js/app.js", "GET /js/app.js");
+
+assert(
+  (listeners.notificationclick || []).length > 0,
+  "notificationclick handler should be registered"
+);
 
 console.log("all passed");

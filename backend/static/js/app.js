@@ -114,6 +114,17 @@ const session = createSession({
     earcon("wait");
     buzz([80, 60, 80]);
     say(t("timer_done", lang), "checkin"); // queued, not interrupting
+    // Android Chrome has no page-level Notification constructor - must go through the SW.
+    if (
+      document.hidden &&
+      "Notification" in window &&
+      Notification.permission === "granted" &&
+      navigator.serviceWorker
+    ) {
+      navigator.serviceWorker.ready
+        .then((reg) => reg.showNotification(t("timer_done", lang), { tag: "timer", renotify: true }))
+        .catch(() => {});
+    }
   },
 });
 

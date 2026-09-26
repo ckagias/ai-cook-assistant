@@ -99,6 +99,18 @@ export async function boot(preferredLang = "el") {
     caps.vibrate = navigator.vibrate(1);
   }
 
+  // Timer notification while another app is in front. Denied = today's in-app alert only.
+  if ("Notification" in window) {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "denied") {
+        warnings.push("Notification permission was denied - timer alerts stay in the app.");
+      }
+    } catch {
+      // API present but request failed - ignore
+    }
+  }
+
   // Voice.
   caps.lang = await probeVoices(preferredLang);
   if (caps.lang !== preferredLang) {
