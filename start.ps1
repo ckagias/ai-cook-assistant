@@ -3,8 +3,14 @@
   Open the Cooking Assistant in seconds. Double-click start.cmd, or run .\start.ps1.
 
 .DESCRIPTION
-  - Runs setup.ps1 only the first time, or after a requirement or detector setting changed.
-    Every other start skips it.
+  - Downloads what the app needs once, and skips anything already there:
+      Python 3.12 (winget, this user only)   only when no usable Python is installed
+      git (winget)                           only when detection needs it and it's missing
+      Python packages, models, database      through setup.ps1, which itself skips installed
+                                             packages (pip dry run), models on disk and an
+                                             existing database
+    setup.ps1 runs only the first time, or after a requirement or detector setting changed.
+    Every other start skips it and opens in seconds.
   - One server, two addresses:
       http://localhost:8000      this computer, any browser (no certificate warning)
       https://<LAN IP>:8443      phones/tablets on the same Wi-Fi (accept the certificate once)
@@ -16,12 +22,14 @@
   .\start.cmd                  # double-click friendly
   .\start.ps1 -NoWindow        # serve only; open the links in any browser; Ctrl+C stops
   .\start.ps1 -LocalOnly       # this computer only: no LAN address, no firewall prompt
+  .\start.ps1 -CheckOnly       # what is installed, what a first start would download - changes nothing
 #>
 [CmdletBinding()]
 param(
     [switch]$NoWindow,
     [switch]$LocalOnly,
-    [switch]$NoDetection
+    [switch]$NoDetection,
+    [switch]$CheckOnly
 )
 
 $ErrorActionPreference = "Continue"
@@ -43,18 +51,108 @@ function Get-VenvPython {
     return (Join-Path $Backend "$dir\Scripts\python.exe")
 }
 
-# --- 1. setup, only when something changed since the last successful one ---
+# --- 0. prerequisites, installed once: present = skipped ---
+
+# The WindowsApps "python.exe" is only a Microsoft Store shortcut: it prints "Python was not
+# found" and exits 9009. Running the candidate is the only reliable test.
+function Get-PythonVersion([string]$Exe, [string[]]$Pre = @()) {
+    try {
+        $v = & $Exe @Pre -c "import sys; print('%d.%d' % sys.version_info[:2])" 2> $null
+        if ($LASTEXITCODE -eq 0 -and $v) { return [version]("$v".Trim()) }
+    } catch {}
+    return $null
+}
+
+# Detection (mediapipe) has wheels for Python 3.11/3.12 only, so those win when detection is wanted.
+function Find-Python([bool]$ForDetection) {
+    $best = $null
+    foreach ($candidate in @("py -3.12", "py -3.11", "python3.12", "python", "py")) {
+        $parts = $candidate -split " "
+        if (-not (Get-Command $parts[0] -ErrorAction SilentlyContinue)) { continue }
+        $v = Get-PythonVersion $parts[0] @($parts | Select-Object -Skip 1)
+        if (-not $v -or $v -lt [version]"3.10") { continue }
+        if ($v -eq [version]"3.12" -or $v -eq [version]"3.11") { return @{ Name = $candidate; Version = $v; Detection = $true } }
+        if (-not $best) { $best = @{ Name = $candidate; Version = $v; Detection = $false } }
+    }
+    # Installed but not on this window's PATH (installed a moment ago, or PATH was never updated).
+    foreach ($dir in @("$env:LOCALAPPDATA\Programs\Python\Python312", "$env:LOCALAPPDATA\Programs\Python\Python311",
+                       "$env:ProgramFiles\Python312", "$env:ProgramFiles\Python311")) {
+        $exe = Join-Path $dir "python.exe"
+        if ((Test-Path $exe) -and (Get-PythonVersion $exe)) {
+            $env:Path = "$dir;$dir\Scripts;$env:Path"  # setup.ps1's plain "python" is now this one
+            return @{ Name = "python"; Version = (Get-PythonVersion $exe); Detection = $true }
+        }
+    }
+    return $best  # 3.10/3.13+: the base app works; detection won't install on it
+}
+
+function Update-SessionPath {
+    $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $user = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machine;$user;$env:Path"
+}
+
+function Install-Once([string]$Id, [string]$What) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Warn "winget is not available to install $What."
+        return
+    }
+    Write-Host "Installing $What (one time only, for this user - later starts skip this)..."
+    # --source winget: the community repository only - the Microsoft Store source would stop
+    # for its own terms prompt.
+    & winget install --id $Id --exact --source winget --scope user --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+    Update-SessionPath  # the new PATH entries only reach windows opened from now on, and this one
+}
+
+$WantDetection = -not $NoDetection
 $VenvPython = Get-VenvPython
 $ready = $false
 if (Test-Path $VenvPython) {
     & $VenvPython (Join-Path $Backend "scripts\setup_stamp.py") check
     $ready = ($LASTEXITCODE -eq 0)
 }
+
+if ($CheckOnly) {
+    $py = Find-Python $WantDetection
+    $git = [bool](Get-Command git -ErrorAction SilentlyContinue)
+    Write-Host "Python:      $(if ($py) { "$($py.Version) ($($py.Name)) - installed, skipped" } else { 'missing - the first start installs Python 3.12 with winget' })"
+    if ($py -and $WantDetection -and -not $py.Detection) { Write-Host "             detection needs 3.11/3.12 - the first start installs Python 3.12 with winget" }
+    Write-Host "git:         $(if ($git) { 'installed, skipped' } elseif ($WantDetection) { 'missing - installed with winget (detection needs it)' } else { 'not needed without detection' })"
+    Write-Host "Environment: $(if (Test-Path $VenvPython) { $VenvPython } else { 'missing - created on first start' })"
+    Write-Host "Setup:       $(if ($ready) { 'done and up to date - nothing to download, starts skip it' } else { 'runs once on the next start (installed packages, models and the database are skipped)' })"
+    exit 0
+}
+
+# --- 1. setup, only when something changed since the last successful one ---
 if (-not $ready) {
     Write-Host "First start, or something changed - running setup once (later starts skip it)..."
-    & (Join-Path $Root "setup.ps1") -SkipTests -NoSummary -NoDetection:$NoDetection
+    $py = Find-Python $WantDetection
+    if (-not $py -or ($WantDetection -and -not $py.Detection)) {
+        Install-Once "Python.Python.3.12" "Python 3.12"
+        $py = Find-Python $WantDetection
+    }
+    if (-not $py) {
+        Write-Warn "ERROR: no Python 3.10+ and it could not be installed. Install Python 3.12 from https://www.python.org/downloads/ (tick 'Add python.exe to PATH') and run start again."
+        exit 1
+    }
+    Write-Host "Python $($py.Version): ready."
+    if ($WantDetection -and -not $py.Detection) {
+        Write-Warn "Python $($py.Version) can't run detection (it needs 3.11/3.12) - starting without it."
+        $WantDetection = $false
+    }
+    # One detection package (YOLOE's text encoder) installs straight from GitHub, so pip needs git.
+    if ($WantDetection -and -not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Install-Once "Git.Git" "git"
+        if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+            Write-Warn "git is still missing - starting without detection (install Git for Windows and start again to add it)."
+            $WantDetection = $false
+        }
+    }
+    & (Join-Path $Root "setup.ps1") -SkipTests -NoSummary -NoDetection:(-not $WantDetection)
     if ($LASTEXITCODE -ne 0) { exit 1 }
     $VenvPython = Get-VenvPython
+} else {
+    Write-Host "Setup already done - Python, packages, models and database are in place (skipped)."
 }
 Set-Location $Backend
 
