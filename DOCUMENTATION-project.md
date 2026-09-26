@@ -1,58 +1,71 @@
-# AI Cook Assistant Documentation
+# AI Cooking Assistant: project overview
 
-## 1. System Overview
-The AI Cook Assistant is a voice-first, vision-enabled cooking companion application. It is designed to assist users, including those with visual impairments, by providing step-by-step recipe instructions, identifying objects, evaluating food doneness, and tracking kitchen hazards in real time.
+A short tour for someone new to the project. The details live in **README.md** (how to run
+and use it), **DESIGN.md** (why it's built this way, decisions #1-#32) and **STATUS.md** (what
+is verified, and what isn't yet).
 
-The application operates via a local FastAPI backend serving a vanilla JavaScript frontend. It utilizes local computer vision models for real-time detection and cloud-based Large Language Models (LLMs) for complex reasoning and voice transcription.
+## 1. What it is
 
-## 2. Architecture and Technology Stack
+A voice-first cooking assistant for a phone or tablet propped up in the kitchen. It's made for
+blind and low-vision cooks, and it also works fully without sound for deaf cooks who don't
+speak. Greek by default, English when the device has no Greek voice.
 
-### Backend
-*   **Framework**: FastAPI (Python) running on Uvicorn.
-*   **Database**: SQLite (`cook.db`), populated on first boot from a version-controlled JSON seed file (`recipes.json`).
-*   **Local Computer Vision**: OpenVINO and YOLO models for real-time continuous object and hand detection.
-*   **Cloud AI Integration**: OpenAI API (GPT-4o-mini) for image analysis, step reasoning, and Whisper for audio transcription.
-*   **Security**: Local pairing token authentication for LAN access. Output guardrails and heuristic checks to prevent LLM prompt injection and false safety claims.
+- **Point the camera** at food or a package, and it says what it sees.
+- **Recipes step by step, read aloud:**
+  - needs and preferences come first;
+  - then the ingredients and tools, as checklists;
+  - timers start when the cook says so, several at a time;
+  - "is it ready?" checks from a photo, with food-safety rules. Meat is never judged done by
+    looks; the cook gets the thermometer target instead.
+- **Live object and hand detection** on the laptop: utensils, cookware, ingredients and hands,
+  plus which hand touches what. On screen only, since the camera has no depth.
 
-### Frontend
-*   **Framework**: Vanilla HTML, CSS, and JavaScript.
-*   **Media Handling**: `getUserMedia` for continuous camera access and microphone recording.
-*   **Accessibility**: Full screen reader compatibility, ARIA live regions, and audible feedback (earcons/speech synthesis) for state changes.
+## 2. Architecture
 
-## 3. Core Features
+| Part | What |
+|---|---|
+| Server | FastAPI + Uvicorn (Python 3.12). One process serves `http://localhost:8000` and `https://<LAN IP>:8443` (`scripts/serve.py`) |
+| Client | Plain HTML/CSS/JS, no build step; an installable Android PWA with a service worker (`static/sw.js`) |
+| Recipes | SQLite (`backend/data/cook.db`), seeded from `backend/data/recipes.json` (16 bilingual recipes). Imported recipes stay *staged* until a person curates their safety fields |
+| Vision answers | "What is this?" / "Is it ready?": one provider of Anthropic, OpenAI or Gemini (`VISION_PROVIDER`) |
+| Detection | Pretrained YOLOE-26s at 480 px, OpenVINO on the CPU, letterboxed to the frame's own shape, plus MediaPipe hands in parallel. About 6 FPS on a 15 W laptop CPU |
+| Voice | Browser speech recognition for "Γεια σου σεφ" / "Hey chef" (Chrome, Edge, Safari). Common commands are matched on the device; free speech goes to `POST /voice/text`. Browsers without a recognizer (Firefox) record and transcribe on the server (`gpt-4o-mini-transcribe`) |
+| Phones | The laptop's own hotspot (fixed address `192.168.137.1`) with a local CA installed once per phone; static QR codes for slides in `qr/` |
 
-### 3.1. Voice Command System
-The system relies on a structured voice interface to prevent accidental triggers in a noisy kitchen environment.
-*   **Push-to-Talk**: Users hold a physical or virtual button to record audio. The audio blob is sent to the backend, transcribed, and mapped to a strict closed list of actions (e.g., next_step, start_timer, repeat_step).
-*   **Text-Based Wake Word (Experimental)**: A continuous local listener utilizing the browser Web Speech API designed to trigger hands-free commands. It captures text locally and posts directly to a `/voice/text` endpoint, bypassing audio uploads.
+Safety and security:
+- a pairing token, skipped only for the laptop itself;
+- rate limits and size caps;
+- an output guard against prompt injection in model answers;
+- voice actions from a closed list, checked in code;
+- audio and transcripts never stored.
 
-### 3.2. Vision and Reasoning
-*   **Identify (What is this?)**: Captures the current camera frame and asks the LLM to identify ingredients or tools.
-*   **Check Doneness (Is it ready?)**: Evaluates the food against the expected state of the current recipe step, utilizing reference images and textual heuristics.
-*   **Safety Monitoring**: The LLM flags critical hazards (e.g., raw poultry cross-contamination, burning oil). Output guards silently downgrade LLM responses that claim high confidence without sufficient evidence.
+## 3. Running it
 
-### 3.3. Real-Time Detection
-*   A background loop captures frames at a target of 4 to 5 FPS and sends them to the local detection API.
-*   The backend returns bounding boxes and confidence scores for hands, utensils, cookware, and hazards.
-*   The frontend renders these boxes on a canvas overlay and displays a tabular summary.
+- **Windows:** `.\start.cmd` or `.\start.ps1`.
+  - Setup runs once; later starts take about 5 s.
+  - Every start closes the previous session.
+  - It turns on the hotspot and prints the phone QR in the terminal.
+- **Linux, macOS, WSL:** `./start.sh`.
+- **API keys** go in `backend/.env`, never in `.env.example`.
 
-### 3.4. Recipe Management
-*   **Data Structure**: Recipes contain localized names, aliases, ingredients, and sequential steps with expected durations and safety markers.
-*   **Import Pipeline**: Dedicated Python scripts scrape and normalize recipes from external URLs (including Greek websites).
-*   **Curation**: Imported recipes are staged, merged, and deduplicated locally before being written to the primary `recipes.json` datastore.
+## 4. How it was built
 
-## 4. Development Process Summary
+- **`feature/detection-db`:** detection, the recipe database, the any-URL importer, speaking
+  buttons, voice commands, per-browser camera help, and the instant launchers.
+- **`feature/hands-free-chef` (ckagias):** hands-free wake phrase, the recipe flow, short-term
+  memory, the deaf-friendly UI, 16 curated recipes.
+- **`dev` (Fanis):** Android PWA, service worker, local CA for phones, QR pairing, timer
+  notifications.
+- **`integration`:** all three merged, with the fixes found while testing them together
+  (DESIGN #31-#32). It is now `main`.
 
-The recent development cycles focused on expanding the recipe database, improving local development workflows, and refining the user experience.
+## 5. Known limits
 
-1.  **Database Expansion**: Populated the seed JSON with bilingual (English and Greek) recipes, complete with safety metadata and timings.
-2.  **Import Tooling**: Developed command-line utilities to pull and format copyrighted recipes from Greek domains for local usage.
-3.  **Authentication Adjustments**: Modified the authentication middleware to automatically bypass pairing token requirements for local connections (127.0.0.1), streamlining testing.
-4.  **Wake Word Integration**: Built a frontend Web Speech API listener to detect a trigger phrase (Hey Chef) and submit transcribed text to a newly created backend text command endpoint. Added robust phonetic matching to account for Greek transcription quirks.
-5.  **Caching and Lifecycle UX**: 
-    *   Implemented strict no-cache headers in the FastAPI server to prevent aggressive browser caching in local PWA windows.
-    *   Updated the startup sequence to audibly notify the user when the local detection model finishes loading into memory, followed by a conversational prompt.
-
-## 5. Known Limitations
-*   The experimental Web Speech API wake word relies on continuous browser transcription, which is entirely unsupported in Firefox and can be preempted by OS-level microphone exclusivity locks in certain Chrome/Edge configurations.
-*   Real-time detection latency is heavily dependent on the host machine CPU. Frame rate is throttled dynamically to prevent thermal throttling.
+- Hands-free needs a browser with speech recognition. On a PC use Chrome; Edge's recognizer
+  missed the Greek wake phrase in testing. Firefox uses tap-to-talk.
+- Recognition can mishear dish names ("ροσμπίφ" came back as "προς πεις" once). The app says
+  which recipe it opened and shows what it heard, so a wrong pick is easy to notice and undo.
+- Detection runs on the laptop's CPU. Its speed depends on the machine and on thermal
+  throttling; it is capped at ~6 FPS to leave headroom.
+- Recipes imported from websites are for personal or demo use. Their text stays in the local
+  database, not in git.

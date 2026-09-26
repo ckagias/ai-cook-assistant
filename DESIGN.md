@@ -538,5 +538,47 @@ reached. Finishing a recipe clears its memory.
 Not adopted:
 - Their second wake listener and `TextCommandRequest` endpoint: they need an OpenAI key,
   which is why every command answered "network trouble" on a Gemini-only machine.
-- `DOCUMENTATION-project.md`: it has factual errors.
-- The `import_greek_demo.py` wrapper: it duplicates `import_recipes.py --url-file`.
+- `DOCUMENTATION-project.md`: it has factual errors. It was later rewritten with those errors
+  fixed, at the merge (#31).
+- The `import_greek_demo.py` wrapper: it duplicates `import_recipes.py --url-file`. The URL list
+  itself (`data/greek_demo_urls.txt`) came over at the merge.
+
+## 31. Nothing at Start holds a resource the rest of the app needs
+
+Three things found while merging `dev` into hands-free, all with the same shape: Start held
+something for good that later code needed free.
+- **The microphone.** Start opened a raw mic stream and never closed it; it was meant for a
+  sizzle detector that was never built. Push-to-talk also kept its stream open after recording.
+  On Android, a page holding the mic blocks the browser's own speech recognition, so
+  "Γεια σου σεφ" was never heard. Now Start only *asks*: it opens and closes a stream, and the
+  permission stays. Push-to-talk opens the mic per recording.
+- **The notification prompt.** `dev` awaited `Notification.requestPermission()` inside Start.
+  In Firefox, or on a desktop where nobody clicks the prompt, that promise never settles, and
+  a blind cook can't see a prompt to answer. It's asked now, but not awaited.
+- **The service worker's copy.** It cloned the response only after the page had read the
+  body, so nothing was ever cached. The list of shell files had also fallen behind the new
+  modules. A test now fails for any `static/js` module missing from `SHELL_FILES`, and the
+  cache name is bumped when the list changes.
+
+## 32. The phone link is fixed: the laptop's own hotspot
+
+A QR code on a slide has to keep working through every code change and every venue. A LAN
+address doesn't: it was 172.16.30.63 in the morning and 192.168.43.200 in the afternoon. On
+its own Windows Mobile Hotspot, though, the laptop is always `192.168.137.1`.
+
+So `start.ps1` turns the hotspot on through Windows' own API (no admin rights), and pins the
+certificate and links to that address with `LAN_IP`. `scripts/static_qr.py` then writes the
+three slide codes:
+- join the Wi-Fi (the standard `WIFI:` payload);
+- the local CA, once per phone;
+- the paired app link.
+
+They carry the token and the Wi-Fi password, so they stay out of git.
+
+Rejected for now:
+- **A tunnel with a fixed domain (ngrok):** it needs an account, and it puts the app on the
+  internet.
+- **Cloud hosting (GCP, later):** detection needs a real CPU, and the API keys would sit on a
+  public server.
+
+Both would drop the certificate step, and remain options once the demo setup is settled.

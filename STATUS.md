@@ -3,7 +3,64 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
-## Update: Greek hands-free fix, preferences first, short-term memory, detection-db features (uncommitted, 2026-09-26)
+## Update: one branch - `integration`, now `main` (2026-09-26)
+
+`integration` = ckagias's `feature/hands-free-chef` + Fanis's `dev` (Android PWA) + the rest of
+`feature/detection-db`. It was pushed, and `main` was fast-forwarded to it. See DESIGN.md
+#31-#32. **Built and verified:**
+- **The merge.**
+  - `dev`: two `app.js` conflicts, both kept from hands-free, which already registered the
+    service worker, remembered the detect flag and sent the timer notification.
+  - `detection-db`: the Greek demo URL list came over (import it with
+    `import_recipes.py url --url-file`). Its `import_greek_demo.py` wrapper stayed out, as
+    DESIGN #30 decided. `DOCUMENTATION-project.md` was rewritten with its errors fixed.
+- **The microphone is only open while it's used** (Android). Start used to hold the mic for
+  good, and push-to-talk kept its stream too, and on Android an open page mic blocks the
+  browser's own recognizer. Verified: every stream the page opened is closed after Start and
+  after talking.
+- **Start no longer waits for the notification prompt** (a `dev` change). Firefox, or a desktop
+  prompt nobody clicks, used to leave the app on the start screen for good.
+- **Service worker.**
+  - It cloned responses too late ("Response body is already used"), so nothing was cached.
+  - `wake.js`, `commands.js`, `timers.js` and `memory.js` were missing from the offline shell.
+    The cache is now `-v2`, and a test fails if a JS module is ever left out.
+  - Live: 20 files cached, no errors.
+- **`start.ps1`.**
+  - Every start is clean: the previous server and window are closed, and the profile, QR
+    images and logs are removed. The stamp and certificates stay.
+  - The phone QR is printed in the terminal.
+  - It turns on the laptop's **hotspot**. Phones use `https://192.168.137.1:8443` (the laptop's
+    fixed address on its own hotspot), and **static QR codes for slides** are written to `qr/`:
+    Wi-Fi, certificate, app.
+  - Live: hotspot on, internet still shared, `/health` over HTTPS at 192.168.137.1, a
+    certificate for 192.168.137.1 signed by the local CA, the Python firewall rule matching the
+    listening process, and all QR codes decoded back to the right text.
+- **Tests:** 348 passing (Python + Node). New: the service-worker module guard, `LAN_IP` pinning,
+  and the static QR payloads (decoded back with OpenCV).
+- **Live, in headless browsers:**
+
+  | Browser | Detection | Typed request | Hands-free |
+  |---|---|---|---|
+  | Edge (fake camera) | 6-6.7 FPS, "Χέρι 63%, μαχαίρι 39%, ακουμπά" | "θέλω να φτιάξω ροσμπίφ" opened roast beef | - |
+  | Firefox (canvas camera) | 5.5-5.9 FPS | same | tells the cook to tap Μίλα (no recognizer) |
+
+  Push-to-talk through `/voice` also opened roast beef.
+- **Real microphone (laptop mic, phrase played through its speakers):**
+  - **Chrome woke on "γεια σου σεφ"** through room chatter and started a beef recipe. It heard
+    "ροσμπίφ" as "προς πεις", so it picked the steak.
+  - **Edge's recognizer missed the wake phrase three times out of three.**
+  - Headless Chromium feeds its recognizer a beep, not the fake-mic file. Only an acoustic test
+    shows real recognition.
+
+**Not verified yet:**
+- **A real Android phone:** the microphone fix, hands-free, the installed PWA, and the hotspot
+  from a phone's side.
+- **Edge as a hands-free browser.** Use Chrome on a PC; Android uses Google's recognizer anyway.
+- **`start.sh` (WSL/Linux)** has neither the clean-start nor the hotspot changes; Windows only.
+- **Fanis's manifest test regenerates the three icon files on every run**, so they show as
+  modified in git afterwards. The tree was left as `dev` has it.
+
+## Update: Greek hands-free fix, preferences first, short-term memory, detection-db features (branch `feature/hands-free-chef`, 2026-09-26)
 
 See DESIGN.md #27-#30. **Built and verified:**
 - **Why "Γεια σου σεφ" didn't work on a real microphone:**
@@ -38,9 +95,8 @@ See DESIGN.md #27-#30. **Built and verified:**
   through Chrome's fake microphone.
 - The Gemini free tier (5 requests/minute per model) ran out several times during testing. The
   app now says "the assistant is busy", and simple commands keep working on the device.
-- Fanis's `origin/dev` (PWA) is not integrated. This branch already sends the timer notification
-  it expects. On merge, add `wake.js`, `commands.js`, `timers.js` and `memory.js` to `sw.js`'s
-  `SHELL_FILES`.
+- ~~Fanis's `origin/dev` (PWA) is not integrated.~~ Done in `integration`, including the
+  `SHELL_FILES` additions (see the entry above).
 
 ## Update: hands-free "Hey chef", recipe flow, deaf-friendly UI (branch `feature/hands-free-chef`, 2026-09-26)
 

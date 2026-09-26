@@ -40,9 +40,14 @@ That's the whole thing:
 - **The app window:** it opens in its own Edge/Chrome window with the camera and microphone
   already allowed for the app's address. Closing it stops the server (Windows); on
   Linux/macOS, Ctrl+C stops it.
-- **The phone:** a QR code for the phone link is printed in the terminal (and saved as
-  `.run/pairing.png`). Scan it with the phone on the same Wi-Fi. The first time only, install `/ca.crt` (see
-  **Tablet bring-up**).
+- **The phone, through the laptop's own hotspot:** `start.ps1` turns on Windows Mobile Hotspot
+  and prints its Wi-Fi name and password, plus a QR code for the phone link in the terminal
+  (also saved as `.run/pairing.png`).
+  - On its own hotspot the laptop is always `192.168.137.1`, so the link never changes, and
+    neither do the **static QR codes for slides** in `qr/` (see below).
+  - The first time on each phone, install `/ca.crt` (see **Tablet bring-up**).
+  - `-NoHotspot` keeps phones on the laptop's current Wi-Fi at its current address instead.
+    That address changes between networks.
 - **Every start is a clean one (Windows):** it closes the previous session's server and app
   window, and removes the leftovers: the window's browser profile (cache, service worker,
   stored settings), QR images and logs.
@@ -162,6 +167,31 @@ backend/.venv/bin/python backend/scripts/check_providers.py [photo.jpg]
    as an app on your network**. iOS Add to Home Screen is out of scope for
    now.
 
+### Static QR codes for slides and demos
+
+`start.ps1` writes `qr/slide.png` every time it runs with the hotspot on. The slide holds three
+QR codes with Greek and English captions, and each is also a separate PNG for a presentation:
+
+| QR code | What it does |
+|---|---|
+| `1-wifi.png` | Joins the laptop's hotspot. It's a standard Wi-Fi QR, so phone cameras connect without typing the password. |
+| `2-certificate.png` | Opens `https://192.168.137.1:8443/ca.crt`. Needed once per phone. |
+| `3-app.png` | Opens `https://192.168.137.1:8443/?token=...&detect=1`, already paired. |
+
+They stay valid through any code change or restart. They only change if the pairing token,
+the hotspot's name or password (Settings > Network > Mobile hotspot), or the port changes. They
+contain the token and the Wi-Fi password, so `qr/` is gitignored. Regenerate them by hand with
+`python backend/scripts/static_qr.py --ssid "<name>" --password "<password>"`.
+
+At the demo:
+- the laptop runs `start.ps1`, with its own internet (Wi-Fi or a phone's hotspot) shared
+  through its hotspot;
+- phones scan 1, then 2 (first time only), then 3;
+- if phones can't connect, allow Python through Windows Firewall when asked;
+- by default Windows turns the hotspot off after 5 minutes with no device connected. Before a
+  demo, switch off Settings > Network & internet > Mobile hotspot > **Power saving**, or run
+  `start.ps1` again, which turns it back on.
+
 Once connected, open `/probe.html` on the tablet first and run through
 every section - it exercises the real camera/mic/audio stack and the real
 `features.js`/`aim.js` modules before you ever open the main app. On
@@ -247,6 +277,8 @@ seeded from `backend/data/recipes.json` on first start. No database server is ne
 # any site that publishes schema.org recipe data (most recipe sites do)
 python backend/scripts/import_recipes.py url --urls https://example.com/some-recipe
 python backend/scripts/import_recipes.py url --sitemap https://example.com/sitemap.xml --pattern /recipe/ --limit 20
+# the Greek demo list (Akis Petretzikis, Argiro): into this machine's database only - not git
+python backend/scripts/import_recipes.py url --url-file backend/data/greek_demo_urls.txt --browser-ua
 
 python backend/scripts/curate_recipe.py --list          # staged, not yet reviewed
 python backend/scripts/curate_recipe.py s-1a2b3c4d5e     # review and publish one
