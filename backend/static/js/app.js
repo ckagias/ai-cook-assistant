@@ -1392,13 +1392,16 @@ function setListening(on) {
 function renderWakeState(state, detail) {
   el.wakeStatus.dataset.state = state;
   let text;
-  if (state === "idle") text = `${t("wake_idle", lang)} · ${t(detail === "local" ? "wake_local" : "wake_cloud", lang)}`;
+  // Where the words are recognized is a hover detail, not part of the label: "· via the browser's
+  // speech service" wrapped the pill to three lines beside a phone's camera.
+  if (state === "idle") text = t("wake_idle", lang);
   else if (state === "armed") text = t("wake_armed", lang);
   // The browser's own error code stays on screen (feature/detection-db showed it too): it tells
   // whoever is helping whether it's the microphone, the network or the language.
   else if (state === "error") text = detail === "unsupported" ? t("wake_unsupported", lang) : `${t("wake_blocked", lang)} (${detail})`;
   else text = Recognition ? t("wake_off", lang) : t("wake_unsupported", lang);
   el.wakeStatus.textContent = text;
+  el.wakeStatus.title = state === "idle" ? tf("wake_where", lang, { where: t(detail === "local" ? "wake_local" : "wake_cloud", lang) }) : "";
   el.wakeToggle.setAttribute("aria-pressed", String(state === "idle" || state === "armed"));
   if (state !== "armed") setListening(false);
 }

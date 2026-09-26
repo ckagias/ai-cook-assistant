@@ -148,6 +148,7 @@ export const STRINGS = {
   wake_blocked: { en: "The microphone is blocked, so hands-free is off", el: "Το μικρόφωνο είναι μπλοκαρισμένο. Χωρίς χέρια: ανενεργό" },
   wake_local: { en: "on this device", el: "στη συσκευή" },
   wake_cloud: { en: "via the browser's speech service", el: "μέσω της υπηρεσίας ομιλίας του browser" },
+  wake_where: { en: "Speech recognition {where}", el: "Αναγνώριση ομιλίας {where}" },
   wake_on_said: { en: "Hands-free on. Say “Hey chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Γεια σου σεφ»." },
   wake_off_said: { en: "Hands-free off. Tap Talk when you need me.", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα όταν με χρειαστείς." },
   wake_timeout: { en: "I'm here when you need me.", el: "Είμαι εδώ όταν με χρειαστείς." },
