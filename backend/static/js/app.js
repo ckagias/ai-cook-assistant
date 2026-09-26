@@ -77,6 +77,7 @@ const el = {
 
 const params = new URLSearchParams(window.location.search);
 const DEBUG = params.get("debug") === "1";
+if (DEBUG) document.documentElement.dataset.debug = "1"; // app.css shows the diagnostics line
 // Detection starts with the camera unless this device said otherwise: ?detect=0 / =1 is remembered
 // (an installed app opens at "/"). When the server has no detection the loop stops by itself.
 const DETECT_PARAM = params.get("detect");
