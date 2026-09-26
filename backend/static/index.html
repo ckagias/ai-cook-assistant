@@ -41,6 +41,8 @@
     <div id="status" role="status" aria-live="assertive" aria-atomic="true"></div>
 
     <div id="controls">
+      <!-- Hold to talk: data-hold keeps the long-press description from firing on it. -->
+      <button class="talk" data-action="talk" data-speak="talk" data-hold="1" aria-pressed="false">Μίλα</button>
       <button data-action="identify" data-speak="identify">Τι είναι αυτό;</button>
       <button data-action="recipes" data-speak="recipes">Συνταγές</button>
     </div>
@@ -48,6 +50,7 @@
     <div id="recipe-list" hidden></div>
 
     <div id="stepper" hidden>
+      <button class="talk" data-action="talk" data-speak="talk" data-hold="1" aria-pressed="false">Μίλα</button>
       <button data-action="check" data-speak="check">Είναι έτοιμο;</button>
       <button data-action="repeat" data-speak="repeat">Επανάλαβε</button>
       <button data-action="next" data-speak="next">Επόμενο</button>

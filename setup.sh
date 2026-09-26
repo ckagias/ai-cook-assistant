@@ -9,7 +9,9 @@
 # Flags, in any order:
 #   --no-detection   skip the ~1 GB detection stack (torch, ultralytics, mediapipe) and models
 #   --skip-tests     don't run the test suite at the end
-#   --run            start uvicorn in the foreground afterwards (see also ./setup-window.sh)
+#   --run            start uvicorn in the foreground afterwards and open the app window
+#                    (see also ./setup-window.sh)
+#   --no-window      with --run: only serve, don't open the app window
 #   --no-summary     skip the closing "what it does / how to use it" summary
 set -uo pipefail
 
@@ -22,6 +24,7 @@ cd "$SCRIPT_DIR/backend" || exit 1
 
 WITH_DETECTION=1
 RUN_SERVER=0
+OPEN_WINDOW=1
 RUN_TESTS=1
 SHOW_SUMMARY=1
 for arg in "$@"; do
@@ -30,6 +33,7 @@ for arg in "$@"; do
     --with-detection) WITH_DETECTION=1 ;;  # the default now; kept so old commands still work
     --skip-tests) RUN_TESTS=0 ;;
     --run) RUN_SERVER=1 ;;
+    --no-window) OPEN_WINDOW=0 ;;
     --no-summary) SHOW_SUMMARY=0 ;;  # setup-window prints its own links instead
   esac
 done
@@ -180,5 +184,14 @@ if [ "$RUN_SERVER" = "1" ]; then
   URL="http://localhost:${BACKEND_PORT:-8000}/"
   [ -n "${BACKEND_PAIRING_TOKEN:-}" ] && URL="${URL}?token=${BACKEND_PAIRING_TOKEN}"
   echo "Starting the server - open $URL  (Ctrl+C stops it)"
+  echo "  Any browser works - allow the camera and microphone when it asks."
+  if [ "$OPEN_WINDOW" = "1" ]; then
+    # Plus its own app window, camera and microphone already allowed for this address - it works
+    # even where the everyday browser is set to block camera requests.
+    PROFILE_DIR="$SCRIPT_DIR/.run/local-profile"
+    if command -v cygpath >/dev/null 2>&1; then PROFILE_DIR="$(cygpath -w "$PROFILE_DIR")"; fi
+    "$VENV_PYTHON" scripts/app_window.py open --url "$URL" --profile "$PROFILE_DIR" \
+      --wait "http://127.0.0.1:${BACKEND_PORT:-8000}/health" &
+  fi
   exec "$VENV_PYTHON" -m uvicorn app.main:app --host "${BACKEND_HOST:-0.0.0.0}" --port "${BACKEND_PORT:-8000}"
 fi

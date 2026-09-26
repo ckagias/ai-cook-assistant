@@ -86,6 +86,20 @@ export function detectFrame(blob, recipeId) {
   );
 }
 
+// Push-to-talk: the recording plus what the server needs to understand it. Never retried -
+// a second transcription of the same audio would just cost twice.
+export function voiceCommand(blob, mimeType, { language, recipeId, stepIndex, candidates } = {}) {
+  const params = new URLSearchParams({ language: language || "el" });
+  if (recipeId) params.set("recipe_id", recipeId);
+  if (stepIndex !== undefined && stepIndex !== null) params.set("step_index", String(stepIndex));
+  if (candidates && candidates.length) params.set("candidates", candidates.join(","));
+  return requestJson(
+    "/voice?" + params.toString(),
+    { method: "POST", headers: { "Content-Type": mimeType || "audio/webm" }, body: blob },
+    30000
+  );
+}
+
 export const health = () => requestJson("/health", {}, 4000);
 export const listRecipes = () => requestJson("/recipes");
 export const getRecipe = (id) => requestJson("/recipes/" + encodeURIComponent(id));

@@ -81,7 +81,9 @@ export function installSpeakOnPress({
     suppressClickOn = null; // a fresh press never inherits a stale suppression
     const button = buttonFrom(e.target);
     cancelPress();
-    if (!button || button.disabled) return;
+    // A hold-to-talk button is *meant* to be held - a long-press description would talk over
+    // the user. Hover and keyboard focus still describe it.
+    if (!button || button.disabled || (button.dataset && button.dataset.hold)) return;
     press = { button, x: e.clientX, y: e.clientY, timer: null };
     press.timer = setTimer(() => {
       if (!press) return;

@@ -20,7 +20,8 @@
 param(
     [switch]$NoDetection,  # skip the ~1 GB detection stack (torch, ultralytics, mediapipe) and models
     [switch]$SkipTests,    # don't run the test suite at the end
-    [switch]$Run,          # start the server on localhost afterwards (see also setup-window.ps1)
+    [switch]$Run,          # start the server on localhost afterwards and open the app window (see also setup-window.ps1)
+    [switch]$NoWindow,     # with -Run: only serve, don't open the app window
     [switch]$NoSummary     # skip the closing "what it does / how to use it" summary
 )
 
@@ -189,6 +190,13 @@ if ($Run) {
     $url = "http://localhost:$port/"
     if ($env:BACKEND_PAIRING_TOKEN) { $url = "$url" + "?token=$env:BACKEND_PAIRING_TOKEN" }
     Write-Host "Starting the server - open $url  (Ctrl+C stops it)"
+    Write-Host "  Any browser works - allow the camera and microphone when it asks."
+    if (-not $NoWindow) {
+        # Plus its own app window, camera and microphone already allowed for this address - it
+        # works even where the everyday browser is set to block camera requests.
+        $windowArgs = "scripts\app_window.py open --url `"$url`" --profile `"$(Join-Path $Root '.run\local-profile')`" --wait http://127.0.0.1:$port/health"
+        Start-Process -FilePath $VenvPython -ArgumentList $windowArgs -WindowStyle Hidden
+    }
     & $VenvPython -m uvicorn app.main:app --host $bindHost --port $port
     exit $LASTEXITCODE
 }

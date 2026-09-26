@@ -149,6 +149,8 @@ try {
         return [bool]($procs | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($AppProfile) } | Select-Object -First 1)
     }
 
+    # The window's own profile allows the camera and microphone for this address up front.
+    & $VenvPython scripts\app_window.py grant --profile $AppProfile --origin $AppUrl
     Write-Host "Opening the app window - close it to stop the server."
     Start-Process -FilePath $Browser -ArgumentList $browserArgs | Out-Null
     for ($i = 0; $i -lt 30 -and -not (Test-AppWindowOpen); $i++) { Start-Sleep -Milliseconds 500 }

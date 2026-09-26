@@ -154,6 +154,8 @@ app_window_open() {
   fi
 }
 
+# The window's own profile allows the camera and microphone for this address up front.
+"$VENV_PYTHON" scripts/app_window.py grant --profile "$PROFILE" --origin "$APP_URL"
 echo "Opening the app window - close it to stop the server."
 # --test-type hides the "unsupported command-line flag" warning bar the SPKI flag causes.
 "$BROWSER" --app="$APP_URL" --user-data-dir="$PROFILE" --ignore-certificate-errors-spki-list="$SPKI" \

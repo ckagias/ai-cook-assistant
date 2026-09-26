@@ -12,9 +12,9 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, barcode, demo_cache, output_guard, rate_limit, recipes, vision
+from . import auth, barcode, demo_cache, output_guard, rate_limit, recipes, vision, voice
 from .detection import service as detection_service
-from .schemas import AnalyzeRequest, AnalyzeResponse, DetectResponse, Recipe
+from .schemas import AnalyzeRequest, AnalyzeResponse, DetectResponse, Recipe, VoiceResponse
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,8 @@ MAX_ANALYZE_CONTENT_LENGTH = 15 * 1024 * 1024
 MAX_DECODED_IMAGE_BYTES = 10 * 1024 * 1024
 # A 640px preview JPEG is ~40-80 KB; 2 MB leaves room for a full-size camera frame.
 MAX_DETECT_BODY_BYTES = 2 * 1024 * 1024
+# Push-to-talk stops itself at 15 s; compressed speech is ~2-4 KB/s, so 2 MB is generous.
+MAX_VOICE_BODY_BYTES = 2 * 1024 * 1024
 
 app = FastAPI()
 
@@ -84,6 +86,8 @@ ANALYZE_RATE_LIMIT = (20, 3600.0)  # (max_requests, window_sec)
 BARCODE_RATE_LIMIT = (60, 3600.0)
 # Local compute only (no paid API) - sized for a live preview at up to ~15 frames/s.
 DETECT_RATE_LIMIT = (900, 60.0)
+# Each voice command is two paid calls (transcription + understanding).
+VOICE_RATE_LIMIT = (120, 3600.0)
 
 
 def _rate_limit_dependency(prefix: str, max_requests: int, window_sec: float):
@@ -298,6 +302,41 @@ async def detect(request: Request, recipe_id: Optional[str] = None):
         raise HTTPException(status_code=503, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post(
+    "/voice",
+    response_model=VoiceResponse,
+    dependencies=[
+        Depends(auth.require_pairing_token),
+        Depends(_rate_limit_dependency("voice", *VOICE_RATE_LIMIT)),
+    ],
+)
+async def voice_command(
+    request: Request,
+    language: str = "el",
+    recipe_id: Optional[str] = None,
+    step_index: Optional[int] = None,
+    candidates: Optional[str] = None,
+):
+    """Push-to-talk: raw audio body (audio/webm, audio/ogg, audio/mp4, audio/wav) -> one validated
+    action. See app/voice.py for the injection defenses. Audio is never stored or logged."""
+    if language not in ("el", "en"):
+        raise HTTPException(status_code=422, detail="language must be el or en")
+    mime = request.headers.get("content-type", "")
+    if not mime.lower().startswith("audio/"):
+        raise HTTPException(status_code=415, detail="send the recording as an audio/* body")
+    body = await _read_capped_body(request, MAX_VOICE_BODY_BYTES)
+    if not body:
+        raise HTTPException(status_code=400, detail="empty recording")
+    offered = [rid for rid in (candidates or "").split(",") if recipes.valid_id(rid)]
+    try:
+        return await run_in_threadpool(voice.handle, body, mime, language, recipe_id, step_index, offered)
+    except voice.VoiceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception:
+        logger.exception("voice command failed")
+        raise HTTPException(status_code=502, detail="the speech service didn't answer - try again")
 
 
 @app.get("/recipes", dependencies=[Depends(auth.require_pairing_token)])

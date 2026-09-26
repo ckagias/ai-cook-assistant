@@ -51,6 +51,9 @@ def ensure_ready() -> None:
     with db.session(path) as conn:
         if conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0] == 0:
             seed_from_json(conn)
+        indexed = conn.execute("SELECT COUNT(*) FROM recipe_search").fetchone()[0]
+        if indexed != conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]:
+            _rebuild_search_index(conn)  # a database from before the search index existed
     _ready.add(key)
 
 
@@ -293,6 +296,7 @@ def save_recipe(
                 (recipe.id, src.site, src.source_id, primary, _dump(src.url), src.author, src.fetched_at,
                  src.imported_at, _dump(raw_source) if raw_source is not None else None),
             )
+    _index_recipe(conn, recipe)
     _vocab_cache.pop(recipe.id, None)
 
 
@@ -305,6 +309,7 @@ def publish(recipe: Recipe, *, replaces: Optional[str] = None) -> None:
         if replaces and replaces != recipe.id:
             conn.execute("UPDATE recipe_sources SET recipe_id = ? WHERE recipe_id = ?", (recipe.id, replaces))
             conn.execute("DELETE FROM recipes WHERE id = ? AND status = ?", (replaces, STAGED))
+            conn.execute("DELETE FROM recipe_search WHERE recipe_id = ?", (replaces,))
     _vocab_cache.pop(recipe.id, None)
 
 
@@ -312,8 +317,55 @@ def delete_recipe(recipe_id: str) -> bool:
     ensure_ready()
     with db.session() as conn:
         deleted = conn.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,)).rowcount > 0
+        conn.execute("DELETE FROM recipe_search WHERE recipe_id = ?", (recipe_id,))
     _vocab_cache.pop(recipe_id, None)
     return deleted
+
+
+# ---------------------------------------------------------------- search (BM25)
+
+
+def _search_text(recipe: Recipe) -> str:
+    from .detection.vocab_match import fold
+
+    parts = [*recipe.name.values(), *recipe.description.values(), *recipe.ingredients,
+             *(e.name for e in recipe.equipment), recipe.category or "", recipe.cuisine or ""]
+    parts += [alias for values in recipe.aliases.values() for alias in values]
+    return fold(" ".join(p for p in parts if p))
+
+
+def _index_recipe(conn: sqlite3.Connection, recipe: Recipe) -> None:
+    conn.execute("DELETE FROM recipe_search WHERE recipe_id = ?", (recipe.id,))
+    conn.execute("INSERT INTO recipe_search (recipe_id, body) VALUES (?, ?)", (recipe.id, _search_text(recipe)))
+
+
+def _rebuild_search_index(conn: sqlite3.Connection) -> None:
+    conn.execute("DELETE FROM recipe_search")
+    for row in conn.execute("SELECT * FROM recipes").fetchall():
+        _index_recipe(conn, _row_to_recipe(conn, row))
+
+
+def search_recipes(words: list[str], limit: int = 5) -> list[Recipe]:
+    """Published recipes matching any of `words`, best first (SQLite FTS5 BM25). Words are
+    accent-folded and matched by prefix, so "αυγά" finds "αυγό" and "eggs" finds "egg"."""
+    from .detection.vocab_match import fold
+
+    tokens = []
+    for word in words:
+        for token in re.findall(r"\w+", fold(word or "")):
+            if len(token) >= 2:
+                tokens.append(token[: max(3, len(token) - 2)])  # crude stem: drop inflection
+    if not tokens:
+        return []
+    query = " OR ".join(f'"{t}"*' for t in dict.fromkeys(tokens))
+    ensure_ready()
+    with db.session() as conn:
+        rows = conn.execute(
+            """SELECT r.* FROM recipe_search JOIN recipes r ON r.id = recipe_search.recipe_id
+               WHERE recipe_search MATCH ? AND r.status = ? ORDER BY bm25(recipe_search) LIMIT ?""",
+            (query, PUBLISHED, limit),
+        ).fetchall()
+        return [_row_to_recipe(conn, row) for row in rows]
 
 
 # ---------------------------------------------------------------- detection link

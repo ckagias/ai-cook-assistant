@@ -97,3 +97,24 @@ def test_detection_vocabulary_uses_linked_classes_and_follows_updates():
     recipes.save_recipe(updated, status=recipes.PUBLISHED)
     assert "whisk" in recipes.detection_vocabulary("pancakes")
     assert recipes.detection_vocabulary("no-such-recipe") is None
+
+
+def test_bm25_search_is_accent_insensitive_and_serves_published_only():
+    assert [r.id for r in recipes.search_recipes(["Αυγα"])] == ["scrambled_eggs"]
+    assert [r.id for r in recipes.search_recipes(["spaghetti"])] == ["pasta"]  # an alias
+    assert recipes.search_recipes(["sushi"]) == []
+    recipes.save_recipe(
+        Recipe(id="s-omelette", name={"en": "Egg omelette"}, aliases={}, ingredients=["eggs"], steps=[]),
+        status=recipes.STAGED,
+    )
+    assert "s-omelette" not in [r.id for r in recipes.search_recipes(["omelette", "eggs"])]
+
+
+def test_search_index_follows_deletes_and_is_rebuilt_for_old_databases(fresh_db):
+    recipes.delete_recipe("pasta")
+    assert recipes.search_recipes(["pasta"]) == []
+    with db.session(fresh_db) as conn:
+        conn.execute("DELETE FROM recipe_search")  # simulate a database from before the index
+    recipes._ready.clear()
+    recipes.ensure_ready()
+    assert [r.id for r in recipes.search_recipes(["pancakes"])] == ["pancakes"]
