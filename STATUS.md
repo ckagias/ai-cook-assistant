@@ -3,6 +3,42 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
+## Update: instant start, camera in any browser, voice commands (2026-09-26)
+
+**Built and verified:**
+- **`start.cmd` / `start.ps1`** (Windows) and **`start.sh`** (Linux, macOS, WSL):
+  - setup runs only on first use or after a change (the `.run/setup-*.stamp` fingerprint);
+  - one process serves both `http://localhost:8000` and `https://<LAN IP>:8443`;
+  - the app window opens with the camera and microphone pre-allowed.
+
+  Measured on this laptop: first start with the setup check took 35.9 s, a later start 5.7 s.
+  Both addresses answered `/health` from one process.
+- **Camera in any browser**: a refused camera gets per-browser instructions (Greek and
+  English, spoken) and Start retries. Verified in real browsers:
+  - Firefox with "block new requests" set (as on this machine) shows the Firefox steps;
+  - Edge with the camera denied shows the site-permission steps;
+  - with the laptop's real webcam, Edge ran at 1280x720 / 4.3 FPS detection and Firefox also
+    started (its first camera open takes ~9 s).
+- **Detection end to end in both browsers** (hand holding a knife):
+  - Edge: 5.5 FPS, "Χέρι 71%, μαχαίρι 40%, ακουμπά";
+  - Firefox: 4.2 FPS, same detections.
+- **Push-to-talk voice commands** (`app/voice.py`, `static/js/voice.js`), verified end to end in
+  headless Edge with recorded Greek speech: find recipe, pick "the first one", set a 5-minute
+  timer, repeat without resetting the timer, next step, a cooking question, and an accidental
+  tap. About 3.4-5.4 s per command, including a ~3 s hold.
+- WSL: `setup.sh` never finished on `/mnt/c`, because unpacking torch through the Windows
+  drive is too slow. The Linux venv now lives in `~/.local/share/ai-cook-assistant/`. The old
+  partial `backend/.venv-linux` is left in place and can be deleted by hand.
+
+**Known, not fixed yet:**
+- **Silent recordings echo the prompt.** A silent or unintelligible recording makes the
+  transcription echo its hint text, and the reply becomes a generic "which command?". It
+  should say "I didn't hear you" instead.
+- **Voice in Firefox isn't verified.** Headless Firefox recorded silence from the test's fake
+  microphone.
+- **`start.sh` hasn't been run end to end on WSL.** It's only syntax-checked, because a full
+  Linux install needs a large download.
+
 ## Update: detection, recipe database, any-URL import, speaking buttons (branch `feature/detection-db`)
 
 **Built and verified:**

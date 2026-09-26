@@ -74,8 +74,7 @@ def main() -> int:
     port = env.get("BACKEND_PORT") or "8000"
     token = env.get("BACKEND_PAIRING_TOKEN", "")
     local_url = f"http://localhost:{port}/" + (f"?token={token}" if token else "")
-    run_cmd = r".\setup.ps1 -Run" if ps else "./setup.sh --run"
-    window_cmd = r".\setup-window.cmd" if ps else "./setup-window.sh"
+    start_cmd = r".\start.cmd" if ps else "./start.sh"
 
     out = [
         "",
@@ -94,15 +93,17 @@ def main() -> int:
         "  Speaks Greek by default; English if the device has no Greek voice.",
         "",
         "OPEN IT",
-        f"  On this computer:   {run_cmd}",
-        f"                      then open  {local_url}",
-        f"  Phones and tablets: {window_cmd}",
-        "                      (serves it on your Wi-Fi over HTTPS, opens an app window here,",
-        "                      and prints the link to open on the phone)",
+        f"  {start_cmd}   (double-click on Windows) - opens in ~5 s from now on:",
+        "    - an app window here, camera and microphone already allowed",
+        f"    - this computer, any browser:  {local_url}",
+        "    - phones/tablets on the same Wi-Fi: the https:// link it prints",
+        "      (accept the certificate warning once)",
         f"  Android over USB:   adb reverse tcp:{port} tcp:{port}, then the localhost link above",
         "",
         "HOW TO USE IT",
         "  1. ΞΕΚΙΝΑ (Start)        allows camera, microphone and sound - tap it first",
+        "     Μίλα (Talk)           hold it (or the V key), say what you need, let go:",
+        "                           \"next step\", \"timer five minutes\", \"I want to make eggs\"",
         "  2. Τι είναι αυτό;        \"What is this?\" - takes a photo, says what it sees",
         "  3. Συνταγές              \"Recipes\" - pick one; each step is read aloud",
         "       Είναι έτοιμο;       \"Is it ready?\" - checks the food from a photo",

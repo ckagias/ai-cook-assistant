@@ -129,6 +129,20 @@ def native_path(path: Path, browser: str) -> str:
     return str(path)
 
 
+def browser_profile(profile: Path, browser: str) -> Path:
+    """WSL starting the Windows browser: its profile must sit on a Windows drive. A checkout
+    in the Linux home would hand it a \\\\wsl.localhost\\... path, so use Windows' LOCALAPPDATA."""
+    if not (is_wsl() and browser.startswith("/mnt/")) or str(profile.resolve()).startswith("/mnt/"):
+        return profile
+    try:
+        local = subprocess.run(["cmd.exe", "/c", "echo %LOCALAPPDATA%"], capture_output=True, text=True,
+                               cwd="/mnt/c").stdout.strip()
+        unix = subprocess.run(["wslpath", "-u", local], capture_output=True, text=True).stdout.strip()
+        return Path(unix) / "ai-cook-assistant" / "app-profile" if unix else profile
+    except OSError:
+        return profile
+
+
 def open_window(url: str, profile: Path, wait: str | None, spki: str | None) -> int:
     browser = find_browser()
     if not browser:
@@ -137,6 +151,7 @@ def open_window(url: str, profile: Path, wait: str | None, spki: str | None) -> 
     if wait and not wait_until_up(wait):
         print(f"The server didn't come up at {wait} - not opening the app window.")
         return 1
+    profile = browser_profile(profile, browser)
     print(grant(profile, url))
     args = [browser, f"--app={url}", f"--user-data-dir={native_path(profile, browser)}",
             "--no-first-run", "--no-default-browser-check", "--window-size=1280,860"]

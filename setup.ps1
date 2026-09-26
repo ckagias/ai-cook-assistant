@@ -150,15 +150,23 @@ if ($provider -and $keyVars.ContainsKey($provider)) {
 }
 
 # --- 6. models for the configured detector (download/export once; nothing is ever deleted) ---
+$SetupComplete = $true
 if ($WithDetection) {
     Write-Host "Checking detection models..."
     & $VenvPython scripts\fetch_models.py
-    if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: model download/export failed - /detect will retry on first use." }
+    if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: model download/export failed - /detect will retry on first use."; $SetupComplete = $false }
 }
 
 # --- 7. local recipe database (created + seeded from data\recipes.json on first run) ---
 & $VenvPython scripts\db_init.py
-if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: database setup failed - see above." }
+if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: database setup failed - see above."; $SetupComplete = $false }
+
+# Everything is in place: start.cmd skips setup from now on, until a requirement or setting changes.
+if ($SetupComplete) {
+    $stampArgs = @("write")
+    if ($WithDetection) { $stampArgs += "--detection" }
+    & $VenvPython scripts\setup_stamp.py @stampArgs
+}
 
 # --- 8. tests ---
 if (-not $SkipTests) {

@@ -10,27 +10,50 @@ the same origin. No Docker, no Node runtime dependency, no build step.
 
 ## Quick start
 
-```bash
-./setup.sh          # venv + every dependency + detection models + database + .env, then tests
-# edit backend/.env and add a provider API key
-./setup-window.sh   # runs everything on your network and opens it as an app window
-```
-
-On Windows without Git Bash, use PowerShell. The `.cmd` files can also just be double-clicked;
-they get past PowerShell's default script policy for that one run:
+**Windows (PowerShell, or double-click):**
 
 ```powershell
-.\setup.cmd           # or: powershell -ExecutionPolicy Bypass -File .\setup.ps1 [-NoDetection] [-SkipTests] [-Run]
-.\setup-window.cmd    # or: powershell -ExecutionPolicy Bypass -File .\setup-window.ps1 [-NoDetection]
+.\start.cmd            # or: powershell -ExecutionPolicy Bypass -File .\start.ps1 [-NoWindow] [-LocalOnly] [-NoDetection]
 ```
 
-Typing `bash setup-window.sh` in a Windows terminal usually runs **WSL's** bash. The script
-detects that and hands over to `setup-window.ps1`, because the camera, the app window and the
-network card phones can reach are all Windows'. Each operating system gets its own
-environment (`backend/.venv` for Windows, `backend/.venv-linux` for WSL/Linux), and the setup
-scripts never delete one. A broken or moved environment is renamed aside and rebuilt from
-`.wheelhouse/`. If an environment's files were partly deleted, repair it offline with
+**Linux, macOS, WSL/Ubuntu:**
+
+```bash
+./start.sh             # [--no-window] [--local-only] [--no-detection]
+```
+
+That's the whole thing:
+- **First start:** runs setup once (venv, every dependency, detection models, database,
+  `.env`). It runs again only after a requirement or detector setting changes.
+- **Every later start:** about 5 s to a running app. Setup is skipped via a fingerprint in
+  `.run/setup-*.stamp`.
+- **One server, two addresses:**
+  - `http://localhost:8000` for this computer, in any browser, with no certificate warning;
+  - `https://<LAN IP>:8443` for phones and tablets on the same Wi-Fi (accept the certificate
+    warning once). One process means one detection model in memory.
+- **The app window:** it opens in its own Edge/Chrome window with the camera and microphone
+  already allowed for the app's address. Closing it stops the server (Windows); on
+  Linux/macOS, Ctrl+C stops it.
+- **Double-click again while running:** just reopens the window.
+
+Then add a vision-provider key to `backend/.env` (see **API keys** below).
+
+**Which script:** `.cmd`/`.ps1` are for Windows, `.sh` for Linux, macOS and WSL. Typing
+`bash something.sh` in a Windows terminal runs **WSL's** bash, which is a separate Linux
+install. Under WSL:
+- the Linux environment goes in the Linux home (`~/.local/share/ai-cook-assistant/`), because
+  installing torch's thousands of files through `/mnt/c` is so slow it never finished;
+- phones can't reach a server inside WSL (unless WSL networking is "mirrored"), so use
+  `start.cmd` for phones.
+
+Each operating system gets its own environment, and the scripts never delete one. A broken or
+moved environment is renamed aside and rebuilt from `.wheelhouse/`. If an environment's files
+were partly deleted, repair it offline with
 `backend/.venv/Scripts/python.exe backend/scripts/sync_deps.py --repair backend/requirements.txt backend/requirements-detect.txt`.
+
+The setup scripts can still be run on their own:
+- `.\setup.cmd` / `./setup.sh` installs and runs the tests.
+- `setup-window` serves on the LAN over HTTPS with an app window, as before.
 
 **API keys:** exactly one vision-provider key is needed, for "What is this?" and "Is it
 ready?". Anthropic, OpenAI or Gemini all work; pick one with `VISION_PROVIDER` in
@@ -104,6 +127,19 @@ main app.
 
 ## Troubleshooting
 
+- **"Camera access failed" / nothing asks for the camera.** The start screen names the fix for
+  the browser in use, in Greek and English, and speaks it. Pressing Start again retries
+  without a reload. The usual causes:
+  - **Firefox with "Block new requests asking to access your camera" ticked:** it refuses at
+    once, without a prompt. Untick it under Settings > Privacy & Security > Permissions >
+    Camera > Settings.
+  - **A site permission set to Block:** fix it with the icon left of the address.
+  - **The Windows/macOS camera privacy switch is off.**
+  - **The page is open in an editor's built-in preview:** it can never show a camera prompt.
+  - **Another app holds the camera:** Teams, Zoom or the Camera app.
+
+  `start.cmd`'s app window avoids all of these: its own profile already allows the camera for
+  the app's address. On Firefox, the first camera start can take ~10 s on some webcams.
 - **Buttons render but do nothing** - check the browser console for a 404 on
   `js/app.js`; `mimetypes.add_type` must run before the static mount, and
   Windows registers `.js` as `text/plain` if that ordering is wrong.
@@ -196,12 +232,30 @@ Every big button says what it does before you press it:
 
 Screen-reader (TalkBack) users can turn this off per device with `?speakButtons=0`.
 
+## Voice commands (push-to-talk)
+
+Hold the green **Μίλα / Talk** button, or the **V** key on a PC, say what you need, and let go.
+Examples: "next step", "repeat", "set a timer for five minutes", "is it ready?", "what is
+this?", "I want to make eggs" and then "the first one", or a short cooking question.
+
+- **What it needs:** `OPENAI_API_KEY`. Audio is transcribed (`gpt-4o-mini-transcribe`) and the
+  command understood (`gpt-5-mini`), about 2-3 s after release.
+- **Recipe search:** BM25 over a local SQLite FTS5 index, with no embeddings.
+- **Push-to-talk only:** the microphone records only while the button is held, so a TV or a
+  visitor can't issue commands.
+- **A closed set of actions:** the model can only pick one from a fixed list. Code checks the
+  result: timer bounds, that a chosen recipe was actually offered, that a step action has an
+  open recipe. Recipe text is passed as tagged data, never as instructions, and every reply
+  goes through the same output guard as the vision answers.
+- **Nothing kept:** audio and transcripts are never stored or logged.
+
 ## API surface
 
 ```
 GET  /health                              -> {"status": "ok", "demo_mode": bool}
 POST /analyze                             -> AnalyzeResponse
 POST /detect[?recipe_id=...]              -> DetectResponse (raw image/jpeg body, <= 2 MB); 503 if detection is off
+POST /voice?language=..[&recipe_id&step_index&candidates] -> VoiceResponse (raw audio body, <= 2 MB); 503 without OPENAI_API_KEY
 GET  /recipes                             -> [{"id", "name"}]   (published recipes only)
 GET  /recipes/{recipe_id}                 -> full Recipe, 404 if unknown
 GET  /barcode/{code}                      -> Open Food Facts proxy, 404 if not found

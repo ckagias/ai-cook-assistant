@@ -62,19 +62,9 @@ fi
 # shellcheck disable=SC2086
 echo "Using Python: $($PYTHON -c 'import sys; print(sys.executable, sys.version.split()[0])')"
 
-# --- 2. which venv: one per OS, side by side. A Windows venv is useless from WSL/Linux and vice
-#        versa - and an existing environment is never deleted, only ever set aside. ---
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*) PLATFORM=windows; LAYOUT=Scripts; PYEXE=python.exe ;;
-  Darwin) PLATFORM=macos; LAYOUT=bin; PYEXE=python ;;
-  *) PLATFORM=linux; LAYOUT=bin; PYEXE=python ;;
-esac
-VENV_DIR=".venv"
-if [ -d ".venv" ] && [ ! -d ".venv/$LAYOUT" ]; then
-  VENV_DIR=".venv-$PLATFORM"  # .venv was made by another OS (e.g. Windows, seen from WSL): leave it alone
-  echo "backend/.venv belongs to another operating system - using backend/$VENV_DIR for $PLATFORM."
-fi
-VENV_PYTHON="$VENV_DIR/$LAYOUT/$PYEXE"
+# --- 2. which venv: one per OS, side by side (and on WSL, in the Linux home) - see the file ---
+# shellcheck disable=SC1091
+. scripts/venv_path.sh
 
 set_aside() {  # $1 = reason. Renames, never deletes: the old environment stays on disk.
   local aside
@@ -150,13 +140,20 @@ if [ -f ".env" ]; then
 fi
 
 # --- 7. models for the configured detector (download/export once; nothing is ever deleted) ---
+SETUP_COMPLETE=1
 if [ "$WITH_DETECTION" = "1" ]; then
   echo "Checking detection models..."
-  "$VENV_PYTHON" scripts/fetch_models.py || echo -e "${RED}WARNING: model download/export failed - /detect will retry on first use.${NC}" >&2
+  "$VENV_PYTHON" scripts/fetch_models.py || { echo -e "${RED}WARNING: model download/export failed - /detect will retry on first use.${NC}" >&2; SETUP_COMPLETE=0; }
 fi
 
 # --- 8. local recipe database (created + seeded from data/recipes.json on first run) ---
-"$VENV_PYTHON" scripts/db_init.py || echo -e "${RED}WARNING: database setup failed - see above.${NC}" >&2
+"$VENV_PYTHON" scripts/db_init.py || { echo -e "${RED}WARNING: database setup failed - see above.${NC}" >&2; SETUP_COMPLETE=0; }
+
+# Everything is in place: start.sh skips setup from now on, until a requirement or setting changes.
+if [ "$SETUP_COMPLETE" = "1" ]; then
+  if [ "$WITH_DETECTION" = "1" ]; then "$VENV_PYTHON" scripts/setup_stamp.py write --detection
+  else "$VENV_PYTHON" scripts/setup_stamp.py write; fi
+fi
 
 # --- 9. run the test suite; PIPESTATUS[0], not tail's own exit code, decides pass/fail ---
 if [ "$RUN_TESTS" = "1" ]; then
@@ -172,7 +169,9 @@ fi
 
 # --- 10. what the system does, where to open it, how to use it, and this install's status ---
 if [ "$SHOW_SUMMARY" = "1" ]; then
-  PYTHONIOENCODING=utf-8 "$VENV_PYTHON" scripts/usage.py --shell sh --python "backend/$VENV_PYTHON"
+  SHOWN_PYTHON="backend/$VENV_PYTHON"
+  [[ "$VENV_PYTHON" == /* ]] && SHOWN_PYTHON="$VENV_PYTHON"  # WSL: the venv is in the Linux home
+  PYTHONIOENCODING=utf-8 "$VENV_PYTHON" scripts/usage.py --shell sh --python "$SHOWN_PYTHON"
 fi
 
 # --- 11. --run: exec uvicorn in the foreground afterward ---

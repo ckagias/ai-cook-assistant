@@ -6,6 +6,7 @@
                                          never deleted), prints "<cert>|<key>|<spki-sha256-base64>"
   python scripts/lan.py token         -> ensures BACKEND_PAIRING_TOKEN is set in backend/.env,
                                          prints "<token>|generated" or "<token>|existing"
+  python scripts/lan.py all           -> token, then ip + cert when online, in one line (start.*)
 
 The SPKI hash lets the app window trust exactly this certificate
 (--ignore-certificate-errors-spki-list) instead of switching certificate checks off.
@@ -114,6 +115,13 @@ def main(argv: list[str]) -> int:
     elif argv[:1] == ["token"]:
         token, generated = ensure_token()
         print(f"{token}|{'generated' if generated else 'existing'}")
+    elif argv[:1] == ["all"]:
+        # One process for start.ps1/start.sh: "<token>|<generated|existing>|<ip>|<cert>|<key>|<spki>",
+        # the last four empty when offline (the app then runs on localhost only).
+        token, generated = ensure_token()
+        ip = lan_ip()
+        cert, key, spki = ensure_cert(ip) if ip else ("", "", "")
+        print(f"{token}|{'generated' if generated else 'existing'}|{ip or ''}|{cert}|{key}|{spki}")
     else:
         print(__doc__, file=sys.stderr)
         return 2
