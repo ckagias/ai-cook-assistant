@@ -52,6 +52,7 @@ const el = {
   stepper: document.getElementById("stepper"),
   stepCount: document.getElementById("step-count"),
   stepText: document.getElementById("step-text"),
+  stepProgress: document.getElementById("step-progress"),
   timers: document.getElementById("timers"),
   startTimer: document.getElementById("start-timer"),
   question: document.getElementById("question"),
@@ -1068,7 +1069,9 @@ function announceStep({ repeat = false, intro = "" } = {}) {
   const step = session.currentStep();
   if (!step) return;
 
-  el.stepCount.textContent = tf("step_n_of", lang, { n: step.index + 1, total: session.getRecipe().steps.length });
+  const total = session.getRecipe().steps.length;
+  el.stepCount.textContent = tf("step_n_of", lang, { n: step.index + 1, total });
+  el.stepProgress.firstElementChild.style.width = `${((step.index + 1) / total) * 100}%`;
   el.stepText.textContent = step.instruction[lang] || step.instruction.en;
   updateStepButtons();
   renderStepActions(step);
