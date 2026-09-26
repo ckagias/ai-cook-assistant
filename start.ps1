@@ -111,8 +111,12 @@ try {
     Write-Host "Cooking Assistant is running ($secs s)." -ForegroundColor Green
     Write-Host "  This computer, any browser:  $LocalUrl"
     if ($LanIp) {
-        Write-Host "  Phone/tablet on this Wi-Fi:  https://$($LanIp):$LanPort/?token=$Token&detect=1"
+        $PhoneUrl = "https://${LanIp}:${LanPort}/?token=$Token&detect=1"
+        Write-Host "  Phone/tablet on this Wi-Fi:  $PhoneUrl"
         Write-Host "      (first time on a phone: open https://${LanIp}:${LanPort}/ca.crt, install it, then no warning; Windows may ask to allow Python on private networks)"
+        $Png = Join-Path $RunDir "pairing.png"
+        & $VenvPython scripts\pairing_qr.py --url $PhoneUrl --png $Png
+        if ($LASTEXITCODE -ne 0) { Write-Host "      (QR skipped - qrcode not installed; re-run setup.ps1)" }
     }
     Write-Host "  Press the big Start button and allow the camera. Detection starts by itself (first frames: 'loading model')."
     Write-Host "  Server log: .run\server.err.log"

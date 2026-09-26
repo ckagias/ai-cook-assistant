@@ -29,8 +29,8 @@ That's the whole thing:
   `.run/setup-*.stamp`.
 - **One server, two addresses:**
   - `http://localhost:8000` for this computer, in any browser, with no certificate warning;
-  - `https://<LAN IP>:8443` for phones and tablets on the same Wi-Fi (accept the certificate
-    warning once). One process means one detection model in memory.
+  - `https://<LAN IP>:8443` for phones and tablets on the same Wi-Fi (install `/ca.crt` once
+    — see **Tablet bring-up**). One process means one detection model in memory.
 - **The app window:** it opens in its own Edge/Chrome window with the camera and microphone
   already allowed for the app's address. Closing it stops the server (Windows); on
   Linux/macOS, Ctrl+C stops it.
@@ -40,11 +40,14 @@ Then add a vision-provider key to `backend/.env` (see **API keys** below).
 
 **Which script:** `.cmd`/`.ps1` are for Windows, `.sh` for Linux, macOS and WSL. Typing
 `bash something.sh` in a Windows terminal runs **WSL's** bash, which is a separate Linux
-install. Under WSL:
-- the Linux environment goes in the Linux home (`~/.local/share/ai-cook-assistant/`), because
-  installing torch's thousands of files through `/mnt/c` is so slow it never finished;
-- phones can't reach a server inside WSL (unless WSL networking is "mirrored"), so use
-  `start.cmd` for phones.
+install. Under WSL the Linux environment goes in the Linux home
+(`~/.local/share/ai-cook-assistant/`), because installing torch's thousands of files
+through `/mnt/c` is so slow it never finished.
+
+**Phones and WSL:** a phone on Wi-Fi cannot reach `start.sh` inside WSL unless WSL
+networking is set to **mirrored**. For any phone or tablet work, run `start.cmd` from
+Windows (or enable mirrored networking first). `start.sh` already drops the LAN address
+when it detects unmirrored WSL.
 
 Each operating system gets its own environment, and the scripts never delete one. A broken or
 moved environment is renamed aside and rebuilt from `.wheelhouse/`. If an environment's files
@@ -75,22 +78,40 @@ wheels yet); setup prefers those and otherwise installs the base app only.
 
 ### Run it as an app on your network
 
-`./setup-window.sh` runs setup (without tests), then:
-1. serves everything at `https://<this machine's LAN IP>:8443`. HTTPS is required because
-   browsers only allow the camera on a non-localhost address over HTTPS. The self-signed
-   certificate is generated for that IP and kept in `backend/certs/`.
-2. turns on the pairing token, since the server is now reachable from the network (it's
+`./start.sh` / `.\start.cmd` (or `./setup-window.sh`) run setup if needed, then:
+1. serve everything at `https://<this machine's LAN IP>:8443`. HTTPS is required because
+   browsers only allow the camera on a non-localhost address over HTTPS. A **local CA**
+   in `backend/certs/` signs a per-IP leaf (also kept there).
+2. turn on the pairing token, since the server is now reachable from the network (it's
    generated into `backend/.env` if none is set);
-3. opens the app in its own Edge/Chrome **app window**: no address bar, its own taskbar entry,
+3. open the app in its own Edge/Chrome **app window**: no address bar, its own taskbar entry,
    its own profile. That window trusts exactly this certificate and nothing else.
-4. prints a link for phones and tablets on the same Wi-Fi. They show a certificate warning
-   once; accept it.
+4. print a link (and a QR code, plus `.run/pairing.png`) for phones on the same Wi-Fi.
+
+**First time on an Android phone** (Chrome):
+1. Open `https://<LAN IP>:8443/ca.crt` — one certificate warning is expected **here only**.
+2. Install it as a **CA certificate**: Settings → Security → Encryption & credentials →
+   Install a certificate → CA certificate. Android will show a persistent "Network may
+   be monitored" notice; that is what installing a CA means, and the CA key never leaves
+   this laptop (`backend/certs/` is gitignored).
+3. Scan the QR (or open the printed `https://<LAN IP>:8443/?token=...&detect=1` link).
+   There should be a padlock and **no** warning.
+4. Chrome offers **Install app** (or use the ⋮ menu). After that, open it from the
+   home-screen icon — standalone, no address bar.
+
+If the laptop's LAN IP changes (new DHCP lease), the leaf cert is reissued under the
+**same CA** — the phone does not need to reinstall anything. The *URL* does change, so
+re-scan the QR. The pairing token does not change.
+
+**Known limitation:** timers do not notify while the phone is locked or the app has been
+in the background for several minutes. Switching apps briefly with the screen still on
+can show a system notification; a locked screen cannot. The on-screen countdown and the
+catch-up when you reopen the app remain the fallback.
 
 Closing the app window stops the server. On Windows, allow Python through the firewall on
 private networks when asked, or phones can't connect.
 
-Then open `http://localhost:8000` (or see **Tablet bring-up** below to reach
-it from an actual tablet).
+Then open `http://localhost:8000` (or see **Tablet bring-up** below).
 
 ## Provider table
 
@@ -110,20 +131,28 @@ backend/.venv/bin/python backend/scripts/check_providers.py [photo.jpg]
 
 ## Tablet bring-up
 
-1. **`adb reverse` (preferred, Android over USB)** - no certificates, no
-   network config, the tablet just talks to `localhost:8000`:
+1. **`adb reverse` (dev, Android over USB)** - no certificates, no
+   network config, the tablet just talks to `localhost:8000`. Chrome will
+   **not** offer "Install app" on `http://localhost`.
    ```bash
    adb reverse tcp:8000 tcp:8000
    ```
-2. **Self-signed HTTPS (fallback)** - needed for iOS, or any tablet not on
-   USB. `getUserMedia`/`wakeLock` both require a secure context, so plain
-   HTTP over the LAN won't work. Every browser will nag about the
-   certificate on first load; accept it once per device.
+2. **Self-signed HTTPS (fallback)** - still the path if you have not
+   installed the local CA: iOS, or a one-off browser tab. `getUserMedia` /
+   `wakeLock` need a secure context, so plain HTTP over the LAN won't work.
+   Every browser will nag about the certificate on first load; accept it
+   once per device. An *installed* PWA cannot click through that warning.
+3. **Installed Android PWA over LAN HTTPS (this is the phone path)** - run
+   `start.cmd` on Windows (see **Phones and WSL** above), install `/ca.crt`
+   once, scan the QR, tap Chrome's **Install app**. Details under **Run it
+   as an app on your network**. iOS Add to Home Screen is out of scope for
+   now.
 
-Once connected, open `http://localhost:8000/probe.html` on the tablet first
-and run through every section - it exercises the real camera/mic/audio
-stack and the real `features.js`/`aim.js` modules before you ever open the
-main app.
+Once connected, open `/probe.html` on the tablet first and run through
+every section - it exercises the real camera/mic/audio stack and the real
+`features.js`/`aim.js` modules before you ever open the main app. On
+`adb reverse` that is `http://localhost:8000/probe.html`; on the LAN it is
+`https://<LAN IP>:8443/probe.html`.
 
 ## Troubleshooting
 
