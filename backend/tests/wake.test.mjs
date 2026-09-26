@@ -82,9 +82,9 @@ async function testWakeAndCommandInOneBreath() {
   await s.listener.start();
   assert(s.rec().started === 1 && s.rec().continuous && s.rec().lang === "el-GR", "listening continuously in Greek");
   assert(s.log.states.includes("idle:cloud"), `reports cloud mode: ${s.log.states}`);
-  s.rec().hear("Γεια σου σεφ επόμενο", false);
+  s.rec().hear("Χέι σεφ επόμενο", false);
   assert(s.log.woke === 1 && s.log.commands.length === 0, "woke on the interim result, waits for the final one");
-  s.rec().hear("Γεια σου σεφ επόμενο βήμα", true);
+  s.rec().hear("Χέι σεφ επόμενο βήμα", true);
   assert(s.log.woke === 1, "one wake per utterance");
   assert(s.log.commands[0] === "επόμενο βήμα", `command: ${s.log.commands}`);
   assert(!s.listener.isArmed(), "back to waiting for the wake phrase");
@@ -134,15 +134,15 @@ async function testArmedTimesOut() {
 async function testOwnSpeechIsIgnored() {
   const s = await setup();
   await s.listener.start();
-  s.listener.setGate(false); // the app starts speaking
-  assert(s.rec().aborted === 1 && !s.rec().active, "recognition stops while the app talks");
-  s.rec().hear("Πες γεια σου σεφ επόμενο", true); // a late result of the app's own voice
+  s.listener.setSpeaking(true, { saysWake: true }); // the app says "Say hey chef..." (the greeting)
+  assert(s.rec().aborted === 1 && !s.rec().active, "recognition stops while the app says the wake phrase");
+  s.rec().hear("Πες χέι σεφ επόμενο", true); // a late result of the app's own voice
   assert(s.log.woke === 0 && s.log.commands.length === 0, "the app's own voice is dropped");
   s.fire(); // no restart while closed
-  assert(!s.rec().active, "stays stopped until speech ends");
-  s.listener.setGate(true);
+  assert(!s.rec().active, "stays stopped until that sentence ends");
+  s.listener.setSpeaking(false);
   assert(s.rec().active && s.rec().started === 2, "listening again after the app finishes");
-  console.log("test f (the app's own speech is ignored) OK");
+  console.log("test f (a sentence that says the wake phrase can't wake the app) OK");
 }
 
 async function testRestartsWhenTheBrowserEndsTheSession() {
@@ -200,12 +200,12 @@ async function testUnsupportedBrowser() {
 async function testGreekInterimSettles() {
   const s = await setup();
   await s.listener.start();
-  s.rec().hear("γεια σου σεφ", false);
-  s.rec().hear("γεια σου σεφ επόμενο βήμα", false);
+  s.rec().hear("χέι σεφ", false);
+  s.rec().hear("χέι σεφ επόμενο βήμα", false);
   assert(s.log.woke === 1 && s.log.commands.length === 0, "woke, waiting");
   s.fire(SETTLE_MS);
   assert(s.rec().stopped === 1, "words stopped changing: asked the recognizer for its final result");
-  s.rec().hear(["γεια σου σε επόμενο βήμα", "γεια σου σε επομένω βήμα"], true); // measured, no "σεφ" at all
+  s.rec().hear(["χέι σε επόμενο βήμα", "χέι σε επομένω βήμα"], true); // the φ dropped, as measured
   assert(s.log.commands[0] === "επόμενο βήμα", `command: ${s.log.commands}`);
   s.rec().end();
   s.fire();
@@ -213,7 +213,7 @@ async function testGreekInterimSettles() {
   console.log("test l (Greek: no final result -> stop() once the words settle) OK");
   const t = await setup();
   await t.listener.start();
-  t.rec().hear("γεια σου σεφ", false);
+  t.rec().hear("χέι σεφ", false);
   t.fire(SETTLE_MS);
   assert(t.rec().stopped === 0 && t.listener.isArmed(), "the wake phrase alone doesn't cut the session short");
   console.log("test l2 (the wake phrase alone waits for the command) OK");
@@ -228,8 +228,42 @@ async function testArmedAlternativeStripsTheWakePhrase() {
   console.log("test m (armed: the wake phrase is stripped from whichever alternative has it) OK");
 }
 
+// "Hey chef" cuts in while the app is talking (a long step, the opening questions): the recognizer
+// keeps running, the app's own words never count, and the wake phrase does.
+async function testWakeWhileTheAppTalks() {
+  const s = await setup();
+  await s.listener.start();
+  s.listener.setSpeaking(true); // reading a step - no wake phrase in it
+  assert(s.rec().active && s.rec().aborted === 0, "still listening while the app talks");
+  s.rec().hear("Σπάστε τα αυγά σε ένα μπολ", true);
+  assert(s.log.woke === 0 && s.log.commands.length === 0, "the app's own voice is no command");
+  s.rec().hear("και χτυπήστε τα χέι σεφ είμαι αλλεργικός", false, 1);
+  assert(s.log.woke === 1, "woke mid-sentence");
+  s.listener.setSpeaking(false); // the app stops talking at once (interrupt)
+  s.rec().hear("και χτυπήστε τα χέι σεφ είμαι αλλεργικός στα καρύδια", true, 1);
+  assert(s.log.commands[0] === "είμαι αλλεργικός στα καρύδια", `command: ${s.log.commands}`);
+  console.log("test n (Hey chef interrupts the app while it talks) OK");
+}
+
+// A safety alert is never cut off, so the app can still be talking once armed: its words wait.
+async function testArmedWhileAnAlertPlaysOn() {
+  const s = await setup();
+  await s.listener.start();
+  s.listener.setSpeaking(true);
+  s.rec().hear("hey chef", true);
+  assert(s.listener.isArmed(), "armed");
+  s.rec().hear("Φωτιά κλείσε το μάτι", true, 1); // the alert, still playing
+  assert(s.log.commands.length === 0 && s.listener.isArmed(), "the alert's words are not the command");
+  s.listener.setSpeaking(false);
+  s.rec().hear("τι να κάνω", true, 2);
+  assert(s.log.commands[0] === "τι να κάνω", `command after the alert: ${s.log.commands}`);
+  console.log("test o (armed while a safety alert plays on) OK");
+}
+
 await testGreekInterimSettles();
 await testArmedAlternativeStripsTheWakePhrase();
+await testWakeWhileTheAppTalks();
+await testArmedWhileAnAlertPlaysOn();
 await testWakeAndCommandInOneBreath();
 await testWakeThenCommand();
 await testNothingWithoutTheWakePhrase();

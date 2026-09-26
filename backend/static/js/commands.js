@@ -17,16 +17,20 @@ export function fold(text) {
     .trim();
 }
 
-// --- the wake phrase: "Hey chef" / "Γεια σου σεφ" ---
+// --- the wake phrase: "Hey chef", the same in every language ---
 
-// A Greek recognizer may write "Hey chef" in Latin letters or in Greek ("χέι σεφ", "έι σεφ").
-// "ε σεφ" and "he chef" come from feature/detection-db, seen on a real microphone.
-const GREETINGS = [["hey"], ["hi"], ["hei"], ["he"], ["χει"], ["χαι"], ["ει"], ["ε"], ["γεια", "σου"], ["γεια"], ["γειασου"], ["ok"], ["okay"], ["οκ"]];
+// "Hey" travels: a Greek cook says it too, and nobody greets the same person with "Γεια σου σεφ"
+// twenty times a meal - so that one was dropped, and "ok chef" with it (fewer false wakes while
+// the app itself is talking). A Greek recognizer may write "Hey chef" in Latin letters or in
+// Greek ("χέι σεφ", "έι σεφ"); "ε σεφ" and "he chef" were seen on a real microphone.
+const GREETINGS = ["hey", "hi", "hei", "he", "hay", "χει", "χαι", "ει", "ε"];
 const NAMES = new Set(["chef", "shef", "sef", "chief", "σεφ", "τσεφ"]);
-const JOINED = new Set(["heychef", "heyshef", "χεισεφ", "γειασουσεφ"]);
-// Chrome's Greek recognizer, measured: "γεια σου σε επόμενο βήμα" (the φ dropped once more words
-// follow). Only after the full "γεια σου", and only with a command after it.
-const SHORT_AFTER_GEIA_SOU = new Set(["σε"]);
+const JOINED = new Set(["heychef", "heyshef", "χεισεφ", "εισεφ"]);
+// Chrome's Greek recognizer drops the φ once more words follow ("... σε επόμενο βήμα", measured).
+// Accepted only after an unmistakable "hey" - never after "ε"/"ει", which are everyday Greek
+// ("ε, σε λίγο") - and only with a command after it.
+const CLEAR_HEY = new Set(["hey", "hei", "χει", "χαι"]);
+const SHORT_NAME = "σε";
 
 function words(text) {
   return (text || "").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -39,14 +43,10 @@ export function splitWake(text) {
   const folded = original.map(fold);
   for (let i = 0; i < folded.length; i++) {
     if (JOINED.has(folded[i])) return { woke: true, rest: original.slice(i + 1).join(" ") };
-    for (const greeting of GREETINGS) {
-      const n = greeting.length;
-      const name = folded[i + n];
-      const short = n === 2 && greeting[0] === "γεια" && SHORT_AFTER_GEIA_SOU.has(name) && i + n + 1 < folded.length;
-      if (greeting.every((w, k) => folded[i + k] === w) && (NAMES.has(name) || short)) {
-        return { woke: true, rest: original.slice(i + n + 1).join(" ") };
-      }
-    }
+    if (!GREETINGS.includes(folded[i])) continue;
+    const name = folded[i + 1];
+    const short = CLEAR_HEY.has(folded[i]) && name === SHORT_NAME && i + 2 < folded.length;
+    if (NAMES.has(name) || short) return { woke: true, rest: original.slice(i + 2).join(" ") };
   }
   return { woke: false, rest: "" };
 }

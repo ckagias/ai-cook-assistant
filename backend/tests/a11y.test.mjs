@@ -88,6 +88,40 @@ async function testCommandQueuesBehindSafety() {
   console.log("test b (a command queues behind a safety alert) OK");
 }
 
+// "Hey chef" while the app talks: speech stops, and what wasn't said yet comes back - from the
+// start of the sentence the voice was in - so the app can pick it up after answering.
+async function testInterruptHandsBackTheRest() {
+  reset();
+  assert(tts.remainder("One. Two three. Four", 9) === "Two three. Four", "from the sentence it stopped in");
+  assert(tts.remainder("Βάλε 2.5 κιλά. Ανακάτεψε καλά", 12) === "Βάλε 2.5 κιλά. Ανακάτεψε καλά", "a decimal point is no sentence end");
+  assert(tts.remainder("Τι θέλεις; Πες μου", 13) === "Πες μου", "the Greek question mark ends a sentence");
+  assert(tts.remainder("Short", 0) === "Short", "nothing spoken yet: all of it");
+
+  const gate = [];
+  tts.registerAcousticGate((quiet, text) => gate.push([quiet, text]));
+  tts.speak("Σπάστε τα αυγά. Χτυπήστε τα καλά.", { priority: "command", lang: "el" });
+  tts.speak("Να προχωρήσουμε;", { priority: "checkin", lang: "el" });
+  assert(gate.some(([quiet, text]) => !quiet && text === "Σπάστε τα αυγά. Χτυπήστε τα καλά."), `the gate hears the words being said: ${JSON.stringify(gate)}`);
+  synth.playing.onboundary({ charIndex: 20 }); // the voice is in the second sentence
+  const cut = tts.interrupt();
+  assert(synth.playing === null && synth.queue.length === 0, "speech stopped");
+  assert(cut.length === 2 && cut[0].text === "Χτυπήστε τα καλά." && cut[1].text === "Να προχωρήσουμε;", `the rest: ${JSON.stringify(cut)}`);
+  assert(cut[0].lang === "el", "keeps the language");
+  await tick();
+
+  assert(JSON.stringify(tts.interrupt()) === "[]", "nothing playing: nothing to hand back");
+
+  tts.speak("FIRE - turn off the burner", { priority: "safety", lang: "en" });
+  assert(tts.interrupt() === null && synth.playing.text === "FIRE - turn off the burner", "a safety alert is never cut off");
+  synth.finish();
+  await tick();
+
+  tts.speak("hover text", { priority: "hint", lang: "en" });
+  assert(JSON.stringify(tts.interrupt()) === "[]", "a button description isn't worth resuming");
+  tts.registerAcousticGate(() => {});
+  console.log("test k (interrupt hands back what wasn't said yet) OK");
+}
+
 async function testHushSparesSafety() {
   reset();
   tts.speak("step one", { priority: "command", lang: "en" });
@@ -264,6 +298,7 @@ await testHintNeverInterruptsRealSpeech();
 await testCommandQueuesBehindSafety();
 await testCommandStillInterruptsCommand();
 await testHushSparesSafety();
+await testInterruptHandsBackTheRest();
 testLongPressSpeaksAndSwallowsTheClick();
 testShortTapActivatesSilently();
 testDragCancelsAndStaleSuppressionExpires();

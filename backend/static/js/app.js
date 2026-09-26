@@ -1,5 +1,5 @@
 import { boot, caps, earcon, buzz } from "./boot.js";
-import { speak, isSpeaking, fireSafetyInterrupt, hush, probeVoices, registerAcousticGate } from "./tts.js";
+import { speak, isSpeaking, fireSafetyInterrupt, hush, interrupt, probeVoices, registerAcousticGate } from "./tts.js";
 import { cameraProblem } from "./camera_help.js";
 import { t, tf, humanDuration } from "./strings.js";
 import { captureFrame } from "./capture.js";
@@ -12,7 +12,7 @@ import { createDetector } from "./detect.js";
 import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
 import { createPushToTalk } from "./voice.js";
 import { createWakeListener, getRecognition } from "./wake.js";
-import { matchLocal } from "./commands.js";
+import { matchLocal, splitWake } from "./commands.js";
 import { createMemory } from "./memory.js";
 
 // Three ways in, two ways out, for everything the app does:
@@ -115,6 +115,10 @@ let tickedTools = new Set(); // the same for recipe.equipment
 const finished = new Map(); // timer key -> { totalMs, endedAt }, for "how long has it been" after the alarm
 // Per recipe: needs and preferences, steps done, what checks saw, suggestions (memory.js).
 const memory = createMemory();
+// Said before any recipe was open ("I'm vegetarian" at the recipe list): noted when one opens.
+const carriedPrefs = [];
+// What the app was saying when "Hey chef" cut in: said again once the cook has been answered.
+let interrupted = null;
 
 // Per-device conveniences - nothing here is needed for the app to work.
 function loadPref(key) {
@@ -903,6 +907,7 @@ async function startRecipe(id, intro = "") {
   const name = recipe.name[lang] || recipe.name.en;
   // Made earlier today? Offer to pick up at the step they reached - the memory has the rest.
   const resumed = memory.open(recipe.id);
+  for (const pref of carriedPrefs.splice(0)) memory.addPreference(pref);
   renderMemory();
   const lastStep = memory.lastStep();
   if (resumed && lastStep !== null && lastStep < recipe.steps.length) {
@@ -950,13 +955,21 @@ function addPreference(text) {
 
 // Done with the question: say what was noted, show the ingredients, and ask the assistant for a
 // tip that fits (one call, in the background - it queues behind the ingredient list).
-function finishPreferences(text = "") {
+// advice: the assistant already checked the need against the recipe (add_preference) - said
+// after the ingredients instead of asking it a second time.
+function finishPreferences(text = "", { advice = "" } = {}) {
   if (pending && pending.type === "preferences") pending = null;
   if (text) addPreference(text);
   const prefs = memory.prefs();
   const noted = prefs.length ? tf("prefs_noted", lang, { text: prefs.join(", ") }) : "";
   showOverview({ intro: noted });
-  if (prefs.length) requestAdvice(prefs);
+  if (advice) {
+    say(advice, "checkin");
+    memory.note("advice", advice);
+    renderMemory();
+  } else if (prefs.length) {
+    requestAdvice(prefs);
+  }
 }
 
 async function requestAdvice(prefs) {
@@ -1261,6 +1274,15 @@ function heard(text) {
       return;
     }
     if (!["yes", "no", "hush", "help"].includes(action)) {
+      // Free words are a need ("less salt, my son is allergic to nuts") or a question ("for how
+      // many is it?") - the assistant tells them apart, knowing what was just asked (a first-word
+      // rule sent "για πόσα άτομα είναι" in as a preference). Without it - no key, no network -
+      // the words are kept as the preference, as before, so the recipe never stalls here.
+      if (!local) {
+        askServer(words, { offline: () => finishPreferences(words) });
+        return;
+      }
+      interrupted = null;
       finishPreferences(words);
       return;
     }
@@ -1273,7 +1295,7 @@ function heard(text) {
 }
 
 let thinking = false;
-async function askServer(text) {
+async function askServer(text, { offline = null } = {}) {
   if (thinking) return;
   thinking = true;
   el.status.textContent = t("thinking", lang);
@@ -1281,7 +1303,9 @@ async function askServer(text) {
   try {
     runAction(await api.voiceText(text, voiceContext()));
   } catch (err) {
-    voiceError(err);
+    interrupted = null;
+    if (offline) offline();
+    else voiceError(err);
   } finally {
     thinking = false;
     el.busy.hidden = !busy;
@@ -1305,26 +1329,64 @@ function voiceError(err) {
 }
 
 const NEEDS_RECIPE = new Set(["next_step", "previous_step", "check_ingredients", "list_ingredients", "list_equipment", "stop_recipe", "done"]);
+// Asides: answered, and then the app carries on where it was - the open question stays open, and
+// what "Hey chef" interrupted is said again. Everything else moves the cooking on, so the
+// interrupted words (a step, a question) no longer apply.
+const ASIDES = new Set([
+  "answer", "unclear", "add_preference", "start_timer", "add_time", "stop_timer", "time_left", "recap", "help",
+  "detect_on", "detect_off",
+]);
+
+// After an aside: back to what was being said when "Hey chef" came, from the sentence it stopped
+// in - or, if all of it had been said, the question the app is still waiting on.
+function resumeInterrupted() {
+  const cut = interrupted || [];
+  interrupted = null;
+  if (cut.length) {
+    cut.forEach((item, i) => speak(i === 0 ? `${t("resuming", lang)} ${item.text}` : item.text, { priority: "checkin", lang: item.lang }));
+    return;
+  }
+  if (pending) {
+    const question = pending.type === "preferences" ? t("prefs_question", lang) : el.questionText.textContent;
+    if (question) speak(question, { priority: "checkin", lang });
+  }
+}
 
 function runAction(res) {
   const action = res.action;
-  const reply = () => say(res.spoken_response, "command");
-  const serverWords = res.local ? null : res.spoken_response;
 
   // Answering the clarifying question in your own words ("it smells a bit burnt") - that's the
   // follow-up for the second look, not a new request.
   if (pending && pending.type === "clarify" && (action === "answer" || action === "unclear") && res.heard) {
+    interrupted = null;
     clearPending();
     checkDoneness(res.heard);
     return;
   }
-  // Doing anything else is also an answer to a pending question: it's dropped.
-  if (pending && !["yes", "no", "hush", "help"].includes(action)) clearPending();
+  // The answer to "any needs or preferences?": noted, and on to the ingredients - with the
+  // assistant's check of it against the recipe as the tip.
+  if (pending && pending.type === "preferences" && action === "add_preference" && res.preference) {
+    interrupted = null;
+    finishPreferences(res.preference, { advice: res.spoken_response });
+    return;
+  }
+  // Doing anything else is also an answer to a pending question: it's dropped. An aside isn't -
+  // "Hey chef, how much salt?" in the middle of a question leaves the question open.
+  if (pending && !["yes", "no", "hush", "help"].includes(action) && !ASIDES.has(action)) clearPending();
 
   if (NEEDS_RECIPE.has(action) && !session.getRecipe()) {
+    interrupted = null;
     say(t("no_recipe_open", lang), "command");
     return;
   }
+  runActionNow(res, action);
+  if (ASIDES.has(action)) resumeInterrupted();
+  else interrupted = null;
+}
+
+function runActionNow(res, action) {
+  const reply = () => say(res.spoken_response, "command");
+  const serverWords = res.local ? null : res.spoken_response;
 
   switch (action) {
     case "hush":
@@ -1412,6 +1474,15 @@ function runAction(res) {
     case "detect_off":
       setDetection(action === "detect_on", { announce: true });
       break;
+    case "add_preference":
+      // Said at any point - "Hey chef, my son is allergic to nuts" - kept for the whole recipe and
+      // replayed to the assistant with every question; checked against the recipe in the reply.
+      if (res.preference) {
+        if (session.getRecipe()) addPreference(res.preference);
+        else if (!carriedPrefs.includes(res.preference)) carriedPrefs.push(res.preference);
+      }
+      reply();
+      break;
     case "answer":
       reply();
       // The assistant's own suggestions are part of what "we" did - later answers stay consistent.
@@ -1429,6 +1500,15 @@ function runAction(res) {
 
 const Recognition = getRecognition();
 const recognitionLang = () => (LISTEN_LANG === "el" ? "el-GR" : "en-US");
+
+// "Hey chef" (or the talk button): stop talking - and only talking. The recipe, the step, the
+// timers and any open question stay as they are, and what was being said is picked up again once
+// the cook has been answered (resumeInterrupted). A safety alert plays on (interrupt() -> null).
+function stopForTheCook() {
+  const cut = interrupt();
+  // Cut in again while answering the first time: the original words are the ones to go back to.
+  if (cut && cut.length && !interrupted) interrupted = cut;
+}
 
 function setListening(on) {
   document.querySelectorAll('[data-action="talk"]').forEach((b) => b.setAttribute("aria-pressed", String(on)));
@@ -1456,7 +1536,7 @@ function renderWakeState(state, detail) {
 const wake = createWakeListener({
   lang: recognitionLang(),
   onWake: () => {
-    hush(); // don't talk over the cook - except a safety alert
+    stopForTheCook();
     earcon("ok");
     buzz(20);
     setListening(true);
@@ -1471,6 +1551,7 @@ const wake = createWakeListener({
   onTimeout: () => {
     setListening(false);
     el.status.textContent = t("wake_timeout", lang);
+    resumeInterrupted(); // "Hey chef" and then nothing: carry on where it was
   },
   onState: renderWakeState,
 });
@@ -1570,7 +1651,7 @@ let pressedAt = 0;
 function talkPressed() {
   if (el.app.hidden) return;
   pressedAt = Date.now();
-  hush(); // don't talk over the cook - except a safety alert
+  stopForTheCook();
   if (Recognition) {
     wake.listenNow();
     earcon("ok");
@@ -1750,12 +1831,13 @@ el.start.addEventListener("click", async () => {
 
     el.debug.textContent = warnings.length ? warnings.join(" | ") : "";
 
-    // The recognizer never hears the app itself: it's paused for as long as speech plays.
-    registerAcousticGate((open) => wake.setGate(open));
+    // While the app talks, the recognizer only listens for "Hey chef" (so the cook can cut in) - and
+    // not even that during a sentence that itself says "Hey chef", or the app would wake itself.
+    registerAcousticGate((quiet, text) => wake.setSpeaking(!quiet, { saysWake: !quiet && splitWake(text).woke }));
     // Some browsers occasionally never fire the end of an utterance; don't stay deaf because of it.
     setInterval(() => {
       const synth = window.speechSynthesis;
-      if (!wake.isGateOpen() && !isSpeaking() && !synth.speaking && !synth.pending) wake.setGate(true);
+      if ((!wake.isGateOpen() || wake.isAppSpeaking()) && !isSpeaking() && !synth.speaking && !synth.pending) wake.setSpeaking(false);
     }, 3000);
 
     const handsFree = Recognition && params.get("wake") !== "0" && (params.get("wake") === "1" || loadPref("wake") !== "0");

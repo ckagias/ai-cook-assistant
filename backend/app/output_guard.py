@@ -43,7 +43,9 @@ _URL_PATTERN = re.compile(r"https?://|www\.|\b[a-z0-9-]+\.(com|net|org|gr|io|inf
 
 # Every field the client can speak aloud. safety_flag.reason is spoken for a "caution" in
 # English, so it's checked like the rest.
-_FREE_TEXT_FIELDS = ("spoken_response", "evidence", "clarifying_question", "camera_feedback", "safety_flag.reason")
+# "preference" (voice add_preference) is stored and replayed to the model as session notes.
+_FREE_TEXT_FIELDS = ("spoken_response", "evidence", "clarifying_question", "camera_feedback", "safety_flag.reason",
+                     "preference")
 
 _REASSURANCE_MARKERS = tuple(fold(m) for m in ("safe", "no flame", "not burning", "ασφαλ", "χωρίς φωτιά", "δεν καίγεται"))
 

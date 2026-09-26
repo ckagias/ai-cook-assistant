@@ -1,7 +1,7 @@
 export const STRINGS = {
   greeting: {
     en: "Ready. Say “Hey chef” or tap Talk, then tell me what you'd like to cook.",
-    el: "Έτοιμο. Πες «Γεια σου σεφ» ή πάτα Μίλα, και πες μου τι θέλεις να μαγειρέψεις.",
+    el: "Έτοιμο. Πες «Χέι σεφ» ή πάτα Μίλα, και πες μου τι θέλεις να μαγειρέψεις.",
   },
   greeting_no_wake: {
     en: "Ready. Tap Talk, or type below what you'd like to cook.",
@@ -138,7 +138,9 @@ export const STRINGS = {
 
   // --- hands-free: "Hey chef" (wake.js) ---
   wake_toggle: { en: "Hands-free", el: "Χωρίς χέρια" },
-  wake_idle: { en: "Say “Hey chef”", el: "Πες «Γεια σου σεφ»" },
+  wake_idle: { en: "Say “Hey chef”", el: "Πες «Χέι σεφ»" },
+  // Said before picking up what "Hey chef" interrupted (app.js resumeInterrupted).
+  resuming: { en: "As I was saying:", el: "Όπως έλεγα:" },
   wake_armed: { en: "Listening…", el: "Σε ακούω…" },
   wake_off: { en: "Hands-free is off. Tap Talk", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα" },
   wake_unsupported: {
@@ -149,7 +151,7 @@ export const STRINGS = {
   wake_local: { en: "on this device", el: "στη συσκευή" },
   wake_cloud: { en: "via the browser's speech service", el: "μέσω της υπηρεσίας ομιλίας του browser" },
   wake_where: { en: "Speech recognition {where}", el: "Αναγνώριση ομιλίας {where}" },
-  wake_on_said: { en: "Hands-free on. Say “Hey chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Γεια σου σεφ»." },
+  wake_on_said: { en: "Hands-free on. Say “Hey chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Χέι σεφ»." },
   wake_off_said: { en: "Hands-free off. Tap Talk when you need me.", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα όταν με χρειαστείς." },
   wake_timeout: { en: "I'm here when you need me.", el: "Είμαι εδώ όταν με χρειαστείς." },
   still_busy: { en: "One moment, I'm still looking.", el: "Μια στιγμή, ακόμα κοιτάζω." },
@@ -216,7 +218,7 @@ export const STRINGS = {
   // --- help and memory ---
   help_text: {
     en: "Say “Hey chef”, then for example: I want to make roast beef, recipes, what do I see, ingredients, tools, start, next, repeat, timer, how much time is left, check it, what have we done. Or ask any cooking question.",
-    el: "Πες «Γεια σου σεφ» και μετά για παράδειγμα: θέλω να φτιάξω ροσμπίφ, συνταγές, τι βλέπω, υλικά, σκεύη, ξεκίνα, επόμενο, επανάλαβε, χρονόμετρο, πόση ώρα μένει, έλεγξε, τι κάναμε. Ή κάνε μια ερώτηση μαγειρικής.",
+    el: "Πες «Χέι σεφ» και μετά για παράδειγμα: θέλω να φτιάξω ροσμπίφ, συνταγές, τι βλέπω, υλικά, σκεύη, ξεκίνα, επόμενο, επανάλαβε, χρονόμετρο, πόση ώρα μένει, έλεγξε, τι κάναμε. Ή κάνε μια ερώτηση μαγειρικής.",
   },
   recap_empty: { en: "We haven't done anything in this recipe yet.", el: "Δεν έχουμε κάνει τίποτα ακόμα σε αυτή τη συνταγή." },
   recap_intro: { en: "So far:", el: "Μέχρι τώρα:" },
@@ -336,7 +338,7 @@ export const STRINGS = {
   // --- spoken descriptions of the new buttons ---
   speak_wake_toggle: {
     en: "Hands-free. When it's on, say “Hey chef” and then what you need. No need to touch anything.",
-    el: "Χωρίς χέρια. Όταν είναι ενεργό, πες «Γεια σου σεφ» και μετά τι θέλεις. Δεν χρειάζεται να αγγίξεις τίποτα.",
+    el: "Χωρίς χέρια. Όταν είναι ενεργό, πες «Χέι σεφ» και μετά τι θέλεις. Δεν χρειάζεται να αγγίξεις τίποτα.",
   },
   speak_previous: { en: "Previous. Goes back one step.", el: "Προηγούμενο. Πηγαίνει ένα βήμα πίσω." },
   speak_ingredients: { en: "Ingredients. Reads the ingredients and the equipment again.", el: "Υλικά. Λέει ξανά τα υλικά και τα σκεύη." },

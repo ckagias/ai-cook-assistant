@@ -587,3 +587,54 @@ Rejected for now:
   public server.
 
 Both would drop the certificate step, and remain options once the demo setup is settled.
+
+## 33. "Hey chef" interrupts; the cooking doesn't stop
+
+The first hands-free version (#21) went deaf while the app talked: the gate aborted the
+recognizer, so it would never take its own voice for a command. So a cook could not stop a
+long step, the ingredient list or the opening questions to ask something, or to say "my son is
+allergic to nuts", or to report something urgent. Now:
+
+- **Listening goes on while the app talks** (`wake.setSpeaking`). While it talks, only the wake
+  phrase counts. Everything else heard then is the app's own voice, and never a command.
+  - The gate still closes for a sentence that itself says "Hey chef" (the greeting, help);
+    otherwise the app would wake itself. `tts.js` passes the text being spoken so the listener
+    can tell.
+- **"Hey chef" stops the talking, and only the talking** (`tts.interrupt`). The recipe, the step,
+  the timers and any open question stay. What wasn't said yet comes back: the sentence the voice
+  was in (from the voice's word-boundary events) plus everything queued behind it.
+  - After an **aside** (a question, a need, a timer, "how long is left"), the app says it again
+    ("Όπως έλεγα: …"). An open question stays open, and is asked again if it had been said in
+    full.
+  - After something that **moves the cooking on** (next step, another recipe), the interrupted
+    words no longer apply and are dropped.
+  - "Hey chef" and then silence resumes after the listening window.
+- **A safety alert is never cut off** (interrupt returns nothing, and the alert plays on). What's
+  heard while it plays waits until it ends.
+- **Needs said at any point** are an action of their own, `add_preference`. The assistant checks
+  the need against the open recipe's ingredients in its reply, and the app keeps it in the
+  session memory, so every later answer respects it. Said before a recipe is open, it's carried
+  into the next recipe.
+- **During the opening preferences question**, free words go to the assistant, which knows what
+  was asked, so a question ("για πόσα άτομα είναι") gets an answer and not "noted". A rule on
+  the first word had missed exactly that sentence. Offline, the words are still kept as the
+  preference.
+- **Urgent reports** (a cut, a burn, smoke, an allergic reaction) get the immediate safety step
+  first.
+- **One wake phrase, "Hey chef", in every language** (in Greek letters «Χέι σεφ», so the Greek
+  voice says it right). "Γεια σου σεφ" is a greeting, and nobody greets the same person twenty
+  times a meal. "ok chef" was dropped too, because it could come up in the app's own replies now
+  that listening goes on while it talks. Chrome's dropped-φ form ("χέι σε επόμενο") still
+  counts, but only after an unmistakable "hey" and with a command after it, never after "ε",
+  which is everyday Greek ("ε, σε λίγο").
+
+Verified end to end in the real `app.js` against the real server, with a scripted recognizer and
+a voice that holds each sentence until released, so the cut-in point could be chosen:
+- the greeting muted listening;
+- a question mid-preferences was answered and the question asked again from its sentence;
+- "λιγότερο αλάτι" was noted, and the app moved on;
+- a nut allergy mid-step went into the memory, and step 1 resumed;
+- "next step" moved on without resuming;
+- "Hey chef" and then silence resumed after 8 s.
+
+Not yet tried on a real microphone.

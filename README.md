@@ -311,19 +311,35 @@ Every big button says what it does before you press it:
 
 Screen-reader (TalkBack) users can turn this off per device with `?speakButtons=0`.
 
-## Hands-free: "Γεια σου σεφ" / "Hey chef"
+## Hands-free: "Hey chef"
 
-Say **"Γεια σου σεφ"** or **"Hey chef"**, then what you need - in one breath ("Hey chef, next
-step") or after the beep. Tapping the green **Μίλα / Talk** button (or the **V** key) does the
-same without the wake phrase. A cook who doesn't speak **types** the same commands in the box
-under the buttons, and every button does what a voice command does.
+Say **"Hey chef"** (in Greek «Χέι σεφ»; it's the same phrase in every language), then what you
+need. You can say it in one breath ("Hey chef, next step") or after the beep. Tapping the green
+**Μίλα / Talk** button (or the **V** key) does the same without the wake phrase. A cook who
+doesn't speak **types** the same commands in the box under the buttons, and every button does
+what a voice command does.
+
+**"Hey chef" interrupts at any moment, even while the app is talking:** mid-step, mid-list, or
+during the opening questions. The app stops talking, and only talking. The recipe, the step,
+the timers and any open question stay as they are.
+- **A question, a need or an allergy, a timer:** answered, then the app carries on from the
+  sentence it was in ("Όπως έλεγα: … / As I was saying: …").
+- **Something that moves the cooking on** ("next step", another recipe): done, and the
+  interrupted words are dropped.
+- **"Hey chef" and then silence:** it carries on after a few seconds.
+- **A need or allergy said at any point** ("Hey chef, my son is allergic to nuts"): kept for
+  the whole recipe, and checked against its ingredients in the answer.
+- **Something urgent** (a burn, a cut, smoke): the answer starts with the immediate safety step.
+- **A fire warning** is the one thing that always plays to the end.
 
 A cooking session, start to finish:
 
-1. "Γεια σου σεφ, θέλω να φτιάξω ροσμπίφ" - a dish named outright starts at once; a vaguer
+1. "Χέι σεφ, θέλω να φτιάξω ροσμπίφ" - a dish named outright starts at once; a vaguer
    request ("something with eggs") lists up to three to pick from ("the second one").
 2. First, **needs and preferences** for this dish: an allergy, less salt, spicier, for children.
-   Say it, type it, tap one, or say "όχι". A preference gets a matching tip from the assistant.
+   Say it, type it, tap one, or say "όχι". The assistant tells a need from a question: it
+   answers "for how many is it?" and asks again. A preference gets a matching tip from the
+   assistant. With no key or no network, whatever is said is kept as the preference.
 3. The **ingredients** and the **tools** (knife, board, tray, oven...) are read out and shown as
    checklists. "Έλεγξε τα υλικά" shows them to the camera and ticks what it sees (the live
    detection preview ticks them too); a tap ticks one. Meat recipes ask how you like it.
@@ -355,8 +371,11 @@ large - so the whole app works without hearing it.
   hands-free is on - the badge on the camera view says which. The **Χωρίς χέρια / Hands-free**
   button turns it off (remembered per device, or `?wake=0`); the talk button still works.
   `?listen=en` listens for English instead of Greek.
-- **Nothing is acted on without the wake phrase** or a tap, and whatever the microphone hears
-  while the app is speaking is thrown away - it never takes its own voice for a command.
+- **Nothing is acted on without the wake phrase** or a tap.
+- **While the app speaks, only "Hey chef" counts.** The microphone also hears the app's own
+  voice, and that is never taken for a command.
+- **A sentence that itself says "Hey chef"** (the greeting, help) mutes listening while it plays,
+  so the app can't wake itself.
 - **Common commands never leave the device** ("next", "yes", "timer", "check it", "σενιάν"...,
   `static/js/commands.js`): instant, free, and they work with no API key at all. Free speech goes
   to `POST /voice/text`, understood by whichever key is set - OpenAI (`gpt-5-mini`), Gemini, or

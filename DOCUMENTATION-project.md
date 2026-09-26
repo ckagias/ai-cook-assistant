@@ -29,7 +29,7 @@ speak. Greek by default, English when the device has no Greek voice.
 | Recipes | SQLite (`backend/data/cook.db`), seeded from `backend/data/recipes.json` (16 bilingual recipes). Imported recipes stay *staged* until a person curates their safety fields |
 | Vision answers | "What is this?" / "Is it ready?": one provider of Anthropic, OpenAI or Gemini (`VISION_PROVIDER`) |
 | Detection | Pretrained YOLOE-26s at 480 px, OpenVINO on the CPU, letterboxed to the frame's own shape, plus MediaPipe hands in parallel. About 6 FPS on a 15 W laptop CPU |
-| Voice | Browser speech recognition for "Γεια σου σεφ" / "Hey chef" (Chrome, Edge, Safari). Common commands are matched on the device; free speech goes to `POST /voice/text`. Browsers without a recognizer (Firefox) record and transcribe on the server (`gpt-4o-mini-transcribe`) |
+| Voice | Browser speech recognition for "Hey chef" («Χέι σεφ»), the same phrase in every language (Chrome, Edge, Safari). It interrupts at any moment, even while the app talks: the recipe, timers and open question stay, and the app resumes afterwards. Common commands are matched on the device; free speech goes to `POST /voice/text`. Needs and allergies are kept at any point, and checked against the recipe. Browsers without a recognizer (Firefox) record and transcribe on the server (`gpt-4o-mini-transcribe`) |
 | Phones | The network the laptop is on, with a local CA installed once per phone (trusted on any network). `-Hotspot`: the laptop's own hotspot at the fixed `192.168.137.1`, with static QR codes for slides in `qr/` |
 
 Safety and security:

@@ -202,7 +202,7 @@ class DetectResponse(BaseModel):
 VoiceAction = Literal[
     "next_step", "previous_step", "repeat_step", "start_timer", "add_time", "stop_timer",
     "check_doneness", "check_ingredients", "list_ingredients", "identify", "find_recipe",
-    "choose_recipe", "set_doneness", "stop_recipe", "yes", "no", "answer", "unclear",
+    "choose_recipe", "set_doneness", "stop_recipe", "yes", "no", "answer", "add_preference", "unclear",
 ]
 
 # A question the app asked and is waiting on - "yes"/"no" only mean something against one.
@@ -217,6 +217,7 @@ class VoiceCommand(BaseModel):
     search_words: list[str] = Field(default_factory=list)  # find_recipe, in Greek and English
     choice: Optional[int] = None  # choose_recipe: 1-based number of an offered recipe
     doneness: Optional[Doneness] = None  # set_doneness
+    preference: Optional[str] = None  # add_preference: the need in a few words ("nut allergy")
     spoken_response: str
 
 
@@ -232,6 +233,7 @@ class VoiceResponse(BaseModel):
     recipe_id: Optional[str] = None  # choose_recipe, already validated against the database
     candidates: list[RecipeCandidate] = Field(default_factory=list)  # find_recipe results
     doneness: Optional[Doneness] = None
+    preference: Optional[str] = None  # add_preference: stored in the session memory by the client
     spoken_response: str
 
 

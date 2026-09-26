@@ -18,21 +18,27 @@ function testWakePhrase() {
     ["Hey chef", true, ""],
     ["hey chef, next step", true, "next step"],
     ["Hey Chef I want to make roast beef", true, "I want to make roast beef"],
-    ["Γεια σου σεφ", true, ""],
-    ["Γειά σου Σεφ, θέλω να φτιάξω ροσμπίφ", true, "θέλω να φτιάξω ροσμπίφ"],
+    // One phrase in every language: "Hey chef", however the recognizer spells it.
     ["Χέι σεφ επόμενο", true, "επόμενο"],
+    ["Χέι Σεφ, θέλω να φτιάξω ροσμπίφ", true, "θέλω να φτιάξω ροσμπίφ"],
     ["έι σεφ", true, ""],
+    ["εϊ σεφ πόση ώρα μένει", true, "πόση ώρα μένει"],
     ["okay so hey chef repeat", true, "repeat"],
     ["heychef stop", true, "stop"],
     ["the chef said it's done", false, ""],
     ["hey there", false, ""],
     ["σεφ", false, ""],
+    // Dropped: nobody says "Γεια σου" twenty times a meal, and "ok chef" woke on the app's own words.
+    ["Γεια σου σεφ", false, ""],
+    ["ok chef next", false, ""],
     // Heard on a real microphone (feature/detection-db's list): "ε σεφ", "he chef".
     ["ε σεφ επόμενο", true, "επόμενο"],
     ["he chef next step", true, "next step"],
-    // Chrome's Greek recognizer, measured: the φ drops once a command follows.
-    ["γεια σου σε επόμενο βήμα", true, "επόμενο βήμα"],
-    ["γεια σου σε", false, ""],
+    // Chrome's Greek recognizer drops the φ once a command follows - after a clear "hey" only.
+    ["χέι σε επόμενο βήμα", true, "επόμενο βήμα"],
+    ["hey σε επόμενο", true, "επόμενο"],
+    ["χέι σε", false, ""],
+    ["ε σε λίγο θα είναι έτοιμο", false, ""], // "eh, in a moment it'll be ready" - everyday Greek
   ];
   for (const [text, woke, rest] of cases) {
     const got = splitWake(text);

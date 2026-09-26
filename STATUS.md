@@ -3,6 +3,40 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
+## Update: "Hey chef" interrupts at any moment; one wake phrase (2026-09-26, evening)
+
+On top of ckagias's pitch UI (PR #7). `main-backup` keeps the working `main` from before it. See
+DESIGN.md #33. **Built and verified:**
+- **"Hey chef" works while the app is talking.** It stops the talking and keeps the recipe, the
+  step, the timers and the open question. After an aside, it goes back to the sentence it was
+  in ("Όπως έλεγα: …"); after "next step" and the like, it drops it. Safety alerts are never cut
+  off.
+- **Needs and allergies at any point** (`add_preference`): checked against the recipe in the
+  reply, and kept in the session memory. During the opening preferences question, the assistant
+  tells a need from a question.
+- **Urgent reports** get the immediate safety step first.
+- **One wake phrase: "Hey chef"** («Χέι σεφ»). "Γεια σου σεφ" and "ok chef" were dropped.
+- **Tests:** 350 passing. New: interruptions and the app's own voice in `wake.test.mjs`, the
+  interrupt-and-resume logic in `a11y.test.mjs`, the wake-phrase forms, and `add_preference` on
+  the server, including a preference carrying an injected instruction.
+- **Live**, in the real app against the real server, with a scripted recognizer and a held voice:
+  - the greeting muted listening;
+  - "για πόσα άτομα είναι" in the middle of the preferences question was answered, and the
+    question came back from its sentence;
+  - "λιγότερο αλάτι" was noted, and the app moved on;
+  - "ο γιος μου είναι αλλεργικός στα καρύδια" mid-step went into the memory, and step 1 resumed;
+  - "επόμενο βήμα" moved on without resuming;
+  - "χέι σεφ" and then silence resumed after 8 s.
+  - One bug was found and fixed that way: a first-word rule sent "για πόσα άτομα είναι" in as a
+    preference.
+
+**Not verified yet:**
+- **A real microphone and a real speaker.** Listening while the app talks relies on the
+  recognizer hearing "Hey chef" over the app's own voice, and phones and laptops cancel that
+  echo differently.
+- **Voices that report no word boundaries.** Then the whole interrupted sentence is repeated,
+  which is fine.
+
 ## Update: one branch - `integration`, now `main` (2026-09-26)
 
 `integration` = ckagias's `feature/hands-free-chef` + Fanis's `dev` (Android PWA) + the rest of

@@ -10,6 +10,9 @@ let keepAlive = null;
 export const PRIORITY_RANK = { hint: 0, checkin: 1, command: 2, safety: 3 };
 let current = null; // the utterance actually playing, so a late onend from a cancelled one is ignored
 let currentRank = -1;
+// What is still to be said, in order: the utterance playing, then the queue behind it. Kept so an
+// interruption ("Hey chef") can pick up where it stopped - see interrupt().
+let unsaid = []; // [{ text, priority, lang, u, spokenTo }]
 
 export function registerAcousticGate(fn) {
   gateListener = fn;
@@ -19,11 +22,13 @@ export function isSpeaking() {
   return speaking;
 }
 
-function setAcousticMonitor(enabled) {
+// enabled = the app is quiet. While it speaks, the listener also gets the words being said, so
+// it can tell a sentence that itself says "Hey chef" (the greeting, help) from any other.
+function setAcousticMonitor(enabled, text = "") {
   // The gate must be registered explicitly, even as a no-op - a gate that's
   // never wired up was a real bug once, and this guard makes that silent again.
   if (gateListener) {
-    gateListener(enabled);
+    gateListener(enabled, text);
   }
 }
 
@@ -76,7 +81,7 @@ export function probeVoices(preferredLang) {
   });
 }
 
-function buildUtterance(text, lang) {
+function buildUtterance(text, lang, entry) {
   const u = new SpeechSynthesisUtterance(text);
   const effective = effectiveLang(lang);
   u.lang = effective === "el" ? "el-GR" : "en-US";
@@ -84,10 +89,14 @@ function buildUtterance(text, lang) {
   if (effective === "el" && greekVoice) {
     u.voice = greekVoice;
   }
+  // Where the voice has got to (not every voice reports it; then a resume repeats the sentence).
+  u.onboundary = (e) => {
+    if (typeof e.charIndex === "number") entry.spokenTo = e.charIndex;
+  };
 
   u.onstart = () => {
     speaking = true;
-    setAcousticMonitor(false);
+    setAcousticMonitor(false, text);
     clearInterval(keepAlive);
     // Chrome cuts speech off after ~15s of silence from the tab; a pause/resume
     // keepalive every 10s prevents that.
@@ -102,6 +111,7 @@ function buildUtterance(text, lang) {
   };
 
   const onDone = () => {
+    unsaid = unsaid.filter((x) => x.u !== u); // said (or cancelled): nothing left of it to resume
     // cancel() fires the cancelled utterance's end/error asynchronously - possibly after the
     // next one was queued. Only the most recently queued utterance may clear the state.
     if (current !== u) return;
@@ -128,10 +138,14 @@ export function speak(text, { priority = "checkin", lang = "el" } = {}) {
   if (priority === "hint") {
     // Only ever replaces another hint; never cancels queued or playing real speech.
     if (busy && (currentRank > PRIORITY_RANK.hint || synth.pending)) return false;
-    if (busy) synth.cancel();
+    if (busy) {
+      synth.cancel();
+      unsaid = [];
+    }
     currentRank = rank;
   } else if (priority === "safety" || (priority === "command" && currentRank < PRIORITY_RANK.safety)) {
     synth.cancel();
+    unsaid = [];
     speaking = false;
     setAcousticMonitor(false);
     currentRank = rank;
@@ -140,10 +154,44 @@ export function speak(text, { priority = "checkin", lang = "el" } = {}) {
     // the queue keeps the highest rank it holds until it drains.
     currentRank = Math.max(currentRank, rank);
   }
-  const u = buildUtterance(text, lang);
+  const entry = { text, priority, lang, u: null, spokenTo: 0 };
+  const u = buildUtterance(text, lang, entry);
+  entry.u = u;
+  unsaid.push(entry);
   current = u;
   synth.speak(u);
   return true;
+}
+
+// The unsaid rest of `text`, from the start of the sentence the voice was in at `spokenTo`:
+// resuming mid-sentence is hard to follow, so the sentence is said again whole.
+export function remainder(text, spokenTo = 0) {
+  if (!spokenTo || spokenTo <= 0) return text.trim();
+  const before = text.slice(0, spokenTo);
+  // ". ! ? ; ·" - ";" is also the Greek question mark, "·" the Greek semicolon.
+  const ends = [...before.matchAll(/[.!?;·:](\s+)/g)];
+  if (!ends.length) return text.trim();
+  const last = ends[ends.length - 1];
+  return text.slice(last.index + last[0].length).trim();
+}
+
+// "Hey chef" while the app talks: stop now and hand back what wasn't said yet - the sentence it
+// stopped in, and everything queued behind it - so the app can say it after answering the cook.
+// A safety alert is never cut off: null means nothing was interrupted, and the alert plays on.
+// Button descriptions (hints) aren't worth resuming.
+export function interrupt() {
+  const synth = window.speechSynthesis;
+  if (!(speaking || synth.speaking || synth.pending)) {
+    unsaid = [];
+    return [];
+  }
+  if (currentRank >= PRIORITY_RANK.safety) return null;
+  const left = unsaid
+    .filter((x) => x.priority !== "hint")
+    .map((x, i) => ({ text: i === 0 ? remainder(x.text, x.spokenTo) : x.text, priority: x.priority, lang: x.lang }))
+    .filter((x) => x.text);
+  stopAll();
+  return left;
 }
 
 export function fireSafetyInterrupt(message, lang) {
@@ -161,6 +209,7 @@ export function hush() {
 
 export function stopAll() {
   window.speechSynthesis.cancel();
+  unsaid = [];
   current = null;
   currentRank = -1;
   speaking = false;

@@ -1,11 +1,13 @@
 // Hands-free listening: the browser's own speech recognition runs continuously, and nothing is
-// acted on until the wake phrase ("Hey chef" / "Γεια σου σεφ") - or a tap on the talk button,
+// acted on until the wake phrase ("Hey chef", in any language) - or a tap on the talk button,
 // which arms it the same way. Words after the wake phrase in the same breath are the command
 // ("Hey chef, next step"); a wake phrase on its own waits ARM_MS for the command.
 //
-// Everything heard while the app itself is speaking is dropped (setGate(false) aborts the
-// recognizer and throws its audio away): the app must never take its own voice for a command,
-// and "Say “Hey chef”" in a spoken hint must not wake it.
+// "Hey chef" works while the app itself is talking too (setSpeaking): the cook can cut in with a
+// question, a need or something urgent at any moment. While the app talks nothing but the wake
+// phrase counts - the recognizer hears the app's own voice as well, and that is never a command.
+// Only a sentence that itself says "Hey chef" (the greeting, help) closes the gate while it plays
+// (setGate(false) aborts the recognizer and throws its audio away), or it would wake itself.
 //
 // Privacy: where the browser offers on-device recognition (processLocally) it is used; otherwise
 // the browser streams microphone audio to its speech service (Google for Chrome, Microsoft for
@@ -56,6 +58,7 @@ export function createWakeListener({
   let rec = null;
   let enabled = false;
   let gateOpen = true;
+  let appSpeaking = false; // the app is talking: only the wake phrase counts
   let running = false;
   let starting = false;
   let armed = false;
@@ -165,6 +168,8 @@ export function createWakeListener({
       }
       // Armed: the command, possibly repeating the wake phrase in front.
       const heard = alternatives.map(splitWake).find((w) => w.woke);
+      // Still talking (a safety alert plays on): what's heard now is the app's own voice.
+      if (appSpeaking && !heard) continue;
       const text = (heard ? heard.rest : alternatives[0]).trim();
       if (!result.isFinal) {
         if (text) {
@@ -259,16 +264,13 @@ export function createWakeListener({
       ensureRunning();
       return true;
     },
-    // Closed while the app speaks. Opening again restarts recognition.
-    setGate(open) {
-      if (open === gateOpen) return;
-      gateOpen = open;
-      if (!open) {
-        unsettle();
-        if (rec && (running || starting)) rec.abort();
-      } else {
-        ensureRunning();
-      }
+    // Closed: nothing is heard at all (the recognizer is aborted). Opening restarts it.
+    setGate,
+    // The app started or stopped talking. Listening goes on - "Hey chef" can interrupt - unless
+    // the sentence being said itself says "Hey chef": then the gate is closed until it's over.
+    setSpeaking(on, { saysWake = false } = {}) {
+      appSpeaking = Boolean(on);
+      setGate(!(on && saysWake));
     },
     setLang(next) {
       lang = next;
@@ -280,6 +282,18 @@ export function createWakeListener({
     isOn: () => enabled,
     isArmed: () => armed,
     isGateOpen: () => gateOpen,
+    isAppSpeaking: () => appSpeaking,
     mode: () => mode,
   };
+
+  function setGate(open) {
+    if (open === gateOpen) return;
+    gateOpen = open;
+    if (!open) {
+      unsettle();
+      if (rec && (running || starting)) rec.abort();
+    } else {
+      ensureRunning();
+    }
+  }
 }
