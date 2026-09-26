@@ -207,6 +207,12 @@ export const STRINGS = {
   },
   resume_fresh: { en: "OK, from the start.", el: "Εντάξει, από την αρχή." },
 
+  // --- home: things to say (quick-ask chips) ---
+  examples_title: { en: "Try saying", el: "Δοκίμασε να πεις" },
+  ex_make_pasta: { en: "I want to make pasta", el: "Θέλω να φτιάξω ζυμαρικά" },
+  ex_what_see: { en: "What do you see?", el: "Τι βλέπεις;" },
+  ex_help: { en: "What can I say?", el: "Τι μπορώ να πω;" },
+
   // --- help and memory ---
   help_text: {
     en: "Say “Hey chef”, then for example: I want to make roast beef, recipes, what do I see, ingredients, tools, start, next, repeat, timer, how much time is left, check it, what have we done. Or ask any cooking question.",

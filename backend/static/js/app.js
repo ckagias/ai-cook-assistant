@@ -75,6 +75,7 @@ const el = {
   detectTable: document.getElementById("detect-table"),
   themeToggle: document.getElementById("theme-toggle"),
   panel: document.getElementById("panel"),
+  exampleChips: document.getElementById("example-chips"),
 };
 
 const params = new URLSearchParams(window.location.search);
@@ -223,6 +224,22 @@ function setBusy(on) {
   document.querySelectorAll("[data-action]").forEach((btn) => {
     if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme"].includes(btn.dataset.action)) btn.disabled = on;
   });
+}
+
+// Home: things to say. A tap runs one exactly as if it were said, so they show a newcomer what the
+// assistant understands, and stand in for a microphone that isn't working. One goes to the
+// assistant (a dish by name); the other two are understood on the device.
+const EXAMPLES = ["ex_make_pasta", "ex_what_see", "ex_help"];
+
+function renderExamples() {
+  el.exampleChips.innerHTML = "";
+  for (const key of EXAMPLES) {
+    const btn = document.createElement("button");
+    btn.dataset.action = "quick-ask";
+    btn.dataset.text = t(key, lang);
+    btn.textContent = lang === "el" ? `«${t(key, lang)}»` : `“${t(key, lang)}”`;
+    el.exampleChips.appendChild(btn);
+  }
 }
 
 function localize() {
@@ -1710,6 +1727,7 @@ el.start.addEventListener("click", async () => {
     el.gate.hidden = true;
     el.app.hidden = false;
     localize();
+    renderExamples();
 
     el.debug.textContent = warnings.length ? warnings.join(" | ") : "";
 
