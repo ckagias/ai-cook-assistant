@@ -40,14 +40,13 @@ That's the whole thing:
 - **The app window:** it opens in its own Edge/Chrome window with the camera and microphone
   already allowed for the app's address. Closing it stops the server (Windows); on
   Linux/macOS, Ctrl+C stops it.
-- **The phone, through the laptop's own hotspot:** `start.ps1` turns on Windows Mobile Hotspot
-  and prints its Wi-Fi name and password, plus a QR code for the phone link in the terminal
-  (also saved as `.run/pairing.png`).
-  - On its own hotspot the laptop is always `192.168.137.1`, so the link never changes, and
-    neither do the **static QR codes for slides** in `qr/` (see below).
-  - The first time on each phone, install `/ca.crt` (see **Tablet bring-up**).
-  - `-NoHotspot` keeps phones on the laptop's current Wi-Fi at its current address instead.
-    That address changes between networks.
+- **The phone, on the same network as the laptop** (a Wi-Fi, or a phone's hotspot): a QR code
+  for the phone link is printed in the terminal (also saved as `.run/pairing.png`).
+  - The first time on each phone, install `/ca.crt` (see **Tablet bring-up**). After that the
+    app is trusted on any network: each address gets its own certificate from the same local CA.
+  - The link follows the laptop's address, which changes between networks.
+  - For a QR that never changes, for example on a slide, use `.\start.ps1 -Hotspot` (see
+    **Static QR codes for slides and demos**).
 - **Every start is a clean one (Windows):** it closes the previous session's server and app
   window, and removes the leftovers: the window's browser profile (cache, service worker,
   stored settings), QR images and logs.
@@ -169,8 +168,13 @@ backend/.venv/bin/python backend/scripts/check_providers.py [photo.jpg]
 
 ### Static QR codes for slides and demos
 
-`start.ps1` writes `qr/slide.png` every time it runs with the hotspot on. The slide holds three
-QR codes with Greek and English captions, and each is also a separate PNG for a presentation:
+`.\start.ps1 -Hotspot` turns on the laptop's own Windows Mobile Hotspot (no admin rights). On it
+the laptop is always `192.168.137.1`, so a QR code for it never changes. Each such start writes
+`qr/slide.png`: three QR codes with Greek and English captions, each also a separate PNG for a
+presentation.
+
+Without `-Hotspot` (the default), phones use the network the laptop is already on, and the
+terminal QR follows its address.
 
 | QR code | What it does |
 |---|---|
@@ -183,14 +187,14 @@ the hotspot's name or password (Settings > Network > Mobile hotspot), or the por
 contain the token and the Wi-Fi password, so `qr/` is gitignored. Regenerate them by hand with
 `python backend/scripts/static_qr.py --ssid "<name>" --password "<password>"`.
 
-At the demo:
-- the laptop runs `start.ps1`, with its own internet (Wi-Fi or a phone's hotspot) shared
-  through its hotspot;
+At a demo with the slide codes:
+- the laptop runs `.\start.ps1 -Hotspot`, with its own internet (Wi-Fi or a phone's hotspot)
+  shared through its hotspot;
 - phones scan 1, then 2 (first time only), then 3;
 - if phones can't connect, allow Python through Windows Firewall when asked;
 - by default Windows turns the hotspot off after 5 minutes with no device connected. Before a
   demo, switch off Settings > Network & internet > Mobile hotspot > **Power saving**, or run
-  `start.ps1` again, which turns it back on.
+  `.\start.ps1 -Hotspot` again, which turns it back on.
 
 Once connected, open `/probe.html` on the tablet first and run through
 every section - it exercises the real camera/mic/audio stack and the real

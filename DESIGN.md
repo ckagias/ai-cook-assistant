@@ -560,15 +560,20 @@ something for good that later code needed free.
   modules. A test now fails for any `static/js` module missing from `SHELL_FILES`, and the
   cache name is bumped when the list changes.
 
-## 32. The phone link is fixed: the laptop's own hotspot
+## 32. A fixed phone link, when it's needed: the laptop's own hotspot (`-Hotspot`)
 
 A QR code on a slide has to keep working through every code change and every venue. A LAN
 address doesn't: it was 172.16.30.63 in the morning and 192.168.43.200 in the afternoon. On
 its own Windows Mobile Hotspot, though, the laptop is always `192.168.137.1`.
 
-So `start.ps1` turns the hotspot on through Windows' own API (no admin rights), and pins the
-certificate and links to that address with `LAN_IP`. `scripts/static_qr.py` then writes the
-three slide codes:
+It's opt-in. By default phones use the network the laptop is already on, which is often a
+phone's hotspot; the user wanted that to keep working as before. The certificate isn't a
+reason to fix the address: every address gets a leaf certificate from the same local CA, so
+one install per phone covers any network.
+
+With `.\start.ps1 -Hotspot`, the script turns the hotspot on through Windows' own API (no admin
+rights), and pins the certificate and links to that address with `LAN_IP`.
+`scripts/static_qr.py` then writes the three slide codes:
 - join the Wi-Fi (the standard `WIFI:` payload);
 - the local CA, once per phone;
 - the paired app link.

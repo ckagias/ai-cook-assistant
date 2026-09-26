@@ -30,7 +30,7 @@ speak. Greek by default, English when the device has no Greek voice.
 | Vision answers | "What is this?" / "Is it ready?": one provider of Anthropic, OpenAI or Gemini (`VISION_PROVIDER`) |
 | Detection | Pretrained YOLOE-26s at 480 px, OpenVINO on the CPU, letterboxed to the frame's own shape, plus MediaPipe hands in parallel. About 6 FPS on a 15 W laptop CPU |
 | Voice | Browser speech recognition for "Γεια σου σεφ" / "Hey chef" (Chrome, Edge, Safari). Common commands are matched on the device; free speech goes to `POST /voice/text`. Browsers without a recognizer (Firefox) record and transcribe on the server (`gpt-4o-mini-transcribe`) |
-| Phones | The laptop's own hotspot (fixed address `192.168.137.1`) with a local CA installed once per phone; static QR codes for slides in `qr/` |
+| Phones | The network the laptop is on, with a local CA installed once per phone (trusted on any network). `-Hotspot`: the laptop's own hotspot at the fixed `192.168.137.1`, with static QR codes for slides in `qr/` |
 
 Safety and security:
 - a pairing token, skipped only for the laptop itself;
@@ -44,7 +44,7 @@ Safety and security:
 - **Windows:** `.\start.cmd` or `.\start.ps1`.
   - Setup runs once; later starts take about 5 s.
   - Every start closes the previous session.
-  - It turns on the hotspot and prints the phone QR in the terminal.
+  - It prints the phone QR in the terminal; `-Hotspot` uses the laptop's own hotspot and writes the static slide QR codes.
 - **Linux, macOS, WSL:** `./start.sh`.
 - **API keys** go in `backend/.env`, never in `.env.example`.
 

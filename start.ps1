@@ -19,25 +19,25 @@
   - Every start is a clean one: the previous session's server and app window are closed, and
     its leftovers (the window's browser profile, QR images, logs) are removed. Kept: the setup
     stamp (fast starts) and the certificates (a phone trusts the local CA once).
-  - Prints a QR code for the phone in the terminal (also saved as .run\pairing.png).
-  - Phones use the laptop's own Wi-Fi hotspot, turned on here: the laptop is always
-    192.168.137.1 on it, so the static QR codes for the slides (qr\slide.png: join the Wi-Fi,
-    install the certificate once, open the app) keep working through any code change.
-    -NoHotspot: phones use this Wi-Fi's own address instead (it changes between networks).
+  - Prints a QR code for the phone in the terminal (also saved as .run\pairing.png). Phones
+    join the network the laptop is on (a Wi-Fi, or a phone's hotspot) and use its address.
+  - -Hotspot: turns on the laptop's own Wi-Fi hotspot instead. On it the laptop is always
+    192.168.137.1, so the static QR codes for slides (qr\slide.png: join the Wi-Fi, install the
+    certificate once, open the app) keep working through any code change or venue.
   - Object/hand detection is on whenever it's installed.
 
 .EXAMPLE
   .\start.cmd                  # double-click friendly
   .\start.ps1 -NoWindow        # serve only; open the links in any browser; Ctrl+C stops
-  .\start.ps1 -LocalOnly       # this computer only: no LAN address, no hotspot, no firewall prompt
-  .\start.ps1 -NoHotspot       # phones on the same Wi-Fi as the laptop, at its current address
+  .\start.ps1 -LocalOnly       # this computer only: no LAN address, no firewall prompt
+  .\start.ps1 -Hotspot         # phones on the laptop's own hotspot; writes the static slide QR codes
   .\start.ps1 -CheckOnly       # what is installed, what a first start would download - changes nothing
 #>
 [CmdletBinding()]
 param(
     [switch]$NoWindow,
     [switch]$LocalOnly,
-    [switch]$NoHotspot,
+    [switch]$Hotspot,
     [switch]$NoDetection,
     [switch]$CheckOnly
 )
@@ -220,9 +220,10 @@ if ($blocker) {
     exit 1
 }
 
-# --- 3. the laptop's own hotspot: phones join it, and on it the laptop is always 192.168.137.1 ---
+# --- 3. -Hotspot only: the laptop's own hotspot, on which it is always 192.168.137.1 ---
+# Default: phones use the network the laptop is already on (Wi-Fi, or a phone's hotspot).
 $HotspotIp = "192.168.137.1"
-$Hotspot = $null
+$HotspotInfo = $null  # not $Hotspot: PowerShell names ignore case, that is the -Hotspot switch
 function Start-Hotspot {
     # Windows Mobile Hotspot through its WinRT API: no admin rights, no settings page.
     try {
@@ -255,13 +256,15 @@ function Start-Hotspot {
         return @{ Ok = $false; Why = $_.Exception.Message }
     }
 }
-if (-not $LocalOnly -and -not $NoHotspot) {
-    $Hotspot = Start-Hotspot
-    if ($Hotspot.Ok) {
+if ($Hotspot -and -not $LocalOnly) {
+    $HotspotInfo = Start-Hotspot
+    if ($HotspotInfo.Ok) {
         $env:LAN_IP = $HotspotIp  # lan.py: the certificate and the links are for the hotspot address
     } else {
-        Write-Warn "Hotspot not available ($($Hotspot.Why)) - phones use this Wi-Fi's own address instead; the slide QR codes need the hotspot."
+        Write-Warn "Hotspot not available ($($HotspotInfo.Why)) - phones use this network's own address instead; the slide QR codes need the hotspot."
     }
+} else {
+    Remove-Item Env:LAN_IP -ErrorAction SilentlyContinue  # the address of the network the laptop is on
 }
 
 # --- 4. pairing token, and this machine's LAN address + certificate (one call) ---
@@ -304,18 +307,20 @@ try {
     Write-Host "  This computer, any browser:  $LocalUrl"
     if ($LanIp) {
         $PhoneUrl = "https://${LanIp}:${LanPort}/?token=$Token&detect=1"
-        if ($Hotspot -and $Hotspot.Ok) {
-            Write-Host "  Phones: join the laptop's Wi-Fi '$($Hotspot.Ssid)' (password: $($Hotspot.Password)), then:"
+        if ($HotspotInfo -and $HotspotInfo.Ok) {
+            Write-Host "  Phones: join the laptop's Wi-Fi '$($HotspotInfo.Ssid)' (password: $($HotspotInfo.Password)), then:"
+            Write-Host "  Phone/tablet:  $PhoneUrl"
+        } else {
+            Write-Host "  Phone/tablet on the same network:  $PhoneUrl"
         }
-        Write-Host "  Phone/tablet:  $PhoneUrl"
         Write-Host "      (first time on a phone: open https://${LanIp}:${LanPort}/ca.crt, install it, then no warning; Windows may ask to allow Python on private networks)"
         Write-Host ""
         Write-Host "  Scan with the phone's camera:"
         $Png = Join-Path $RunDir "pairing.png"
         & $VenvPython scripts\pairing_qr.py --url $PhoneUrl --png $Png
         if ($LASTEXITCODE -ne 0) { Write-Host "      (QR skipped - qrcode not installed; re-run setup.ps1)" }
-        if ($Hotspot -and $Hotspot.Ok) {
-            & $VenvPython scripts\static_qr.py --ssid $Hotspot.Ssid --password $Hotspot.Password --ip $HotspotIp --port $LanPort --out (Join-Path $Root "qr")
+        if ($HotspotInfo -and $HotspotInfo.Ok) {
+            & $VenvPython scripts\static_qr.py --ssid $HotspotInfo.Ssid --password $HotspotInfo.Password --ip $HotspotIp --port $LanPort --out (Join-Path $Root "qr")
         }
     }
     Write-Host "  Press the big Start button and allow the camera. Detection starts by itself (first frames: 'loading model')."

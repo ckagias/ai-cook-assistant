@@ -29,12 +29,16 @@ reflects real state as of this writing, not the plan's projections.
   - Every start is clean: the previous server and window are closed, and the profile, QR
     images and logs are removed. The stamp and certificates stay.
   - The phone QR is printed in the terminal.
-  - It turns on the laptop's **hotspot**. Phones use `https://192.168.137.1:8443` (the laptop's
-    fixed address on its own hotspot), and **static QR codes for slides** are written to `qr/`:
-    Wi-Fi, certificate, app.
-  - Live: hotspot on, internet still shared, `/health` over HTTPS at 192.168.137.1, a
-    certificate for 192.168.137.1 signed by the local CA, the Python firewall rule matching the
-    listening process, and all QR codes decoded back to the right text.
+  - **Default: phones use the network the laptop is on** (a Wi-Fi, or a phone's hotspot).
+    Live: `https://192.168.43.200:8443`, with a certificate for that address from the same
+    local CA, so a phone trusts it after one install on any network.
+  - **`-Hotspot` (opt-in)** turns on the laptop's own hotspot. Phones use
+    `https://192.168.137.1:8443`, the laptop's fixed address there, and **static QR codes for
+    slides** are written to `qr/`: Wi-Fi, certificate, app. It was the default for an hour; the
+    user wanted phones on the network they are already on.
+  - Live with `-Hotspot`: internet still shared, `/health` over HTTPS at 192.168.137.1, a
+    certificate for that address, the Python firewall rule matching the listening process, and
+    all QR codes decoded back to the right text.
 - **Tests:** 348 passing (Python + Node). New: the service-worker module guard, `LAN_IP` pinning,
   and the static QR payloads (decoded back with OpenCV).
 - **Live, in headless browsers:**
