@@ -74,6 +74,7 @@ const el = {
   detectStats: document.getElementById("detect-stats"),
   detectTable: document.getElementById("detect-table"),
   themeToggle: document.getElementById("theme-toggle"),
+  textToggle: document.getElementById("text-toggle"),
   panel: document.getElementById("panel"),
   exampleChips: document.getElementById("example-chips"),
 };
@@ -157,6 +158,22 @@ function toggleTheme() {
 darkQuery.addEventListener("change", renderTheme);
 renderTheme();
 
+// Large text, for a cook who sees poorly: every size in app.css is relative to the page's, so one
+// switch scales it all. Per device, remembered; index.html applies it before the first paint.
+function renderTextSize() {
+  el.textToggle.setAttribute("aria-pressed", String(document.documentElement.dataset.text === "large"));
+}
+
+function toggleTextSize() {
+  const large = document.documentElement.dataset.text !== "large";
+  if (large) document.documentElement.dataset.text = "large";
+  else delete document.documentElement.dataset.text;
+  savePref("textSize", large ? "large" : "normal");
+  renderTextSize();
+}
+
+renderTextSize();
+
 // ?speakButtons=0 / =1 persists the per-device choice (0 for screen-reader users).
 const SPEAK_BUTTONS_PARAM = params.get("speakButtons");
 if (SPEAK_BUTTONS_PARAM === "0" || SPEAK_BUTTONS_PARAM === "1") {
@@ -222,7 +239,7 @@ function setBusy(on) {
   el.busy.hidden = !on;
   // Talking, typing and dismissing an alert stay possible while the camera call runs.
   document.querySelectorAll("[data-action]").forEach((btn) => {
-    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme"].includes(btn.dataset.action)) btn.disabled = on;
+    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme", "text-size"].includes(btn.dataset.action)) btn.disabled = on;
   });
 }
 
@@ -249,6 +266,7 @@ function localize() {
     if (text) node.textContent = text;
   });
   el.askInput.placeholder = t("ask_placeholder", lang);
+  el.textToggle.setAttribute("aria-label", t("text_size", lang)); // it only shows "Aa"
 }
 
 // --- the yes/no question the app is waiting on ---
@@ -1599,6 +1617,7 @@ window.addEventListener("blur", () => {
 
 const ACTIONS = {
   theme: () => toggleTheme(),
+  "text-size": () => toggleTextSize(),
   identify: () => identify(),
   recipes: () => openRecipes(),
   "close-recipes": () => {

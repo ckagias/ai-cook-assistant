@@ -278,10 +278,31 @@ input:focus-visible {
   letter-spacing: -0.01em;
 }
 
-#theme-toggle {
+/* The header keeps its size with large text on, so its two switches always fit beside the name. */
+.topbar {
+  font-size: 17px;
+}
+
+.topbar-tools {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+#theme-toggle,
+#text-toggle {
   min-height: 36px;
   padding: 4px 12px;
   font-size: 0.85em;
+}
+
+#text-toggle {
+  min-width: 44px;
+}
+
+/* Large text: body sets the size everything else is relative to. */
+:root[data-text="large"] body {
+  font-size: 20px;
 }
 
 .vision-col {
@@ -578,6 +599,13 @@ input:focus-visible {
 @media (max-width: 380px) {
   #stepper .button-grid button {
     font-size: 0.82em;
+  }
+}
+
+/* Large text on a phone: two to a row, or "Προηγούμενο" no longer fits and splits mid-word. */
+@container (max-width: 480px) {
+  :root[data-text="large"] #stepper .button-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1002,6 +1030,10 @@ button.talk[aria-pressed="true"] {
 
   body {
     font-size: 18px;
+  }
+
+  :root[data-text="large"] body {
+    font-size: 22px;
   }
 
   .brand {

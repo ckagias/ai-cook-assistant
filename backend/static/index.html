@@ -11,11 +11,12 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="app.css" />
   <script>
-    // Before the first paint, so a saved choice never flashes the other theme. No saved choice:
-    // app.css follows the system's light/dark setting.
+    // Before the first paint, so a saved choice never flashes the other theme or text size. No
+    // saved theme: app.css follows the system's light/dark setting.
     try {
       var savedTheme = localStorage.getItem("theme");
       if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+      if (localStorage.getItem("textSize") === "large") document.documentElement.dataset.text = "large";
     } catch (e) {}
   </script>
 </head>
@@ -38,7 +39,10 @@
   <div id="app" hidden>
     <header class="topbar">
       <h1 class="brand">Βοηθός Μαγειρικής</h1>
-      <button id="theme-toggle" class="switch" data-action="theme" data-speak="theme_toggle" data-label="theme_toggle" aria-pressed="false">Σκούρο θέμα</button>
+      <div class="topbar-tools">
+        <button id="text-toggle" data-action="text-size" data-speak="text_size" aria-label="Μεγάλα γράμματα" aria-pressed="false">Aa</button>
+        <button id="theme-toggle" class="switch" data-action="theme" data-speak="theme_toggle" data-label="theme_toggle" aria-pressed="false">Σκούρο</button>
+      </div>
     </header>
 
     <div class="vision-col">

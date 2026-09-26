@@ -355,7 +355,12 @@ export const STRINGS = {
   speak_stop_timer: { en: "Stops this timer.", el: "Σταματά αυτό το χρονόμετρο." },
   speak_send: { en: "Send. Sends what you typed.", el: "Στείλε. Στέλνει αυτό που έγραψες." },
   speak_alert_ok: { en: "OK. Closes the alert.", el: "Εντάξει. Κλείνει την ειδοποίηση." },
-  theme_toggle: { en: "Dark theme", el: "Σκούρο θέμα" },
+  theme_toggle: { en: "Dark", el: "Σκούρο" },
+  text_size: { en: "Large text", el: "Μεγάλα γράμματα" },
+  speak_text_size: {
+    en: "Large text. Makes all the writing on screen bigger, or back to normal.",
+    el: "Μεγάλα γράμματα. Μεγαλώνει όλα τα γράμματα της οθόνης, ή τα επιστρέφει στο κανονικό.",
+  },
   speak_theme_toggle: {
     en: "Dark theme. Switches the screen between dark and light colours.",
     el: "Σκούρο θέμα. Αλλάζει την οθόνη ανάμεσα σε σκούρα και ανοιχτά χρώματα.",
