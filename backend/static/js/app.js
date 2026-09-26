@@ -6,6 +6,8 @@ import * as api from "./api.js";
 import { createMonitor } from "./monitor.js";
 import { createAimer, guideUntilFramed } from "./aim.js";
 import { createSession } from "./session.js";
+import { createDetector } from "./detect.js";
+import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
 
 const el = {
   gate: document.getElementById("gate"),
@@ -21,6 +23,10 @@ const el = {
   clarify: document.getElementById("clarify"),
   timer: document.getElementById("timer"),
   debug: document.getElementById("debug"),
+  overlay: document.getElementById("overlay"),
+  detectToggle: document.getElementById("detect-toggle"),
+  detectStats: document.getElementById("detect-stats"),
+  detectTable: document.getElementById("detect-table"),
 };
 
 let lang = "el";
@@ -28,12 +34,25 @@ let busy = false;
 let lastCheck = null; // context for the one clarification round
 
 const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+// Demo convenience: start the detection preview as soon as the camera is up.
+const DETECT_ON_START = new URLSearchParams(window.location.search).get("detect") === "1";
+
+// ?speakButtons=0 / =1 persists the per-device choice (0 for screen-reader users).
+const SPEAK_BUTTONS_PARAM = new URLSearchParams(window.location.search).get("speakButtons");
+if (SPEAK_BUTTONS_PARAM === "0" || SPEAK_BUTTONS_PARAM === "1") {
+  setSpeakButtons(SPEAK_BUTTONS_PARAM === "1");
+}
+installSpeakOnPress({ getLang: () => lang });
 
 // Present only when an operator is pairing this device for the first time - captured
 // once into localStorage, then api.js attaches it as a header on every call after.
 const PAIRING_TOKEN_PARAM = new URLSearchParams(window.location.search).get("token");
 if (PAIRING_TOKEN_PARAM) {
   api.setPairingToken(PAIRING_TOKEN_PARAM);
+  // Stored now - take it out of the address bar and history so it isn't shown or shared.
+  const clean = new URL(window.location.href);
+  clean.searchParams.delete("token");
+  window.history.replaceState(null, "", clean.pathname + clean.search + clean.hash);
 }
 
 function formatTime(ms) {
@@ -101,6 +120,28 @@ const aimer = createAimer({
     el.debug.textContent = `aim: ${score.toFixed(2)} (${reason})`;
   },
 });
+
+const detector = createDetector({
+  video: el.video,
+  canvas: el.overlay,
+  table: el.detectTable,
+  stats: el.detectStats,
+  getLang: () => lang,
+  getRecipeId: () => session.getRecipe()?.id ?? null,
+  // A vision-LLM call is running: don't compete with it for the camera frame or the CPU.
+  isPaused: () => busy,
+});
+
+function setDetection(on) {
+  if (on) {
+    detector.start();
+  } else {
+    detector.stop();
+  }
+  el.detectToggle.setAttribute("aria-pressed", String(on));
+}
+
+window.addEventListener("resize", () => detector.redraw());
 
 function render(res) {
   // Order matters: safety preempts, framing blocks, then the answer, then hedging, then the question.
@@ -215,6 +256,7 @@ async function openRecipes() {
   const backBtn = document.createElement("button");
   backBtn.textContent = lang === "el" ? "Πίσω" : "Back";
   backBtn.dataset.action = "close-recipes";
+  backBtn.dataset.speak = "back";
   el.recipeList.appendChild(backBtn);
 
   el.recipeList.hidden = false;
@@ -290,6 +332,7 @@ const ACTIONS = {
   stop: () => stopRecipe(),
   "answer-yes": () => checkDoneness(lang === "el" ? "Ναι" : "yes"),
   "answer-no": () => checkDoneness(lang === "el" ? "Όχι" : "no"),
+  "detect-toggle": () => setDetection(!detector.isRunning()),
 };
 
 // No per-button onclick - delegate from a single document-level click listener.
@@ -338,6 +381,9 @@ el.start.addEventListener("click", async () => {
     if (warnings.some((w) => /greek/i.test(w))) {
       speak(t("no_greek_voice", "en"), { priority: "checkin", lang: "en" });
     }
+
+    el.detectToggle.textContent = t("detect_toggle", lang);
+    if (DETECT_ON_START) setDetection(true);
   } catch (err) {
     el.start.disabled = false;
     el.gateError.hidden = false;

@@ -32,6 +32,7 @@ def test_js_module_syntax(path):
         input=source,
         capture_output=True,
         text=True,
+        encoding="utf-8",  # Windows would otherwise encode the Greek source as cp1252 and crash
         timeout=30,
     )
     assert result.returncode == 0, f"{path.name} failed to parse:\n{result.stderr}"
@@ -44,6 +45,7 @@ def test_mjs_suite_passes(path):
         cwd=BACKEND_DIR,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=60,
     )
     assert result.returncode == 0, f"{path.name} exited {result.returncode}:\n{result.stdout}\n{result.stderr}"

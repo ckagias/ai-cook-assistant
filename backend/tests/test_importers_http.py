@@ -5,7 +5,7 @@ import time
 def test_403_then_200_retries(monkeypatch):
     calls = {"n": 0}
 
-    def fake_get(url, headers=None, timeout=None):
+    def fake_get(url, headers=None, timeout=None, **kwargs):
         calls["n"] += 1
         if calls["n"] == 1:
             return httpx.Response(403)
@@ -20,7 +20,7 @@ def test_403_then_200_retries(monkeypatch):
 
 
 def test_non_retryable_404_raises(monkeypatch):
-    def fake_get(url, headers=None, timeout=None):
+    def fake_get(url, headers=None, timeout=None, **kwargs):
         return httpx.Response(404)
 
     monkeypatch.setattr(httpx, "get", fake_get)
@@ -51,7 +51,7 @@ def test_rate_floor_enforced(monkeypatch):
     monkeypatch.setattr(time, "monotonic", fake_monotonic)
     monkeypatch.setattr(time, "sleep", fake_sleep)
 
-    def fake_get(url, headers=None, timeout=None):
+    def fake_get(url, headers=None, timeout=None, **kwargs):
         return httpx.Response(200, content=b"ok")
 
     monkeypatch.setattr(httpx, "get", fake_get)

@@ -27,6 +27,12 @@ body {
 button {
   font: inherit;
   color: inherit;
+  /* Long-press speaks the button (a11y.js) - don't let the OS start a text selection or
+     callout menu on top of it, or add a double-tap zoom delay. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 [hidden] {
@@ -77,6 +83,12 @@ button {
   flex-direction: column;
 }
 
+.vision-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
 .viewport {
   position: relative;
   flex: 1;
@@ -85,11 +97,91 @@ button {
   overflow: hidden;
 }
 
+/* Absolutely positioned: a percentage height never resolves inside the flex column, which left
+   the video at its natural height with a black band under it (and the overlay misaligned). */
 #video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: cover; /* detect.js's coverTransform mirrors this - change both together */
   display: block;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* --- detection panel: live table under the preview --- */
+
+#detect-panel {
+  padding: 8px 12px 0;
+}
+
+.detect-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+#detect-toggle {
+  min-height: var(--touch);
+  min-width: var(--touch);
+  padding: 8px 16px;
+  background: #222;
+  color: var(--fg);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  font-size: 1em;
+}
+
+#detect-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: #111;
+}
+
+#detect-stats {
+  font-size: 0.75em;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+#detect-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 0.75em;
+  font-variant-numeric: tabular-nums;
+}
+
+#detect-table th,
+#detect-table td {
+  padding: 4px 6px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #333;
+}
+
+#detect-table th {
+  color: #aaa;
+  font-weight: normal;
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  vertical-align: middle;
 }
 
 /* busy indicator: three pulsing dots */
@@ -184,24 +276,28 @@ footer {
   color: #aaa;
 }
 
-/* landscape / wide tablet: video and controls side by side */
+/* landscape / wide tablet: preview + detection table on the left, everything else stacked on
+   the right. A grid, because a single-row flexbox squeezed every control into its own column. */
 
 @media (min-width: 720px) and (orientation: landscape) {
   #app {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 60% 40%;
+    grid-auto-rows: min-content;
+    align-items: start;
+  }
+
+  .vision-col {
+    grid-column: 1;
+    grid-row: 1 / span 12;
+  }
+
+  #app > :not(.vision-col) {
+    grid-column: 2;
   }
 
   .viewport {
-    flex: 1 1 60%;
-    min-height: 100vh;
-  }
-
-  #app > :not(.viewport) {
-    flex: 0 0 40%;
-  }
-
-  #app {
-    align-content: flex-start;
+    min-height: 65vh;
   }
 }
 

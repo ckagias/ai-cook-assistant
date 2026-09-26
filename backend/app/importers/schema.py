@@ -15,6 +15,8 @@ class StagedIngredient(BaseModel):
 class StagedStep(BaseModel):
     section: dict[str, str]
     text: dict[str, str]
+    # Parsed from the text by the importer ("bake for 25 minutes"); the curator confirms it.
+    suggested_duration_sec: int | None = None
 
 
 class StagedMetadata(BaseModel):

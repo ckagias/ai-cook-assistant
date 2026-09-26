@@ -22,8 +22,7 @@ from pathlib import Path
 from .schema import StagedRecipe, StagedIngredient, StagedStep, StagedMetadata
 
 STAGING_ROOT = Path(__file__).resolve().parent.parent.parent / "data" / "imported_recipes_staging" / "akis_petretzikis"
-STAGING_ROOT.mkdir(parents=True, exist_ok=True)
-MANIFEST_PATH = STAGING_ROOT / "manifest.json"
+MANIFEST_PATH = STAGING_ROOT / "manifest.json"  # write_staged() creates the directory when it first writes
 REFETCH_THRESHOLD = timedelta(days=7)
 
 SITEMAP_URL = "https://akispetretzikis.com/sitemap.xml"
@@ -193,8 +192,13 @@ def normalize(raw_el: dict, raw_en: dict) -> StagedRecipe:
 
     source_id = str(raw_el.get("source_id") or data_el.get("id") or raw_en.get("source_id") or data_en.get("id"))
 
-    title = {"el": (data_el.get("title") or {}).get("el") if isinstance(data_el.get("title"), dict) else (data_el.get("title") or {}),
-             "en": (data_en.get("title") or {}).get("en") if isinstance(data_en.get("title"), dict) else (data_en.get("title") or {})}
+    def _localized(value, lang: str) -> str:
+        # The site has served `title` both as a plain string and as a {lang: text} dict.
+        if isinstance(value, dict):
+            return str(value.get(lang) or "")
+        return str(value) if isinstance(value, str) else ""
+
+    title = {"el": _localized(data_el.get("title"), "el"), "en": _localized(data_en.get("title"), "en")}
 
     # Category: try to copy id/slug if present
     category = {}
@@ -208,9 +212,8 @@ def normalize(raw_el: dict, raw_en: dict) -> StagedRecipe:
     ingredients = []
     for sec in data_el.get("ingredient_sections") or []:
         for ing in sec.get("ingredients") or []:
-            title_el = ing.get("title") if isinstance(ing.get("title"), str) else ing.get("title")
-            # build bilingual title where possible
-            title_dict = {"el": title_el, "en": None}
+            # English ingredients are not zipped in yet - "" rather than None, which the schema rejects.
+            title_dict = {"el": _localized(ing.get("title"), "el"), "en": ""}
             # Quantity/unit/info best-effort
             quantity = str(ing.get("quantity") or "")
             unit = {"el": str(ing.get("unit") or ""), "en": ""}
@@ -267,8 +270,7 @@ def normalize(raw_el: dict, raw_en: dict) -> StagedRecipe:
         source_id=source_id,
         source_url={"el": _recipe_urls_for_id(source_id)[0], "en": _recipe_urls_for_id(source_id)[1]},
         fetched_at=raw_el.get("fetched_at") or datetime.now(timezone.utc).isoformat(),
-        title={"el": (data_el.get("title") or "") if isinstance(data_el.get("title"), str) else (data_el.get("title") or {}),
-               "en": (data_en.get("title") or "") if isinstance(data_en.get("title"), str) else (data_en.get("title") or {})},
+        title=title,
         category=category,
         ingredients=ingredients,
         steps=steps,

@@ -3,6 +3,19 @@ backend/.env
 __pycache__/
 *.pyc
 .venv/
+.venv-*/
+.venv.*/
 *.pem
 backend/data/reference_candidates/
 backend/data/imported_recipes_staging/
+backend/models/
+backend/data/detection_eval/
+backend/data/benchmarks/*.json
+backend/data/*.db
+backend/data/*.db-wal
+backend/data/*.db-shm
+# setup.sh / setup-window.sh local state: every wheel ever installed (old versions kept),
+# per-IP LAN certificates, the app window's browser profile and the server log
+.wheelhouse/
+.run/
+backend/certs/

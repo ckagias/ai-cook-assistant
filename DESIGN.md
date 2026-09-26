@@ -228,3 +228,102 @@ suite (104 passed) and a live `uvicorn` run stay green/unchanged with
 `BACKEND_PAIRING_TOKEN` unset, and that setting it correctly rejects a
 missing/wrong header while `/health` and the static mount stay
 unauthenticated either way.
+
+## 16. Pretrained detection, chosen by measurement - "cut down" without training
+
+The ask was a big YOLO model "cut down" to kitchen classes and hands, without training one.
+You can't prune a network's architecture without retraining it, so "cut down" here means:
+- restrict the **vocabulary**;
+- pick the **smallest model and input size** that holds the frame-rate target;
+- export to the **fastest runtime** on the actual machine.
+
+Two pretrained families compete in `scripts/benchmark_detectors.py`:
+
+- `yolov8*-oiv7`: closed vocabulary, trained on Open Images V7. It already knows Human hand,
+  Kitchen knife, Frying pan, Cutting board, Spatula, Whisk and so on; cutting down is class
+  filtering.
+- `yoloe-26*`: open vocabulary. `set_classes(prompts)` gives any list (pot, onion, raw meat,
+  boiling water...), and export bakes it into the weights. The ~254 MB text encoder is then
+  only needed at export time.
+
+`app/detection/vocabulary.json` is the single class list both map onto. The preview, the
+per-recipe narrowing and the importer's ingredient linking all use the same ids.
+
+Hands come from MediaPipe Hand Landmarker rather than a box class, because its 21 landmarks
+give fingertips. That is what makes "touching" answerable instead of just "near".
+
+The selection rule is written down, not tuned by eye. Among configurations whose detector +
+hands median latency fits 170 ms (about 4.5 FPS end to end on the target laptop), the winner
+is the one with the highest group-weighted AP50. Hands, utensils and cookware weigh double;
+the experimental cooking-state classes weigh half. The finalists are then re-timed
+*interleaved*, frame by frame, because a long sequential sweep on a laptop is skewed by
+thermal throttling. See `data/benchmarks/detector_report.md` for the measured result and its
+caveats (Open Images favors the oiv7 family; the classes only YOLOE knows can't be scored there).
+
+**Result on the reference laptop** (Ryzen 5 4500U, no CUDA, 1,011 Open Images photos):
+**YOLOE-26s at 480 px on OpenVINO**, weighted AP50 **0.446** at 102 ms per frame with hands.
+- The open-vocabulary model beat every Open-Images-trained one on Open Images' own photos.
+  The best oiv7 model that fit, `yolov8m` at 320 px, scored 0.351.
+- YOLOE-26s at 320 px is nearly as accurate (0.443) at 61 ms. It's the pick if frame rate
+  matters more.
+- Larger variants and 640 px inputs didn't fit the budget.
+- OpenVINO beat ONNX Runtime and PyTorch on this AMD CPU every time; ONNX Runtime was often
+  the *slowest*.
+
+Hands use **hybrid** mode: MediaPipe alone had precision 0.97 but recall only 0.36, because
+it needs most of the hand in frame. Adding the detector's hand boxes that MediaPipe missed
+raised hand AP50 from 0.356 to 0.448. Those extra hands are box-only (no fingertips).
+
+A known confusion: YOLOE sometimes calls a kitchen knife "scissors".
+
+## 17. Detection runs on the laptop, per frame over HTTP
+
+`POST /detect` takes a raw JPEG (no base64), and the client keeps exactly one request in
+flight. That gives natural backpressure: a slow frame delays the next one instead of queueing
+them. Local inference means frames never leave the machine and cost nothing, unlike `/analyze`.
+
+The endpoint reads its own body with a running byte cap *after* the auth and rate-limit
+dependencies run. So an unauthenticated or chunked upload can't make the server buffer
+anything; the older Content-Length middleware can't stop a chunked body.
+
+The camera has no depth, so relations are "touching" (overlap in the image), "over" (inside a
+much larger object's box, e.g. a stove) and "near". They are shown visually only. Speaking
+them as reassurance ("your hand is clear of the knife") would be a safety claim a 2D detector
+can't back.
+
+## 18. SQLite, with imported recipes staged until a human curates them
+
+A single stdlib-sqlite3 file keeps the no-Docker, no-server setup (#1). `recipes.py` kept its
+read API, so `/analyze`, `/recipes` and `vision.py` didn't change.
+
+Every row has a status. The importer only ever writes `staged`, and only `published` recipes
+are served or used by the safety rules. So DESIGN #4's premise (safety fields are a human
+decision) survives importing thousands of recipes.
+
+`data/recipes.json` stays the version-controlled seed, and `curate_recipe.py --export` writes
+curated recipes back to it.
+
+## 19. Any-URL import via schema.org, not per-site scrapers
+
+Most recipe sites publish schema.org `Recipe` data because search engines reward it. The
+MIT-licensed `recipe-scrapers` library reads it: 725 site-specific scrapers plus a generic
+fallback. That covers "any recipe website" with one code path, where the Akis importer needed
+a scraper per site.
+
+Fetching stays in `importers/http.py`. The importer is polite by default:
+- `robots.txt` is honoured;
+- the User-Agent is honest (the browser one is opt-in);
+- a page fetched in the last 7 days isn't fetched again.
+
+Staged ids come from a hash of the URL, never from page content, so no remote text reaches
+anything id- or path-shaped (the importer path-traversal finding). Step durations, ingredient
+quantities and equipment are parsed as *suggestions* that the curator confirms.
+
+## 20. Buttons speak on long-press / hover, below every other voice
+
+Long-press on a touch screen speaks the button's description and swallows the click that
+would follow. Mouse hover (PC demo) and keyboard focus speak too.
+
+These "hints" are the lowest TTS priority: a hint never interrupts real speech, and only
+replaces another hint. The same change fixed an older ordering bug: a routine command
+("Let me take a look") could cut off a safety alert mid-sentence. It now queues behind it.

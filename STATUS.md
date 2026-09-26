@@ -3,6 +3,53 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
+## Update: detection, recipe database, any-URL import, speaking buttons (branch `feature/detection-db`)
+
+**Built and verified:**
+- **Object + hand detection** (`backend/app/detection/`, `POST /detect`): pretrained models only.
+  The model was chosen by `scripts/benchmark_detectors.py` on this laptop (Ryzen 5 4500U, no
+  CUDA). See `backend/data/benchmarks/detector_report.md` for the numbers and caveats.
+  Verified live: a real photo through the running server, and the full client in headless Edge
+  with a fake camera fed from that photo. Boxes land on the object in both the desktop and
+  phone layouts, and the table fills with pixel positions.
+- **Detection preview** (`static/js/detect.js`): overlay colored by group, "label NN%", a table
+  under the preview, FPS and latency shown. Measured about 8 FPS end to end while the benchmark
+  was competing for the CPU.
+- **Speaking buttons** (`static/js/a11y.js`): long-press speaks without activating, a short tap
+  activates, and mouse hover speaks. Verified in headless Edge with real touch events and by
+  recording what reached `speechSynthesis`.
+- **SQLite recipe database** (`app/db.py`, `app/recipes.py`): seeded from `recipes.json`. The
+  seed recipes round-trip exactly, and staged recipes are never served.
+- **Any-URL importer** (`app/importers/generic.py`): schema.org via `recipe-scrapers`; honours
+  robots.txt; idempotent; never overwrites published recipes. Tested with hand-written HTML
+  fixtures only, *not yet run against a live site*.
+- Fixed along the way:
+  - `main` had been red (8 failing tests);
+  - the importer crashed on any recipe with ingredients, and its `source_id` could escape the
+    staging folder;
+  - curation defaulted Greek instructions to English text and could silently overwrite a
+    curated recipe;
+  - a TTS command could cut off a safety alert;
+  - `#video`'s height never resolved in the portrait layout, which left a black band.
+- Test suite: 220 passing (Python + Node), with and without the detection dependencies.
+- **Setup scripts** (`setup.sh`, `setup.ps1`, `setup-window.sh`, `setup-window.ps1`, `.cmd`
+  wrappers), all run for real:
+  - a re-run with nothing to do takes seconds and downloads nothing;
+  - a version change keeps the old wheel in `.wheelhouse/`;
+  - `setup-window` serves on the LAN over HTTPS and opens an Edge app window; closing the
+    window stops the server;
+  - `bash setup-window.sh` from WSL hands over to the Windows launcher;
+  - a venv partly deleted by an interrupted WSL run was repaired offline with
+    `sync_deps.py --repair`.
+
+**Not verified yet:**
+- A live import from a real recipe site (the fixtures cover the parser, not any site's markup).
+- Detection on a **physical tablet camera in a real kitchen**: everything so far is photos and
+  a fake camera. The Open Images eval set is not your kitchen; add an in-house labeled set with
+  `benchmark_detectors.py --extra-dir`.
+- Hand relations are 2D ("touching" = overlapping in the image) and shown visually only. Spoken
+  hand alerts were deliberately left for after real-footage false-alarm rates are measured.
+
 ## What's built and verified
 
 All 23 phases of the rebuild plan are implemented:

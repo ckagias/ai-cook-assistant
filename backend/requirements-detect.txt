@@ -1,0 +1,27 @@
+# Optional: object + hand detection (POST /detect, the preview panel, the model benchmark).
+# The base app does not need any of this - install with `./setup.sh --with-detection`, or
+#   pip install -r requirements-detect.txt
+#
+# Exact pins: these are the versions scripts/benchmark_detectors.py was run with; the
+# numbers in data/benchmarks/detector_report.md are only valid for them.
+#
+# Size: ~1 GB on Windows/macOS (CPU torch). On Linux, PyPI's torch ships CUDA (~2.5 GB) - for
+# CPU-only install torch first from https://download.pytorch.org/whl/cpu.
+#
+# Licenses: ultralytics code and weights are AGPL-3.0 (serving the app to others over a
+# network means publishing its source, or buying an Ultralytics enterprise license).
+# mediapipe is Apache-2.0.
+
+ultralytics==8.4.163
+torch==2.14.0
+torchvision==0.29.0
+openvino==2026.4.0
+onnx==1.23.0
+onnxslim==0.1.96
+onnxruntime==1.30.0
+# Python 3.11/3.12 only - no wheels for 3.13+ yet.
+mediapipe==1.0.1
+psutil==7.2.2
+# YOLOE's text encoder, needed only to set/export a custom vocabulary. Ultralytics would
+# otherwise pip-install it from GitHub by itself at runtime.
+clip @ git+https://github.com/ultralytics/CLIP.git@a13192f8cb767260d7dfd98c843b0716593169e7
