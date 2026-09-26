@@ -224,9 +224,15 @@ every section - it exercises the real camera/mic/audio stack and the real
   user gesture on iOS/Chrome; the Start button's click handler is the only
   place that unlocks them. A page reload after granting permissions once is
   usually enough if audio still seems dead.
-- **Speaks in English instead of Greek** - no Greek voice is installed on
-  that device/OS. `probe.html`'s "Speak Greek test phrase" button confirms
-  this directly by pinning the actual voice object it found (or didn't).
+- **Speaks in English instead of Greek** - no Greek voice is installed on that device. This is
+  common on **Android**: Chrome there uses the phone's text-to-speech engine, which usually has
+  only the phone's language and English.
+  - The app then says, and shows in both languages, where to get one on that kind of device.
+  - On Android that's Settings → Text-to-speech → Speech Services by Google → its settings →
+    Install voice data → Greek. On Samsung, first set the preferred engine to Google's.
+  - A Greek voice that appears later, whether it loads late (Android lists voices in steps) or
+    is installed meanwhile, switches the app back to Greek by itself.
+  - `probe.html`'s "Speak Greek test phrase" button shows the actual voice found (or not).
 - **Reference image silently never shows up** - `GET /reference/<recipe>/<step>`
   distinguishes "not declared in recipes.json" from "declared but missing on
   disk" in its 404 detail message; a typo in `reference_image` looks

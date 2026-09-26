@@ -25,6 +25,28 @@ export const STRINGS = {
     en: "No Greek voice was found on this device, so I'll speak in English instead.",
     el: "No Greek voice was found on this device, so I'll speak in English instead.",
   },
+  // Where to get a Greek voice on this kind of device (tts.js greekVoiceHelpKey). Spoken in
+  // English - there is no Greek voice yet - and shown in both languages for whoever helps.
+  greek_voice_android: {
+    en: "To hear Greek: open Settings, search for Text-to-speech, choose Speech Services by Google, open its settings, Install voice data, and pick Greek.",
+    el: "Για ελληνική φωνή: Ρυθμίσεις, αναζήτηση «Μετατροπή κειμένου σε ομιλία», Υπηρεσίες ομιλίας από Google, οι ρυθμίσεις της, Εγκατάσταση δεδομένων φωνής, Ελληνικά.",
+  },
+  greek_voice_windows: {
+    en: "To hear Greek: Windows Settings, Time and language, Speech, Add voices, Greek. Then restart the browser.",
+    el: "Για ελληνική φωνή: Ρυθμίσεις των Windows, Ώρα και γλώσσα, Ομιλία, Προσθήκη φωνών, Ελληνικά. Μετά ξανάνοιξε τον browser.",
+  },
+  greek_voice_apple: {
+    en: "To hear Greek: Settings, Accessibility, Spoken Content, Voices, Greek. Then reopen the page.",
+    el: "Για ελληνική φωνή: Ρυθμίσεις, Προσβασιμότητα, Εκφωνούμενο περιεχόμενο, Φωνές, Ελληνικά. Μετά ξανάνοιξε τη σελίδα.",
+  },
+  greek_voice_other: {
+    en: "To hear Greek, install a Greek text-to-speech voice in the system settings, then restart the browser.",
+    el: "Για ελληνική φωνή, εγκατάστησε ελληνική φωνή ομιλίας στις ρυθμίσεις του συστήματος και ξανάνοιξε τον browser.",
+  },
+  greek_voice_found: {
+    en: "A Greek voice is here now. Carrying on in Greek.",
+    el: "Βρέθηκε ελληνική φωνή. Συνεχίζω στα ελληνικά.",
+  },
   timer_done: {
     en: "Time's up.",
     el: "Ο χρόνος τελείωσε.",

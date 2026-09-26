@@ -638,3 +638,26 @@ a voice that holds each sentence until released, so the cut-in point could be ch
 - "Hey chef" and then silence resumed after 8 s.
 
 Not yet tried on a real microphone.
+
+## 34. A Greek voice that arrives late still counts
+
+Chrome on Android has no voices of its own. It lists the phone's text-to-speech engine's, often
+in steps and seconds after the first call, and the engine usually has only the phone's language
+and English. iOS ships a Greek voice and lists it at once, which is why "iPhone speaks Greek,
+Android doesn't" was mostly an Android fact.
+
+The app made it worse. It decided once, at Start, from the first non-empty list (often a partial
+one on Android), and an English fallback then lasted for the whole session. Now:
+- **It stops at once when Greek is already listed** (iPhone, most PCs: no added wait).
+- **Otherwise it waits for the list to fill:** 4 s on Android, 2 s elsewhere. It stops early the
+  moment Greek appears, and accepts Android's `el_GR` as well as `el-GR`.
+- **It keeps watching after the decision.** A Greek voice that turns up later, whether it loads
+  late or is installed meanwhile, switches the app back to Greek, and the app says so.
+- **With no Greek voice**, the English notice says where to get one on this kind of device
+  (Android, Windows, iPhone/Mac, other), and it's shown in both languages for whoever is
+  helping.
+
+Verified in the real page with an Android user agent:
+- Greek listed after 2.5 s: the app started in Greek.
+- Greek listed after 7 s: English with the Android steps, then "Βρέθηκε ελληνική φωνή" and Greek
+  from there on.

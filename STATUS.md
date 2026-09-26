@@ -16,6 +16,11 @@ DESIGN.md #33. **Built and verified:**
   tells a need from a question.
 - **Urgent reports** get the immediate safety step first.
 - **One wake phrase: "Hey chef"** («Χέι σεφ»). "Γεια σου σεφ" and "ok chef" were dropped.
+- **A Greek voice that Android lists late now counts** (DESIGN #34). The app waits up to 4 s on
+  Android and keeps watching: a Greek voice arriving later switches it back to Greek. With none,
+  it says (in English) and shows (in both languages) where to install one on that device.
+  Verified in the real page with an Android user agent: Greek at 2.5 s gave a Greek start;
+  Greek at 7 s gave English, then "Βρέθηκε ελληνική φωνή".
 - **Tests:** 350 passing. New: interruptions and the app's own voice in `wake.test.mjs`, the
   interrupt-and-resume logic in `a11y.test.mjs`, the wake-phrase forms, and `add_preference` on
   the server, including a preference carrying an injected instruction.

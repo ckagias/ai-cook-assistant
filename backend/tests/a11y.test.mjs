@@ -34,8 +34,10 @@ const synth = {
     this.log.push("cancel");
     for (const u of dropped) setTimeout(() => u.onend && u.onend(), 0);
   },
-  getVoices: () => [],
-  addEventListener() {},
+  voices: [],
+  listeners: {},
+  getVoices() { return this.voices; },
+  addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
   removeEventListener() {},
   pause() {},
   resume() {},
@@ -297,6 +299,28 @@ function testOptOut() {
 await testHintNeverInterruptsRealSpeech();
 await testCommandQueuesBehindSafety();
 await testCommandStillInterruptsCommand();
+// Android lists its voices late: "no Greek" at Start is provisional, and a Greek voice that turns
+// up afterwards ("el_GR" - Android's spelling) switches speech back, once.
+async function testGreekVoiceArrivesLate() {
+  synth.voices = [{ lang: "en-US", name: "English" }];
+  const lang = await tts.probeVoices("el", { waitMs: 5 });
+  assert(lang === "en" && tts.didFallBackToEnglish(), "no Greek voice yet: English");
+  let told = 0;
+  tts.onGreekVoice(() => (told += 1));
+  synth.voices = [{ lang: "en-US", name: "English" }, { lang: "el_GR", name: "Google Ελληνικά" }];
+  for (const fn of synth.listeners.voiceschanged || []) fn();
+  assert(told === 1 && !tts.didFallBackToEnglish() && tts.effectiveLang("el") === "el", "switched back to Greek");
+  for (const fn of synth.listeners.voiceschanged || []) fn();
+  assert(told === 1, "only once");
+
+  const ua = (s) => tts.greekVoiceHelpKey(s);
+  assert(ua("Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/140") === "greek_voice_android", "Android");
+  assert(ua("Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X)") === "greek_voice_apple", "iPhone");
+  assert(ua("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edg/140") === "greek_voice_windows", "Windows");
+  assert(ua("Mozilla/5.0 (X11; Linux x86_64)") === "greek_voice_other", "anything else");
+  console.log("test l (a Greek voice that arrives late switches speech back) OK");
+}
+
 await testHushSparesSafety();
 await testInterruptHandsBackTheRest();
 testLongPressSpeaksAndSwallowsTheClick();
@@ -305,6 +329,7 @@ testDragCancelsAndStaleSuppressionExpires();
 testHoverSpeaksOnceAndFocusOnlyWhenKeyboard();
 testHoldToTalkIsNeverALongPress();
 testOptOut();
+await testGreekVoiceArrivesLate(); // last: it leaves a Greek voice set
 tts.stopAll();
 
 console.log("all passed");

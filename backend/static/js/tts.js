@@ -40,44 +40,71 @@ export function effectiveLang(requested) {
   return forcedLang || requested;
 }
 
-export function probeVoices(preferredLang) {
+// Android's "el_GR" and everyone else's "el-GR".
+function findGreekVoice(voices) {
+  return (voices || []).find((v) => v.lang && /^el([-_]|$)/i.test(v.lang)) || null;
+}
+
+// Which "how to install a Greek voice" instructions fit this device (strings.js greek_voice_*).
+export function greekVoiceHelpKey(userAgent = "") {
+  if (/Android/i.test(userAgent)) return "greek_voice_android";
+  if (/iPhone|iPad|iPod|Macintosh/i.test(userAgent)) return "greek_voice_apple";
+  if (/Windows/i.test(userAgent)) return "greek_voice_windows";
+  return "greek_voice_other";
+}
+
+// Called when a Greek voice turns up after the app had fallen back to English.
+const greekVoiceListeners = [];
+export function onGreekVoice(fn) {
+  greekVoiceListeners.push(fn);
+}
+
+// Chrome on Android has no voices of its own: it lists the phone's text-to-speech engine's,
+// in steps, sometimes seconds after the first call - so a first "no Greek" is only provisional.
+function voiceWaitMs() {
+  return /Android/i.test(globalThis.navigator?.userAgent || "") ? 4000 : 2000;
+}
+
+export function probeVoices(preferredLang, { waitMs = voiceWaitMs() } = {}) {
   return new Promise((resolve) => {
     if (voiceProbeDone) {
       resolve(effectiveLang(preferredLang));
       return;
     }
-
+    const synth = window.speechSynthesis;
     let settled = false;
 
     function finish() {
       if (settled) return;
       settled = true;
       voiceProbeDone = true;
-      window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
-
-      const voices = window.speechSynthesis.getVoices() || [];
-      greekVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("el")) || null;
-      if (!greekVoice) {
-        forcedLang = "en";
-      }
+      greekVoice = findGreekVoice(synth.getVoices());
+      forcedLang = greekVoice ? null : "en";
       resolve(effectiveLang(preferredLang));
     }
 
-    function onVoicesChanged() {
-      finish();
-    }
+    // Watched for as long as the page lives, not just until the first answer: a Greek voice that
+    // loads late (or is installed while the app is open) switches speech back to Greek.
+    synth.addEventListener("voiceschanged", () => {
+      const found = findGreekVoice(synth.getVoices());
+      if (!settled) {
+        if (found) finish(); // don't wait out the timer once Greek is there
+        return;
+      }
+      if (found && !greekVoice) {
+        greekVoice = found;
+        forcedLang = null;
+        for (const fn of greekVoiceListeners) fn();
+      }
+    });
 
-    // Safari may populate synchronously and never fire "voiceschanged".
-    const initial = window.speechSynthesis.getVoices();
-    if (initial && initial.length > 0) {
+    // Already listed (Safari fills the list at once and may never fire "voiceschanged").
+    if (findGreekVoice(synth.getVoices())) {
       finish();
       return;
     }
-
-    // Chrome returns [] on first call and fires the event later - listen for
-    // both that AND a 2000ms fallback in case neither ever arrives.
-    window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
-    setTimeout(finish, 2000);
+    // Otherwise give the list time to arrive - English only after that.
+    setTimeout(finish, waitMs);
   });
 }
 

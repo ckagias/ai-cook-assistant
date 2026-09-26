@@ -1,5 +1,8 @@
 import { boot, caps, earcon, buzz } from "./boot.js";
-import { speak, isSpeaking, fireSafetyInterrupt, hush, interrupt, probeVoices, registerAcousticGate } from "./tts.js";
+import {
+  speak, isSpeaking, fireSafetyInterrupt, hush, interrupt, probeVoices, registerAcousticGate, onGreekVoice,
+  greekVoiceHelpKey,
+} from "./tts.js";
 import { cameraProblem } from "./camera_help.js";
 import { t, tf, humanDuration } from "./strings.js";
 import { captureFrame } from "./capture.js";
@@ -119,6 +122,15 @@ const memory = createMemory();
 const carriedPrefs = [];
 // What the app was saying when "Hey chef" cut in: said again once the cook has been answered.
 let interrupted = null;
+
+// Android lists its voices late, and a Greek one can be installed while the app is open: when one
+// turns up after the fallback to English, carry on in Greek.
+onGreekVoice(() => {
+  if (lang === "el") return;
+  lang = "el";
+  localize();
+  say(t("greek_voice_found", "el"), "checkin");
+});
 
 // Per-device conveniences - nothing here is needed for the app to work.
 function loadPref(key) {
@@ -1849,7 +1861,11 @@ el.start.addEventListener("click", async () => {
 
     say(t(handsFree ? "greeting" : "greeting_no_wake", lang), "command");
     if (warnings.some((w) => /greek/i.test(w))) {
-      speak(t("no_greek_voice", "en"), { priority: "checkin", lang: "en" });
+      // No Greek voice (yet): said in English with where to get one on this device, and on screen
+      // in both languages for whoever is helping. One that loads later switches back by itself.
+      const help = greekVoiceHelpKey(navigator.userAgent);
+      speak(`${t("no_greek_voice", "en")} ${t(help, "en")}`, { priority: "checkin", lang: "en" });
+      logLine("chef", `${t(help, "el")} / ${t(help, "en")}`);
     }
 
     if (DETECT_ON_START) setDetection(true);
