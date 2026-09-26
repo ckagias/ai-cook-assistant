@@ -2,14 +2,18 @@ import base64
 import logging
 import mimetypes
 import os
+import threading
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, barcode, demo_cache, output_guard, rate_limit, recipes, vision
-from .schemas import AnalyzeRequest, AnalyzeResponse, Recipe
+from .detection import service as detection_service
+from .schemas import AnalyzeRequest, AnalyzeResponse, DetectResponse, Recipe
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,8 @@ MAX_ANALYZE_CONTENT_LENGTH = 15 * 1024 * 1024
 # Checked again after decoding, since a pathological base64 string could slip past a
 # Content-Length check depending on how it's encoded.
 MAX_DECODED_IMAGE_BYTES = 10 * 1024 * 1024
+# A 640px preview JPEG is ~40-80 KB; 2 MB leaves room for a full-size camera frame.
+MAX_DETECT_BODY_BYTES = 2 * 1024 * 1024
 
 app = FastAPI()
 
@@ -64,6 +70,8 @@ PROVIDER_KEY_ENV = {
 # still an open proxy to a third party, whose own rate limit is a shared resource.
 ANALYZE_RATE_LIMIT = (20, 3600.0)  # (max_requests, window_sec)
 BARCODE_RATE_LIMIT = (60, 3600.0)
+# Local compute only (no paid API) - sized for a live preview at up to ~15 frames/s.
+DETECT_RATE_LIMIT = (900, 60.0)
 
 
 def _rate_limit_dependency(prefix: str, max_requests: int, window_sec: float):
@@ -147,6 +155,13 @@ def _canned_demo_miss(language: str) -> dict:
 @app.on_event("startup")
 def on_startup():
     recipes.load_recipes()
+    if detection_service.detection_enabled():
+        # Model load takes seconds; warm in the background so the server comes up immediately.
+        # A /detect call that arrives first simply waits on the service lock.
+        try:
+            threading.Thread(target=detection_service.get_service().warm, daemon=True).start()
+        except detection_service.DetectionUnavailable as exc:
+            logger.warning("detection not started: %s", exc)
     if demo_cache.demo_mode_enabled():
         return
     provider = os.getenv("VISION_PROVIDER", "anthropic")
@@ -203,6 +218,48 @@ def analyze(req: AnalyzeRequest):
 
     result = vision.analyze_frame(image_bytes, context)
     return _apply_safety_rules(result, req, recipe_flagged)
+
+
+async def _read_capped_body(request: Request, limit: int) -> bytes:
+    """Read the raw body with a running byte cap. Unlike the Content-Length middleware this
+    also stops a chunked upload, which carries no Content-Length at all."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise HTTPException(status_code=413, detail="image too large")
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > limit:
+            raise HTTPException(status_code=413, detail="image too large")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+@app.post(
+    "/detect",
+    response_model=DetectResponse,
+    dependencies=[
+        Depends(auth.require_pairing_token),
+        Depends(_rate_limit_dependency("detect", *DETECT_RATE_LIMIT)),
+    ],
+)
+async def detect(request: Request, recipe_id: Optional[str] = None):
+    # Raw image/jpeg body (no base64, no JSON) - read here, after auth and rate limiting.
+    body = await _read_capped_body(request, MAX_DETECT_BODY_BYTES)
+    if not body:
+        raise HTTPException(status_code=400, detail="empty body - send a JPEG frame")
+    try:
+        service = detection_service.get_service()
+    except detection_service.DetectionUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    allowed = recipes.detection_vocabulary(recipe_id) if recipe_id else None
+    try:
+        return await run_in_threadpool(service.run, body, allowed)
+    except detection_service.DetectionUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get("/recipes", dependencies=[Depends(auth.require_pairing_token)])

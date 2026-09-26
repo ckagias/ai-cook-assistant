@@ -8,3 +8,7 @@ python-dotenv>=1.0
 httpx>=0.27
 Pillow>=10.0
 pytest>=8.0
+# Any-URL recipe import (schema.org / JSON-LD parsing), MIT. Fetching stays in app/importers/http.py.
+recipe-scrapers==15.12.0
+# LAN HTTPS certificate for setup-window.sh/.ps1 (scripts/lan.py) - no openssl needed.
+cryptography>=42

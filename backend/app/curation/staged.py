@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from app.importers.schema import StagedRecipe
+from app.importers.schema import StagedIngredient, StagedMetadata, StagedRecipe, StagedStep
+from app.schemas import Recipe
 
 STAGING_ROOT = Path(__file__).resolve().parent.parent.parent / "data" / "imported_recipes_staging"
 
@@ -38,3 +39,50 @@ def get_staged(source: str, source_id: str) -> StagedRecipe | None:
         if recipe.source_id == source_id:
             return recipe
     return None
+
+
+# --- staged records in the database (the generic any-URL importer writes these) ---
+
+
+def list_staged_records() -> list[Recipe]:
+    from app import recipes as recipes_module
+
+    return recipes_module.all_recipes(status=recipes_module.STAGED)
+
+
+def staged_from_record(record: Recipe) -> StagedRecipe:
+    """Adapt a staged database record to the shape run_curation() works on."""
+    lang = record.language or "en"
+    source = record.source
+    if record.ingredient_details:
+        ingredients = [
+            StagedIngredient(title={lang: d.raw_text}, quantity=d.quantity or "", unit={lang: d.unit} if d.unit else {})
+            for d in record.ingredient_details
+        ]
+    else:
+        ingredients = [StagedIngredient(title={lang: text}) for text in record.ingredients]
+    times = record.times
+    return StagedRecipe(
+        source=source.site if source else "unknown",
+        source_id=source.source_id if source else record.id,
+        source_url=source.url if source else {},
+        fetched_at=(source.fetched_at or source.imported_at) if source else "",
+        title=record.name,
+        category={"title": record.category} if record.category else {},
+        ingredients=ingredients,
+        steps=[
+            StagedStep(section={lang: s.section} if s.section else {}, text=s.instruction,
+                       suggested_duration_sec=s.suggested_duration_sec)
+            for s in record.steps
+        ],
+        metadata=StagedMetadata(
+            make_time_min=times.prep_min if times else None,
+            bake_time_min=times.cook_min if times else None,
+            servings=record.servings,
+            difficulty=record.difficulty,
+            dietary_flags=record.dietary,
+            equipment=[e.name for e in record.equipment],
+            image_url=record.image_url,
+            video_url=record.video_url,
+        ),
+    )

@@ -5,6 +5,12 @@ let voiceProbeDone = false;
 let forcedLang = null;
 let keepAlive = null;
 
+// Higher rank wins. "hint" is a button description (long-press / hover) - it must never cut
+// off real speech. A "command" must never cut off a playing "safety" alert.
+export const PRIORITY_RANK = { hint: 0, checkin: 1, command: 2, safety: 3 };
+let current = null; // the utterance actually playing, so a late onend from a cancelled one is ignored
+let currentRank = -1;
+
 export function registerAcousticGate(fn) {
   gateListener = fn;
 }
@@ -96,6 +102,11 @@ function buildUtterance(text, lang) {
   };
 
   const onDone = () => {
+    // cancel() fires the cancelled utterance's end/error asynchronously - possibly after the
+    // next one was queued. Only the most recently queued utterance may clear the state.
+    if (current !== u) return;
+    current = null;
+    currentRank = -1;
     speaking = false;
     clearInterval(keepAlive);
     keepAlive = null;
@@ -107,14 +118,32 @@ function buildUtterance(text, lang) {
   return u;
 }
 
+// Returns false when the text was dropped (a hint while something more important plays).
 export function speak(text, { priority = "checkin", lang = "el" } = {}) {
-  if (!text) return;
-  if (priority === "safety" || priority === "command") {
-    window.speechSynthesis.cancel();
+  if (!text) return false;
+  const rank = PRIORITY_RANK[priority] ?? PRIORITY_RANK.checkin;
+  const synth = window.speechSynthesis;
+  const busy = speaking || synth.speaking || synth.pending;
+
+  if (priority === "hint") {
+    // Only ever replaces another hint; never cancels queued or playing real speech.
+    if (busy && (currentRank > PRIORITY_RANK.hint || synth.pending)) return false;
+    if (busy) synth.cancel();
+    currentRank = rank;
+  } else if (priority === "safety" || (priority === "command" && currentRank < PRIORITY_RANK.safety)) {
+    synth.cancel();
     speaking = false;
     setAcousticMonitor(false);
+    currentRank = rank;
+  } else {
+    // Queued behind whatever is playing (a checkin, or a command during a safety alert):
+    // the queue keeps the highest rank it holds until it drains.
+    currentRank = Math.max(currentRank, rank);
   }
-  window.speechSynthesis.speak(buildUtterance(text, lang));
+  const u = buildUtterance(text, lang);
+  current = u;
+  synth.speak(u);
+  return true;
 }
 
 export function fireSafetyInterrupt(message, lang) {
@@ -123,6 +152,8 @@ export function fireSafetyInterrupt(message, lang) {
 
 export function stopAll() {
   window.speechSynthesis.cancel();
+  current = null;
+  currentRank = -1;
   speaking = false;
   clearInterval(keepAlive);
   keepAlive = null;

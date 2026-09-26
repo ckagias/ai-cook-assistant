@@ -51,8 +51,12 @@ def _enforce_rate_floor(host: str) -> None:
             _last_call[host] = now
 
 
-def get(url: str, *, max_retries: int = 5) -> httpx.Response:
+def get(url: str, *, max_retries: int = 5, user_agent: str | None = None, follow_redirects: bool = True) -> httpx.Response:
     """GET `url` with polite retry/backoff and per-host rate-floor.
+
+    `user_agent` defaults to the browser UA the Akis importer needs (SITE_NOTES_akis.md); the
+    generic importer passes its own honest one. Redirects are followed - recipe sites commonly
+    redirect to a canonical slug, and a 3xx would otherwise read as a hard failure.
 
     Raises RuntimeError on a non-retryable status or after exhausting
     retries.
@@ -69,7 +73,12 @@ def get(url: str, *, max_retries: int = 5) -> httpx.Response:
         _enforce_rate_floor(host)
 
         try:
-            resp = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=DEFAULT_TIMEOUT)
+            resp = httpx.get(
+                url,
+                headers={"User-Agent": user_agent or USER_AGENT},
+                timeout=DEFAULT_TIMEOUT,
+                follow_redirects=follow_redirects,
+            )
         except Exception as exc:
             # Network-level errors are treated as transient and retried.
             if attempt >= max_retries:

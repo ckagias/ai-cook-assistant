@@ -1,0 +1,99 @@
+import json
+import sqlite3
+
+import pytest
+
+from app import db, recipes
+from app.schemas import EquipmentItem, IngredientLine, Recipe, RecipeSource, RecipeStep, RecipeTimes
+
+
+@pytest.fixture(autouse=True)
+def fresh_db(tmp_path, monkeypatch):
+    path = tmp_path / "cook.db"
+    monkeypatch.setenv("DB_PATH", str(path))
+    return path
+
+
+def test_first_use_migrates_and_seeds_from_recipes_json(fresh_db):
+    ids = [r.id for r in recipes.all_recipes()]
+    seed = json.loads(recipes.SEED_PATH.read_text(encoding="utf-8"))
+    assert ids == [r["id"] for r in seed]
+    # The seeded recipes round-trip exactly - the API output for them is unchanged.
+    for item, recipe in zip(seed, recipes.all_recipes()):
+        assert Recipe.model_validate(item).model_dump() == recipe.model_dump()
+
+
+def test_migrations_are_idempotent(fresh_db):
+    recipes.ensure_ready()
+    assert db.migrate(fresh_db) == []
+    with db.session(fresh_db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0] == 3
+
+
+def test_staged_recipes_are_never_served():
+    recipes.save_recipe(
+        Recipe(id="s-1", name={"en": "Imported"}, aliases={}, ingredients=["x"],
+               steps=[RecipeStep(index=0, instruction={"en": "Do"})]),
+        status=recipes.STAGED,
+    )
+    assert "s-1" not in [r.id for r in recipes.all_recipes()]
+    assert recipes.get_recipe("s-1") is None
+    assert recipes.get_recipe("s-1", status=None) is not None
+    assert recipes.step_contains_raw_protein("s-1", 0) is None  # /analyze can't use it either
+
+
+def test_full_metadata_round_trips():
+    recipe = Recipe(
+        id="moussaka",
+        name={"el": "Μουσακάς", "en": "Moussaka"},
+        aliases={"el": [], "en": []},
+        ingredients=["2 eggplants", "500 g minced beef"],
+        steps=[RecipeStep(index=0, instruction={"en": "Fry the eggplant."}, section="Prep", suggested_duration_sec=600)],
+        source=RecipeSource(site="example", source_id="42", url={"en": "https://example.com/m"},
+                            imported_at="2026-09-25T00:00:00Z", author="A. Cook", fetched_at="2026-09-24T00:00:00Z"),
+        language="en",
+        servings="6",
+        times=RecipeTimes(prep_min=30, cook_min=60, total_min=90),
+        cuisine="Greek",
+        nutrition={"calories": "450 kcal"},
+        dietary={"vegetarian": False},
+        ingredient_details=[
+            IngredientLine(raw_text="2 eggplants", quantity="2", name="eggplants"),
+            IngredientLine(raw_text="500 g minced beef", quantity="500", unit="g", name="minced beef", vocab_id="raw_meat"),
+        ],
+        equipment=[EquipmentItem(name="baking tray", vocab_id="baking_tray", inferred=True)],
+    )
+    recipes.save_recipe(recipe, status=recipes.PUBLISHED, raw_source={"raw": True})
+    assert recipes.get_recipe("moussaka").model_dump() == recipe.model_dump()
+    assert recipes.source_payload("moussaka") == {"raw": True}
+
+
+def test_edited_plain_ingredient_list_wins_over_stale_structure():
+    recipe = Recipe(
+        id="toast", name={"en": "Toast"}, aliases={}, ingredients=["bread", "butter"], steps=[],
+        ingredient_details=[IngredientLine(raw_text="2 slices bread", quantity="2")],
+    )
+    recipes.save_recipe(recipe, status=recipes.PUBLISHED)
+    assert recipes.get_recipe("toast").ingredients == ["bread", "butter"]
+
+
+def test_database_itself_rejects_a_bad_id(fresh_db):
+    recipes.ensure_ready()
+    with pytest.raises(sqlite3.IntegrityError):
+        with db.session(fresh_db) as conn:
+            conn.execute("INSERT INTO recipes (id, name_json) VALUES ('../evil', '{}')")
+
+
+def test_deleting_a_recipe_cascades_to_its_rows(fresh_db):
+    recipes.delete_recipe("pasta")
+    with db.session(fresh_db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM steps WHERE recipe_id = 'pasta'").fetchone()[0] == 0
+
+
+def test_detection_vocabulary_uses_linked_classes_and_follows_updates():
+    first = recipes.detection_vocabulary("pancakes")
+    assert {"pancake", "egg", "frying_pan", "hand"} <= first
+    updated = recipes.get_recipe("pancakes").model_copy(update={"equipment": [EquipmentItem(name="whisk", vocab_id="whisk")]})
+    recipes.save_recipe(updated, status=recipes.PUBLISHED)
+    assert "whisk" in recipes.detection_vocabulary("pancakes")
+    assert recipes.detection_vocabulary("no-such-recipe") is None

@@ -69,6 +69,16 @@ export function analyze(req) {
   );
 }
 
+// Live preview frames: short timeout and never retried - the next frame is a better retry.
+export function detectFrame(blob, recipeId) {
+  const query = recipeId ? "?recipe_id=" + encodeURIComponent(recipeId) : "";
+  return requestJson(
+    "/detect" + query,
+    { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob },
+    3000
+  );
+}
+
 export const health = () => requestJson("/health", {}, 4000);
 export const listRecipes = () => requestJson("/recipes");
 export const getRecipe = (id) => requestJson("/recipes/" + encodeURIComponent(id));
