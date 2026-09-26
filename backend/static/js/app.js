@@ -204,6 +204,7 @@ function showAlert(text, kind) {
   el.alertText.textContent = text;
   el.alert.dataset.kind = kind;
   el.alert.hidden = false;
+  panelToTop(); // it's the panel's first line: in view however far the cook had scrolled
   el.flash.dataset.kind = kind;
   el.flash.hidden = false;
   el.flash.classList.remove("go");
@@ -236,6 +237,7 @@ function askQuestion(type, text, extra = {}) {
   pending = { type, ...extra };
   el.questionText.textContent = text;
   el.question.hidden = false;
+  panelToTop(); // Yes and No in view, not above a scrolled list
   say(text, "checkin"); // queued behind whatever answer came before it
 }
 
