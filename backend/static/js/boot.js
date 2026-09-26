@@ -45,7 +45,7 @@ export async function boot(preferredLang = "el") {
   const warnings = [];
 
   if (!window.isSecureContext || !navigator.mediaDevices) {
-    throw cameraError("insecure", "Insecure context or no media device support - camera/mic access needs HTTPS.");
+    throw cameraError("insecure", "Insecure context or no media device support. Camera and microphone access need HTTPS.");
   }
 
   // Audio out. Warn, don't throw, if resume() fails. Reused when Start is pressed again after a
@@ -100,7 +100,7 @@ export async function boot(preferredLang = "el") {
   // and a desktop prompt nobody clicks leave the promise pending - a blind cook can't see it).
   if ("Notification" in window) {
     if (Notification.permission === "denied") {
-      warnings.push("Notification permission was denied - timer alerts stay in the app.");
+      warnings.push("Notification permission was denied, so timer alerts stay in the app.");
     } else if (Notification.permission === "default") {
       try {
         Notification.requestPermission().catch(() => {});
@@ -113,7 +113,7 @@ export async function boot(preferredLang = "el") {
   // Voice.
   caps.lang = await probeVoices(preferredLang);
   if (caps.lang !== preferredLang) {
-    warnings.push("No Greek voice was found - falling back to English speech.");
+    warnings.push("No Greek voice was found, so speech falls back to English.");
   }
 
   // Registered explicitly, even as a no-op - see the note in tts.js.

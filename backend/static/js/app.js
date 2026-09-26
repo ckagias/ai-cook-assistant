@@ -71,6 +71,7 @@ const el = {
   detectToggle: document.getElementById("detect-toggle"),
   detectStats: document.getElementById("detect-stats"),
   detectTable: document.getElementById("detect-table"),
+  themeToggle: document.getElementById("theme-toggle"),
 };
 
 const params = new URLSearchParams(window.location.search);
@@ -125,6 +126,31 @@ function savePref(key, value) {
   }
 }
 let doneness = loadPref("doneness");
+
+// Light or dark: the system's setting until the header button picks one, which is remembered
+// (index.html applies it before the first paint).
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+function currentTheme() {
+  return document.documentElement.dataset.theme || (darkQuery.matches ? "dark" : "light");
+}
+
+function renderTheme() {
+  el.themeToggle.setAttribute("aria-pressed", String(currentTheme() === "dark"));
+  // The browser's own bar matches the page; the colour lives in app.css only.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+}
+
+function toggleTheme() {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  savePref("theme", next);
+  renderTheme();
+}
+
+darkQuery.addEventListener("change", renderTheme);
+renderTheme();
 
 // ?speakButtons=0 / =1 persists the per-device choice (0 for screen-reader users).
 const SPEAK_BUTTONS_PARAM = params.get("speakButtons");
@@ -190,7 +216,7 @@ function setBusy(on) {
   el.busy.hidden = !on;
   // Talking, typing and dismissing an alert stay possible while the camera call runs.
   document.querySelectorAll("[data-action]").forEach((btn) => {
-    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool"].includes(btn.dataset.action)) btn.disabled = on;
+    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme"].includes(btn.dataset.action)) btn.disabled = on;
   });
 }
 
@@ -538,7 +564,7 @@ function render(res, kind) {
     // question later can compare with it.
     if (step) {
       const verdict = t("verdict_" + (res.verdict || "none"), lang);
-      const seen = [res.doneness_stage, res.spoken_response].filter(Boolean).join(" - ");
+      const seen = [res.doneness_stage, res.spoken_response].filter(Boolean).join(": ");
       memory.note("check", tf("mem_check", lang, { n: step.index + 1, verdict, seen }), { step: step.index });
       renderMemory();
     }
@@ -1528,6 +1554,7 @@ window.addEventListener("blur", () => {
 // --- buttons, keys, typing ---
 
 const ACTIONS = {
+  theme: () => toggleTheme(),
   identify: () => identify(),
   recipes: () => openRecipes(),
   "close-recipes": () => {

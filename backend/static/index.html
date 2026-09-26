@@ -2,42 +2,58 @@
 <html lang="el">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
+  <!-- resizes-content: the on-screen keyboard shrinks the layout, so the typing bar stays above it. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#F4F2EE" />
   <title>Βοηθός Μαγειρικής</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="app.css" />
+  <script>
+    // Before the first paint, so a saved choice never flashes the other theme. No saved choice:
+    // app.css follows the system's light/dark setting.
+    try {
+      var savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <section id="gate">
-    <h1>Βοηθός Μαγειρικής</h1>
-    <button id="start" data-action="start" data-speak="start">ΞΕΚΙΝΑ</button>
-    <p id="gate-error" role="alert" hidden></p>
+    <div class="gate-card">
+      <h1>Βοηθός Μαγειρικής</h1>
+      <p class="lede">Βλέπει με την κάμερα, σου μιλά και σε ακούει. Μαγειρεύεις χωρίς να κοιτάς την οθόνη.</p>
+      <ol class="how">
+        <li>Στρέψε την κάμερα στον πάγκο ή στο φαγητό.</li>
+        <li>Πες «Γεια σου σεφ» ή πάτα Μίλα.</li>
+        <li>Διάλεξε συνταγή και ακολούθησε τα βήματα.</li>
+      </ol>
+      <button id="start" data-action="start" data-speak="start">ΞΕΚΙΝΑ</button>
+      <p class="note">Χρειάζεται πρόσβαση στην κάμερα και στο μικρόφωνο.</p>
+      <p id="gate-error" role="alert" hidden></p>
+    </div>
   </section>
 
   <div id="app" hidden>
+    <header class="topbar">
+      <h1 class="brand">Βοηθός Μαγειρικής</h1>
+      <button id="theme-toggle" class="switch" data-action="theme" data-speak="theme_toggle" data-label="theme_toggle" aria-pressed="false">Σκούρο θέμα</button>
+    </header>
+
     <div class="vision-col">
       <div class="viewport">
         <video id="video" playsinline muted autoplay></video>
         <!-- Visual demo overlay: boxes + labels. Hidden from screen readers; speech stays the main channel. -->
         <canvas id="overlay" aria-hidden="true"></canvas>
         <div id="busy" hidden>
-          <span class="dot"></span>
-          <span class="dot"></span>
-          <span class="dot"></span>
-        </div>
-        <!-- Hands-free state, always visible: whether the microphone is listening for "Hey chef". -->
-        <div id="wake-bar">
-          <span id="wake-status" data-state="off"></span>
-          <span id="interim" aria-hidden="true"></span>
+          <span data-label="thinking">Μια στιγμή…</span>
         </div>
       </div>
 
       <div id="detect-panel">
         <div class="detect-bar">
-          <button id="detect-toggle" data-action="detect-toggle" data-speak="detect_toggle" data-label="detect_toggle" aria-pressed="false">Ανίχνευση</button>
+          <button id="detect-toggle" class="switch" data-action="detect-toggle" data-speak="detect_toggle" data-label="detect_toggle" aria-pressed="false">Ανίχνευση</button>
           <span id="detect-stats" aria-hidden="true"></span>
         </div>
         <div class="table-scroll">
@@ -46,111 +62,115 @@
       </div>
     </div>
 
-    <div id="status" role="status" aria-live="assertive" aria-atomic="true"></div>
-
-    <!-- Timer ends, fire warnings: stays on screen until dismissed, for a cook who can't hear it. -->
-    <div id="alert" role="alert" hidden>
-      <p id="alert-text"></p>
-      <button data-action="alert-ok" data-speak="alert_ok" data-label="alert_ok">Εντάξει</button>
+    <!-- What the assistant is doing right now: hands-free state, its latest words, what it hears. -->
+    <div class="side">
+      <!-- Hands-free state, always visible: whether the microphone is listening for "Hey chef". -->
+      <span id="wake-status" data-state="off"></span>
+      <div id="status" role="status" aria-live="assertive" aria-atomic="true"></div>
+      <span id="interim" aria-hidden="true"></span>
+      <p class="meta">
+        <span id="timer"></span>
+        <span id="debug"></span>
+      </p>
     </div>
 
-    <!-- A yes/no question the app is waiting on: move on? add time? stop? -->
-    <div id="question" hidden>
-      <p id="question-text"></p>
-      <div class="button-grid">
-        <button data-action="answer-yes" data-speak="answer_yes" data-label="answer_yes">Ναι</button>
-        <button data-action="answer-no" data-speak="answer_no" data-label="answer_no">Όχι</button>
+    <main class="panel">
+      <!-- Timer ends, fire warnings: stays on screen until dismissed, for a cook who can't hear it. -->
+      <div id="alert" role="alert" hidden>
+        <p id="alert-text"></p>
+        <button data-action="alert-ok" data-speak="alert_ok" data-label="alert_ok">Εντάξει</button>
       </div>
-    </div>
 
-    <div id="controls" class="button-grid">
+      <!-- A yes/no question the app is waiting on: move on? add time? stop? -->
+      <div id="question" hidden>
+        <p id="question-text"></p>
+        <div class="button-grid">
+          <button class="primary" data-action="answer-yes" data-speak="answer_yes" data-label="answer_yes">Ναι</button>
+          <button data-action="answer-no" data-speak="answer_no" data-label="answer_no">Όχι</button>
+        </div>
+      </div>
+
+      <div id="controls" class="button-grid">
+        <button class="primary" data-action="recipes" data-speak="recipes" data-label="recipes">Συνταγές</button>
+        <button data-action="identify" data-speak="identify" data-label="identify">Τι είναι αυτό;</button>
+        <button id="wake-toggle" class="wide" data-action="wake-toggle" data-speak="wake_toggle" data-label="wake_toggle" aria-pressed="false">Χωρίς χέρια</button>
+      </div>
+
+      <div id="recipe-list" hidden></div>
+
+      <!-- First thing after choosing a recipe, before the ingredients: needs and preferences. -->
+      <section id="prefs" hidden aria-labelledby="prefs-title">
+        <h2 id="prefs-recipe"></h2>
+        <h3 id="prefs-title" data-label="prefs_title">Ανάγκες και προτιμήσεις</h3>
+        <p id="prefs-question"></p>
+        <div id="prefs-options" class="chips"></div>
+        <div class="button-grid">
+          <button class="primary" data-action="prefs-done" data-speak="prefs_done" data-label="prefs_done">Συνέχεια</button>
+          <button data-action="prefs-none" data-speak="prefs_none" data-label="prefs_none">Καμία, συνέχεια</button>
+        </div>
+      </section>
+
+      <section id="overview" hidden aria-labelledby="overview-title">
+        <h2 id="overview-title"></h2>
+        <p id="overview-meta"></p>
+        <div id="doneness" hidden>
+          <h3 data-label="doneness_title">Ψήσιμο</h3>
+          <div id="doneness-options" class="chips"></div>
+        </div>
+        <h3 data-label="ingredients">Υλικά</h3>
+        <ul id="ingredient-list"></ul>
+        <div id="equipment" hidden>
+          <h3 data-label="equipment">Σκεύη</h3>
+          <ul id="equipment-list"></ul>
+        </div>
+        <div class="button-grid">
+          <button class="primary" data-action="start-cooking" data-speak="start_cooking" data-label="start_cooking">Ξεκίνα</button>
+          <button data-action="check-ingredients" data-speak="check_ingredients" data-label="check_ingredients">Έλεγχος με κάμερα</button>
+          <button data-action="read-ingredients" data-speak="read_ingredients" data-label="read_ingredients">Πες τα υλικά</button>
+          <button class="quiet" data-action="stop" data-speak="stop" data-label="stop">Διακοπή</button>
+        </div>
+      </section>
+
+      <section id="stepper" hidden aria-labelledby="step-count">
+        <p id="step-count"></p>
+        <p id="step-text"></p>
+        <div id="timers"></div>
+        <!-- Built per step: "Done", the step's timer, and one-tap questions for a cook who reads. -->
+        <div id="step-actions" class="chips"></div>
+        <div class="button-grid">
+          <button class="primary" data-action="check" data-speak="check" data-label="check">Έλεγξε</button>
+          <button id="start-timer" data-action="start-timer" data-speak="start_timer" hidden></button>
+          <button data-action="repeat" data-speak="repeat" data-label="repeat">Επανάλαβε</button>
+          <button data-action="previous" data-speak="previous" data-label="previous">Προηγούμενο</button>
+          <button data-action="next" data-speak="next" data-label="next">Επόμενο</button>
+          <button data-action="read-ingredients" data-speak="ingredients" data-label="ingredients">Υλικά</button>
+          <button class="quiet" data-action="stop" data-speak="stop" data-label="stop">Διακοπή</button>
+        </div>
+      </section>
+
+      <!-- The recipe's short-term memory, readable: preferences, steps done, what checks saw. -->
+      <details id="memory-wrap" hidden>
+        <summary data-label="memory_title">Τι έχουμε κάνει</summary>
+        <ul id="memory-list"></ul>
+      </details>
+
+      <section id="log-wrap" aria-labelledby="log-title">
+        <h3 id="log-title" data-label="log_title">Συνομιλία</h3>
+        <!-- Everything said, both ways, in writing. Not a live region: the status line above is. -->
+        <div id="log" role="log" aria-live="off"></div>
+      </section>
+    </main>
+
+    <!-- Always on screen: one talk button, and typing instead of speaking (the same commands). -->
+    <div class="bottombar">
       <!-- data-hold keeps the long-press description from firing on the talk button. -->
       <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
-      <button id="wake-toggle" data-action="wake-toggle" data-speak="wake_toggle" data-label="wake_toggle" aria-pressed="false">Χωρίς χέρια</button>
-      <button data-action="recipes" data-speak="recipes" data-label="recipes">Συνταγές</button>
-      <button data-action="identify" data-speak="identify" data-label="identify">Τι είναι αυτό;</button>
-    </div>
-
-    <div id="recipe-list" hidden></div>
-
-    <!-- First thing after choosing a recipe, before the ingredients: needs and preferences. -->
-    <section id="prefs" hidden aria-labelledby="prefs-title">
-      <h2 id="prefs-recipe"></h2>
-      <h3 id="prefs-title" data-label="prefs_title">Ανάγκες και προτιμήσεις</h3>
-      <p id="prefs-question"></p>
-      <div id="prefs-options" class="chips"></div>
-      <div class="button-grid">
-        <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
-        <button class="primary" data-action="prefs-done" data-speak="prefs_done" data-label="prefs_done">Συνέχεια</button>
-        <button data-action="prefs-none" data-speak="prefs_none" data-label="prefs_none">Καμία - συνέχεια</button>
-      </div>
-    </section>
-
-    <section id="overview" hidden aria-labelledby="overview-title">
-      <h2 id="overview-title"></h2>
-      <p id="overview-meta"></p>
-      <div id="doneness" hidden>
-        <h3 data-label="doneness_title">Ψήσιμο</h3>
-        <div id="doneness-options" class="chips"></div>
-      </div>
-      <h3 data-label="ingredients">Υλικά</h3>
-      <ul id="ingredient-list"></ul>
-      <div id="equipment" hidden>
-        <h3 data-label="equipment">Σκεύη</h3>
-        <ul id="equipment-list"></ul>
-      </div>
-      <div class="button-grid">
-        <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
-        <button class="primary" data-action="start-cooking" data-speak="start_cooking" data-label="start_cooking">Ξεκίνα</button>
-        <button data-action="check-ingredients" data-speak="check_ingredients" data-label="check_ingredients">Έλεγχος με κάμερα</button>
-        <button data-action="read-ingredients" data-speak="read_ingredients" data-label="read_ingredients">Πες τα υλικά</button>
-        <button data-action="stop" data-speak="stop" data-label="stop">Διακοπή</button>
-      </div>
-    </section>
-
-    <section id="stepper" hidden aria-labelledby="step-count">
-      <p id="step-count"></p>
-      <p id="step-text"></p>
-      <div id="timers"></div>
-      <!-- Built per step: "Done", the step's timer, and one-tap questions for a cook who reads. -->
-      <div id="step-actions" class="chips"></div>
-      <div class="button-grid">
-        <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
-        <button class="primary" data-action="check" data-speak="check" data-label="check">Έλεγξε</button>
-        <button id="start-timer" data-action="start-timer" data-speak="start_timer" hidden></button>
-        <button data-action="repeat" data-speak="repeat" data-label="repeat">Επανάλαβε</button>
-        <button data-action="previous" data-speak="previous" data-label="previous">Προηγούμενο</button>
-        <button data-action="next" data-speak="next" data-label="next">Επόμενο</button>
-        <button data-action="read-ingredients" data-speak="ingredients" data-label="ingredients">Υλικά</button>
-        <button data-action="stop" data-speak="stop" data-label="stop">Διακοπή</button>
-      </div>
-    </section>
-
-    <!-- Typing instead of speaking: the same commands and questions as the voice. -->
-    <form id="ask" autocomplete="off">
-      <label for="ask-input" data-label="ask_label">Γράψε αντί να μιλήσεις</label>
-      <div class="ask-row">
+      <form id="ask" autocomplete="off">
+        <label for="ask-input" class="visually-hidden" data-label="ask_label">Γράψε αντί να μιλήσεις</label>
         <input id="ask-input" type="text" enterkeyhint="send" maxlength="500" />
         <button type="submit" data-speak="send" data-label="send">Στείλε</button>
-      </div>
-    </form>
-
-    <!-- The recipe's short-term memory, readable: preferences, steps done, what checks saw. -->
-    <details id="memory-wrap" hidden>
-      <summary data-label="memory_title">Τι έχουμε κάνει</summary>
-      <ul id="memory-list"></ul>
-    </details>
-
-    <section id="log-wrap" aria-labelledby="log-title">
-      <h3 id="log-title" data-label="log_title">Συνομιλία</h3>
-      <!-- Everything said, both ways, in writing. Not a live region: the status line above is. -->
-      <div id="log" role="log" aria-live="off"></div>
-    </section>
-
-    <footer>
-      <span id="timer"></span>
-      <span id="debug"></span>
-    </footer>
+      </form>
+    </div>
   </div>
 
   <div id="flash" aria-hidden="true" hidden></div>

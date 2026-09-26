@@ -48,8 +48,8 @@ export const STRINGS = {
     el: "Συνταγές. Σου λέει τις συνταγές που μπορείς να μαγειρέψεις βήμα βήμα.",
   },
   speak_check: {
-    en: "Check it. Takes a photo and tells you whether this step looks done - a cut, a mix, or the food cooking.",
-    el: "Έλεγξε. Βγάζει φωτογραφία και σου λέει αν το βήμα φαίνεται έτοιμο - κόψιμο, ανάμειξη ή μαγείρεμα.",
+    en: "Check it. Takes a photo and tells you whether this step looks done: a cut, a mix, or the food cooking.",
+    el: "Έλεγξε. Βγάζει φωτογραφία και σου λέει αν το βήμα φαίνεται έτοιμο: κόψιμο, ανάμειξη ή μαγείρεμα.",
   },
   speak_repeat: { en: "Repeat. Says the current step again.", el: "Επανάλαβε. Λέει ξανά το τρέχον βήμα." },
   speak_next: { en: "Next. Moves on to the next step.", el: "Επόμενο. Πηγαίνει στο επόμενο βήμα." },
@@ -76,8 +76,8 @@ export const STRINGS = {
     el: "Ο Firefox μπλόκαρε την κάμερα. Αν στη γραμμή διεύθυνσης φαίνεται διαγραμμένη κάμερα, πάτησέ τη και αφαίρεσε τον αποκλεισμό. Αλλιώς: Ρυθμίσεις, Απόρρητο και ασφάλεια, Άδειες, Κάμερα, Ρυθμίσεις, και ξετσέκαρε το «Φραγή νέων αιτημάτων πρόσβασης στην κάμερα». Μετά πάτησε ξανά ΞΕΚΙΝΑ.",
   },
   cam_blocked_ios: {
-    en: "The camera is blocked. On iPhone or iPad: tap \"aA\" in the address bar, Website Settings, Camera and Microphone, Allow - or Settings, Apps, Safari, Camera. Then reload the page.",
-    el: "Η κάμερα είναι μπλοκαρισμένη. Σε iPhone ή iPad: πάτησε «aA» στη γραμμή διεύθυνσης, Ρυθμίσεις ιστότοπου, Κάμερα και Μικρόφωνο, Να επιτρέπεται - ή Ρυθμίσεις, Εφαρμογές, Safari, Κάμερα. Μετά ανανέωσε τη σελίδα.",
+    en: "The camera is blocked. On iPhone or iPad: tap \"aA\" in the address bar, Website Settings, Camera and Microphone, Allow. Or: Settings, Apps, Safari, Camera. Then reload the page.",
+    el: "Η κάμερα είναι μπλοκαρισμένη. Σε iPhone ή iPad: πάτησε «aA» στη γραμμή διεύθυνσης, Ρυθμίσεις ιστότοπου, Κάμερα και Μικρόφωνο, Να επιτρέπεται. Ή: Ρυθμίσεις, Εφαρμογές, Safari, Κάμερα. Μετά ανανέωσε τη σελίδα.",
   },
   cam_blocked_safari: {
     en: "Safari blocked the camera. Open Safari, Settings, Websites, Camera and Microphone, set this site to Allow, then reload the page.",
@@ -88,12 +88,12 @@ export const STRINGS = {
     el: "Η κάμερα είναι μπλοκαρισμένη. Πάτησε το εικονίδιο αριστερά της διεύθυνσης, Άδειες, και επίτρεψε Κάμερα και Μικρόφωνο. Αν είναι γκρι: Ρυθμίσεις Android, Εφαρμογές, ο browser σου, Άδειες. Μετά πάτησε ξανά ΞΕΚΙΝΑ.",
   },
   cam_blocked_system: {
-    en: "The computer itself is blocking the camera. Windows: Settings, Privacy & security, Camera - turn on camera access and \"Let desktop apps access your camera\". Mac: System Settings, Privacy & Security, Camera - allow your browser. Then press Start again.",
-    el: "Ο ίδιος ο υπολογιστής μπλοκάρει την κάμερα. Windows: Ρυθμίσεις, Απόρρητο και ασφάλεια, Κάμερα - άνοιξε την πρόσβαση και το «Να επιτρέπεται στις εφαρμογές υπολογιστή». Mac: Ρυθμίσεις συστήματος, Απόρρητο και ασφάλεια, Κάμερα - επίτρεψε τον browser. Μετά πάτησε ξανά ΞΕΚΙΝΑ.",
+    en: "The computer itself is blocking the camera. Windows: Settings, Privacy & security, Camera, then turn on camera access and \"Let desktop apps access your camera\". Mac: System Settings, Privacy & Security, Camera, then allow your browser. Then press Start again.",
+    el: "Ο ίδιος ο υπολογιστής μπλοκάρει την κάμερα. Windows: Ρυθμίσεις, Απόρρητο και ασφάλεια, Κάμερα, και άνοιξε την πρόσβαση και το «Να επιτρέπεται στις εφαρμογές υπολογιστή». Mac: Ρυθμίσεις συστήματος, Απόρρητο και ασφάλεια, Κάμερα, και επίτρεψε τον browser. Μετά πάτησε ξανά ΞΕΚΙΝΑ.",
   },
   cam_embedded: {
-    en: "This preview window can't use the camera. Open the page in a browser - Chrome, Edge, Firefox or Safari.",
-    el: "Αυτό το παράθυρο προεπισκόπησης δεν μπορεί να χρησιμοποιήσει την κάμερα. Άνοιξε τη σελίδα σε browser - Chrome, Edge, Firefox ή Safari.",
+    en: "This preview window can't use the camera. Open the page in a browser: Chrome, Edge, Firefox or Safari.",
+    el: "Αυτό το παράθυρο προεπισκόπησης δεν μπορεί να χρησιμοποιήσει την κάμερα. Άνοιξε τη σελίδα σε browser: Chrome, Edge, Firefox ή Safari.",
   },
   cam_busy: {
     en: "Another app is using the camera (Teams, Zoom, the Camera app). Close it, then press Start again.",
@@ -132,20 +132,20 @@ export const STRINGS = {
   timer_stopped: { en: "Timer stopped.", el: "Το χρονόμετρο σταμάτησε." },
   no_speech: { en: "I didn't hear anything.", el: "Δεν άκουσα τίποτα." },
   ai_busy: {
-    en: "The assistant is busy right now. Try again in a minute - simple commands like next, repeat and timer still work.",
-    el: "Ο βοηθός είναι απασχολημένος αυτή τη στιγμή. Δοκίμασε ξανά σε ένα λεπτό - οι απλές εντολές όπως επόμενο, επανάλαβε και χρονόμετρο δουλεύουν κανονικά.",
+    en: "The assistant is busy right now. Try again in a minute. Simple commands like next, repeat and timer still work.",
+    el: "Ο βοηθός είναι απασχολημένος αυτή τη στιγμή. Δοκίμασε ξανά σε ένα λεπτό. Οι απλές εντολές όπως επόμενο, επανάλαβε και χρονόμετρο δουλεύουν κανονικά.",
   },
 
   // --- hands-free: "Hey chef" (wake.js) ---
   wake_toggle: { en: "Hands-free", el: "Χωρίς χέρια" },
   wake_idle: { en: "Say “Hey chef”", el: "Πες «Γεια σου σεφ»" },
   wake_armed: { en: "Listening…", el: "Σε ακούω…" },
-  wake_off: { en: "Hands-free is off - tap Talk", el: "Χωρίς χέρια: ανενεργό - πάτα Μίλα" },
+  wake_off: { en: "Hands-free is off. Tap Talk", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα" },
   wake_unsupported: {
-    en: "This browser can't listen hands-free - tap Talk (Chrome, Edge or Safari can)",
-    el: "Αυτός ο browser δεν ακούει χωρίς χέρια - πάτα Μίλα (μπορούν Chrome, Edge, Safari)",
+    en: "This browser can't listen hands-free. Tap Talk (Chrome, Edge or Safari can)",
+    el: "Αυτός ο browser δεν ακούει χωρίς χέρια. Πάτα Μίλα (μπορούν Chrome, Edge, Safari)",
   },
-  wake_blocked: { en: "The microphone is blocked - hands-free is off", el: "Το μικρόφωνο είναι μπλοκαρισμένο - χωρίς χέρια ανενεργό" },
+  wake_blocked: { en: "The microphone is blocked, so hands-free is off", el: "Το μικρόφωνο είναι μπλοκαρισμένο. Χωρίς χέρια: ανενεργό" },
   wake_local: { en: "on this device", el: "στη συσκευή" },
   wake_cloud: { en: "via the browser's speech service", el: "μέσω της υπηρεσίας ομιλίας του browser" },
   wake_on_said: { en: "Hands-free on. Say “Hey chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Γεια σου σεφ»." },
@@ -185,7 +185,7 @@ export const STRINGS = {
     el: "Πριν ξεκινήσουμε: έχεις κάποια ιδιαίτερη ανάγκη ή προτίμηση για αυτό το φαγητό; Για παράδειγμα αλλεργία, λιγότερο αλάτι ή πιο πικάντικο. Πες τη, ή πες «όχι».",
   },
   prefs_title: { en: "Your needs and preferences", el: "Ανάγκες και προτιμήσεις" },
-  prefs_none: { en: "None - continue", el: "Καμία - συνέχεια" },
+  prefs_none: { en: "None, continue", el: "Καμία, συνέχεια" },
   prefs_done: { en: "Continue", el: "Συνέχεια" },
   prefs_noted: { en: "Noted: {text}.", el: "Σημείωσα: {text}." },
   prefs_tell_me: { en: "Tell me which.", el: "Πες μου ποια." },
@@ -207,8 +207,8 @@ export const STRINGS = {
 
   // --- help and memory ---
   help_text: {
-    en: "Say “Hey chef”, then for example: I want to make roast beef, recipes, what do I see, ingredients, tools, start, next, repeat, timer, how much time is left, check it, what have we done - or ask any cooking question.",
-    el: "Πες «Γεια σου σεφ» και μετά για παράδειγμα: θέλω να φτιάξω ροσμπίφ, συνταγές, τι βλέπω, υλικά, σκεύη, ξεκίνα, επόμενο, επανάλαβε, χρονόμετρο, πόση ώρα μένει, έλεγξε, τι κάναμε - ή κάνε μια ερώτηση μαγειρικής.",
+    en: "Say “Hey chef”, then for example: I want to make roast beef, recipes, what do I see, ingredients, tools, start, next, repeat, timer, how much time is left, check it, what have we done. Or ask any cooking question.",
+    el: "Πες «Γεια σου σεφ» και μετά για παράδειγμα: θέλω να φτιάξω ροσμπίφ, συνταγές, τι βλέπω, υλικά, σκεύη, ξεκίνα, επόμενο, επανάλαβε, χρονόμετρο, πόση ώρα μένει, έλεγξε, τι κάναμε. Ή κάνε μια ερώτηση μαγειρικής.",
   },
   recap_empty: { en: "We haven't done anything in this recipe yet.", el: "Δεν έχουμε κάνει τίποτα ακόμα σε αυτή τη συνταγή." },
   recap_intro: { en: "So far:", el: "Μέχρι τώρα:" },
@@ -235,10 +235,10 @@ export const STRINGS = {
   q_next: { en: "What comes next?", el: "Τι ακολουθεί;" },
   q_time_left: { en: "How much time is left?", el: "Πόση ώρα μένει;" },
   speak_done_step: {
-    en: "Done. Tells me you've finished this step - I'll check it with the camera when it can be checked.",
-    el: "Έγινε. Μου λέει ότι τελείωσες το βήμα - αν ελέγχεται, θα το δω με την κάμερα.",
+    en: "Done. Tells me you've finished this step. I'll check it with the camera when it can be checked.",
+    el: "Έγινε. Μου λέει ότι τελείωσες το βήμα. Αν ελέγχεται, θα το δω με την κάμερα.",
   },
-  speak_prefs_none: { en: "None. No special needs - go to the ingredients.", el: "Καμία. Χωρίς ιδιαίτερες ανάγκες - πάμε στα υλικά." },
+  speak_prefs_none: { en: "None. No special needs, go to the ingredients.", el: "Καμία. Χωρίς ιδιαίτερες ανάγκες, πάμε στα υλικά." },
   speak_prefs_done: { en: "Continue. Go to the ingredients.", el: "Συνέχεια. Πάμε στα υλικά." },
 
   // --- detection ---
@@ -256,7 +256,7 @@ export const STRINGS = {
   step_check_prep: { en: "When you're done, say “check it” and I'll take a look.", el: "Όταν τελειώσεις, πες «έλεγξε» να ρίξω μια ματιά." },
   step_check_cook: { en: "Say “check it” whenever you want me to look.", el: "Πες «έλεγξε» όποτε θέλεις να ρίξω μια ματιά." },
   step_target: { en: "For {pref}, aim for {temp}°C inside.", el: "Για {pref}, στόχος {temp}°C στο εσωτερικό." },
-  recipe_done: { en: "That's the last step - enjoy your meal!", el: "Αυτό ήταν το τελευταίο βήμα - καλή όρεξη!" },
+  recipe_done: { en: "That's the last step. Enjoy your meal!", el: "Αυτό ήταν το τελευταίο βήμα. Καλή όρεξη!" },
   recipe_stopped: { en: "Recipe stopped.", el: "Η συνταγή σταμάτησε." },
 
   // --- questions the cook answers yes/no ---
@@ -327,8 +327,8 @@ export const STRINGS = {
 
   // --- spoken descriptions of the new buttons ---
   speak_wake_toggle: {
-    en: "Hands-free. When it's on, say “Hey chef” and then what you need - no need to touch anything.",
-    el: "Χωρίς χέρια. Όταν είναι ενεργό, πες «Γεια σου σεφ» και μετά τι θέλεις - χωρίς να αγγίξεις τίποτα.",
+    en: "Hands-free. When it's on, say “Hey chef” and then what you need. No need to touch anything.",
+    el: "Χωρίς χέρια. Όταν είναι ενεργό, πες «Γεια σου σεφ» και μετά τι θέλεις. Δεν χρειάζεται να αγγίξεις τίποτα.",
   },
   speak_previous: { en: "Previous. Goes back one step.", el: "Προηγούμενο. Πηγαίνει ένα βήμα πίσω." },
   speak_ingredients: { en: "Ingredients. Reads the ingredients and the equipment again.", el: "Υλικά. Λέει ξανά τα υλικά και τα σκεύη." },
@@ -347,12 +347,17 @@ export const STRINGS = {
   speak_stop_timer: { en: "Stops this timer.", el: "Σταματά αυτό το χρονόμετρο." },
   speak_send: { en: "Send. Sends what you typed.", el: "Στείλε. Στέλνει αυτό που έγραψες." },
   speak_alert_ok: { en: "OK. Closes the alert.", el: "Εντάξει. Κλείνει την ειδοποίηση." },
+  theme_toggle: { en: "Dark theme", el: "Σκούρο θέμα" },
+  speak_theme_toggle: {
+    en: "Dark theme. Switches the screen between dark and light colours.",
+    el: "Σκούρο θέμα. Αλλάζει την οθόνη ανάμεσα σε σκούρα και ανοιχτά χρώματα.",
+  },
 
   // --- detection preview (visual panel) ---
   detect_toggle: { en: "Detection", el: "Ανίχνευση" },
-  detect_error: { en: "Detection unavailable - is the server running with DETECTION_ENABLED=true?", el: "Η ανίχνευση δεν είναι διαθέσιμη." },
+  detect_error: { en: "Detection unavailable. Is the server running with DETECTION_ENABLED=true?", el: "Η ανίχνευση δεν είναι διαθέσιμη." },
   detect_loading: { en: "Loading the detection model…", el: "Φόρτωση μοντέλου ανίχνευσης…" },
-  detect_slow: { en: "Detection is slow to answer - retrying…", el: "Η ανίχνευση αργεί - ξαναδοκιμάζω…" },
+  detect_slow: { en: "Detection is slow to answer, retrying…", el: "Η ανίχνευση αργεί, ξαναδοκιμάζω…" },
   detect_backend: { en: "server", el: "διακομιστής" },
   col_object: { en: "Object", el: "Αντικείμενο" },
   col_group: { en: "Group", el: "Ομάδα" },
