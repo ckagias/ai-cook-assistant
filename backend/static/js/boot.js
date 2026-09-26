@@ -96,14 +96,17 @@ export async function boot(preferredLang = "el") {
   }
 
   // Timer notification while another app is in front. Denied = today's in-app alert only.
+  // Asked, never awaited: an unanswered prompt must not hold the app at the start screen (Firefox
+  // and a desktop prompt nobody clicks leave the promise pending - a blind cook can't see it).
   if ("Notification" in window) {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === "denied") {
-        warnings.push("Notification permission was denied - timer alerts stay in the app.");
+    if (Notification.permission === "denied") {
+      warnings.push("Notification permission was denied - timer alerts stay in the app.");
+    } else if (Notification.permission === "default") {
+      try {
+        Notification.requestPermission().catch(() => {});
+      } catch {
+        // API present but request failed - ignore
       }
-    } catch {
-      // API present but request failed - ignore
     }
   }
 
