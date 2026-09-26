@@ -14,6 +14,10 @@ export const GROUP_COLORS = {
 };
 
 const TABLE_INTERVAL_MS = 250; // the table is for reading, not animation - <=4 updates/s
+// At most ~6 frames/s, above the 4-5 FPS goal. Sending the next frame the instant a reply lands
+// keeps a laptop CPU at 100%; a 15 W chip then hits its power limit within ~30 s and every
+// frame gets slower (measured 90 ms -> 385 ms). Headroom keeps each frame's latency low.
+export const MIN_FRAME_MS = 160;
 const MAX_ROWS = 20;
 
 // #video uses object-fit: cover, so the frame is scaled to fill the element and the overflow
@@ -52,6 +56,16 @@ export function classColor(group, classId) {
   const channels = [1, 3, 5].map((i) => parseInt(base.slice(i, i + 2), 16));
   const mixed = channels.map((c) => Math.round(amount < 0 ? c * (1 + amount) : c + (255 - c) * amount));
   return "#" + mixed.map((c) => c.toString(16).padStart(2, "0")).join("");
+}
+
+// Which message the stats line shows for a failed frame.
+export function errorReason(err) {
+  if (err && err.status === 503 && /warming/i.test(err.detail || "")) return "detect_loading";
+  if (err && err.status === 401) return "not_paired";
+  if (err && err.status === 503) return "detect_error";
+  if (err && err.name === "AbortError") return "detect_slow";
+  if (err && err.status === undefined) return "network_trouble"; // fetch itself failed
+  return "detect_error";
 }
 
 export function handLabel(hand, lang) {
@@ -230,10 +244,6 @@ export function createDetector({
   function renderStats(res, frameMs) {
     if (!stats) return;
     const lang = getLang();
-    if (!res) {
-      stats.textContent = t("detect_error", lang);
-      return;
-    }
     stats.textContent = `${fps.toFixed(1)} FPS · ${t("detect_backend", lang)} ${Math.round(res.latency_ms.total)} ms · ${Math.round(frameMs)} ms · ${res.model}`;
   }
 
@@ -259,6 +269,7 @@ export function createDetector({
         fps = fps ? fps * 0.8 + instant * 0.2 : instant;
       }
       lastFrameAt = finished;
+      delay = Math.max(0, MIN_FRAME_MS - (finished - started));
       draw(res);
       if (finished - lastTableAt >= TABLE_INTERVAL_MS) {
         lastTableAt = finished;
@@ -266,9 +277,14 @@ export function createDetector({
         renderStats(res, finished - started);
       }
     } catch (err) {
-      errors += 1;
-      delay = Math.min(2000, 250 * errors); // a dead backend shouldn't be hammered
-      renderStats(null, 0);
+      const reason = errorReason(err);
+      if (reason === "detect_loading") {
+        delay = 1000; // the model is loading - not a failure, just ask again shortly
+      } else {
+        errors += 1;
+        delay = Math.min(2000, 250 * errors); // a dead backend shouldn't be hammered
+      }
+      if (stats) stats.textContent = t(reason, getLang());
     } finally {
       inFlight = false;
     }

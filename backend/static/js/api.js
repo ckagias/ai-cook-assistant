@@ -2,11 +2,12 @@ const TIMEOUT_MS = 25000; // above the worst observed real latency - lower silen
 const PAIRING_TOKEN_KEY = "pairingToken";
 
 export class HttpError extends Error {
-  constructor(status, path) {
-    super(`HTTP ${status} for ${path}`);
+  constructor(status, path, detail = "") {
+    super(`HTTP ${status} for ${path}${detail ? ": " + detail : ""}`);
     this.name = "HttpError";
     this.status = status;
     this.path = path;
+    this.detail = detail; // the server's reason, e.g. "warming up - the detection model is loading"
   }
 }
 
@@ -35,7 +36,13 @@ async function requestJson(path, init = {}, timeoutMs = TIMEOUT_MS) {
     const headers = { ...(init.headers || {}), "X-Pairing-Token": getPairingToken() };
     const res = await fetch(path, { ...init, headers, signal: controller.signal });
     if (!res.ok) {
-      throw new HttpError(res.status, path);
+      let detail = "";
+      try {
+        detail = (await res.json()).detail || "";
+      } catch {
+        // not JSON - the status alone will do
+      }
+      throw new HttpError(res.status, path, typeof detail === "string" ? detail : "");
     }
     return await res.json();
   } finally {
@@ -76,6 +83,20 @@ export function detectFrame(blob, recipeId) {
     "/detect" + query,
     { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob },
     3000
+  );
+}
+
+// Push-to-talk: the recording plus what the server needs to understand it. Never retried -
+// a second transcription of the same audio would just cost twice.
+export function voiceCommand(blob, mimeType, { language, recipeId, stepIndex, candidates } = {}) {
+  const params = new URLSearchParams({ language: language || "el" });
+  if (recipeId) params.set("recipe_id", recipeId);
+  if (stepIndex !== undefined && stepIndex !== null) params.set("step_index", String(stepIndex));
+  if (candidates && candidates.length) params.set("candidates", candidates.join(","));
+  return requestJson(
+    "/voice?" + params.toString(),
+    { method: "POST", headers: { "Content-Type": mimeType || "audio/webm" }, body: blob },
+    30000
   );
 }
 

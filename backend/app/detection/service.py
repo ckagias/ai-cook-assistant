@@ -9,6 +9,7 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -38,6 +39,9 @@ class DetectionConfig:
     fmt: str = "openvino"
     conf: float = 0.25
     hands: str = "hybrid"
+    # Letterbox each frame to its own shape (16:9 -> 480x288) instead of a padded square: same
+    # resolution, 24-42% less work measured. Uses a dynamic-shape export of the same model.
+    rect: bool = True
 
     @classmethod
     def from_env(cls) -> "DetectionConfig":
@@ -47,6 +51,7 @@ class DetectionConfig:
             fmt=os.getenv("DETECTOR_FORMAT", cls.fmt),
             conf=float(os.getenv("DETECTOR_CONF", cls.conf)),
             hands=os.getenv("HANDS_BACKEND", cls.hands),
+            rect=os.getenv("DETECTOR_RECT", "true").lower() != "false",
         )
         if cfg.hands not in HANDS_BACKENDS:
             raise DetectionUnavailable(f"HANDS_BACKEND must be one of {HANDS_BACKENDS}, got {cfg.hands!r}")
@@ -63,18 +68,38 @@ class _DetectorHand:
     fingertips: list = field(default_factory=list)
 
 
+def _timed(fn, *args):
+    t = time.perf_counter()
+    result = fn(*args)
+    return result, (time.perf_counter() - t) * 1000
+
+
 class DetectionService:
     def __init__(self, config: DetectionConfig, vocab: Optional[Vocabulary] = None):
         self.config = config
         self.vocab = vocab or load_vocabulary()
         self._lock = threading.Lock()  # neither model is safe to call from two threads at once
+        # Hands run on their own thread *while* the detector runs: both release the GIL in native
+        # code, so a frame costs max(detector, hands) instead of the sum.
+        self._hands_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="hands")
         self._detector = None
         self._hands = None
+        self._warming = False
+
+    @property
+    def ready(self) -> bool:
+        return self._detector is not None
+
+    @property
+    def warming(self) -> bool:
+        """The model is loading in the background; /detect answers "warming up" meanwhile
+        instead of queueing frames behind a ~10 s load."""
+        return self._warming and self._detector is None
 
     @property
     def label(self) -> str:
         c = self.config
-        return f"{c.model}@{c.imgsz}/{c.fmt}+hands:{c.hands}"
+        return f"{c.model}@{c.imgsz}{'r' if c.rect else ''}/{c.fmt}+hands:{c.hands}"
 
     def _ensure_loaded(self) -> None:
         if self._detector is not None:
@@ -82,12 +107,24 @@ class DetectionService:
         try:
             from .detector import load_detector
 
+            import numpy as np
+
             t0 = time.perf_counter()
-            self._detector = load_detector(self.config.model, self.config.imgsz, self.config.fmt, self.vocab)
+            detector = load_detector(self.config.model, self.config.imgsz, self.config.fmt, self.vocab,
+                                     rect=self.config.rect)
+            hands = None
             if self.config.hands in ("mediapipe", "hybrid"):
                 from .hands import HandTracker
 
-                self._hands = HandTracker()
+                hands = HandTracker()
+            # The first inference pays a one-time setup cost (graph compile); pay it here, not on
+            # the user's first frame.
+            blank = np.zeros((480, 640, 3), dtype=np.uint8)
+            detector.detect(blank, self.config.conf)
+            if hands is not None:
+                hands.detect(blank)
+            self._hands = hands
+            self._detector = detector  # set last: `ready` means ready to answer quickly
             logger.info("detection ready: %s in %.1fs", self.label, time.perf_counter() - t0)
         except ImportError as exc:
             raise DetectionUnavailable(
@@ -95,11 +132,14 @@ class DetectionService:
             ) from exc
 
     def warm(self) -> None:
+        self._warming = True
         try:
             with self._lock:
                 self._ensure_loaded()
         except Exception:
             logger.exception("detection warm-up failed; /detect will retry on first request")
+        finally:
+            self._warming = False
 
     def run(self, jpeg: bytes, allowed_ids: Optional[set[str]] = None) -> dict:
         import cv2
@@ -116,25 +156,30 @@ class DetectionService:
             self._ensure_loaded()
             # Waiting for another frame (or the first-time model load) is "queue", not inference.
             t_start = time.perf_counter()
+            landmarked = None
+            if self.config.hands in ("mediapipe", "hybrid"):
+                landmarked = self._hands_thread.submit(_timed, self._hands.detect, image)
             detections = self._detector.detect(image, self.config.conf)
-            t2 = time.perf_counter()
+            detect_ms = (time.perf_counter() - t_start) * 1000
+            hands_ms = 0.0
+            if landmarked is not None:
+                found, hands_ms = landmarked.result()
             if self.config.hands == "mediapipe":
-                hands = self._hands.detect(image)
+                hands = found
             elif self.config.hands == "hybrid":
                 from .hands import merge_hands
 
                 boxes = [(d.box, d.confidence) for d in detections if d.class_id == "hand"]
-                hands = merge_hands(self._hands.detect(image), boxes)
+                hands = merge_hands(found, boxes)
             elif self.config.hands == "detector":
                 hands = [_DetectorHand(d.box, d.confidence) for d in detections if d.class_id == "hand"]
             else:
                 hands = []
-            t3 = time.perf_counter()
 
         objects = [d for d in detections if d.class_id != "hand"]
         if allowed_ids is not None:
             objects = [d for d in objects if d.class_id in allowed_ids]
-        objects.sort(key=lambda d: d.confidence, reverse=True)
+        objects = suppress_cross_class(objects, self.vocab)
         relations = hand_object_relations(hands, objects)
 
         return {
@@ -144,8 +189,8 @@ class DetectionService:
             "latency_ms": {
                 "decode": round((t1 - t0) * 1000, 1),
                 "queue": round((t_start - t1) * 1000, 1),
-                "detect": round((t2 - t_start) * 1000, 1),
-                "hands": round((t3 - t2) * 1000, 1),
+                "detect": round(detect_ms, 1),
+                "hands": round(hands_ms, 1),  # in parallel with detect, not after it
                 "total": round((time.perf_counter() - t0) * 1000, 1),
             },
             "detections": [self._object_json(d) for d in objects],
@@ -174,6 +219,27 @@ class DetectionService:
             "box": _box_json(d.box),
             "center": {"x": round((x1 + x2) / 2, 4), "y": round((y1 + y2) / 2, 4)},
         }
+
+
+CROSS_CLASS_IOU = 0.7
+
+
+def suppress_cross_class(objects: list, vocab: Vocabulary, iou_thr: float = CROSS_CLASS_IOU) -> list:
+    """One object boxed as two classes (a knife also read as "scissors") becomes one detection.
+    Hazards win ties on purpose: when unsure, telling a cook who can't see it that it's a knife
+    is the safe mistake. Otherwise the more confident label stays. Result is best-first."""
+    from .metrics import iou
+
+    def rank(d):
+        cls = vocab.by_id(d.class_id)
+        return (bool(cls and cls.hazard), d.confidence)
+
+    kept: list = []
+    for det in sorted(objects, key=rank, reverse=True):
+        if all(iou(det.box, k.box) < iou_thr for k in kept):
+            kept.append(det)
+    kept.sort(key=lambda d: d.confidence, reverse=True)
+    return kept
 
 
 def _box_json(box) -> dict:

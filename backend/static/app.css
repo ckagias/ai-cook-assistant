@@ -73,6 +73,10 @@ button {
 #gate-error {
   color: var(--danger);
   font-weight: bold;
+  max-width: 640px;
+  text-align: left;
+  white-space: pre-line; /* Greek, then English, then the browser's own words */
+  overflow-wrap: anywhere;
 }
 
 /* --- app shell --- */
@@ -307,4 +311,23 @@ footer {
     opacity: 1;
     transform: none;
   }
+}
+
+/* --- push-to-talk: full width, green; red while recording (both >= 4.5:1 with white text) --- */
+
+#controls button.talk,
+#stepper button.talk {
+  grid-column: 1 / -1;
+  background: #0b6e4f;
+  border-color: #3ddc97;
+  color: #fff;
+  font-weight: bold;
+  /* A held finger that drifts must not turn into a scroll - the browser would cancel the pointer. */
+  touch-action: none;
+}
+
+#controls button.talk[aria-pressed="true"],
+#stepper button.talk[aria-pressed="true"] {
+  background: #c8102e;
+  border-color: #ff8a8a;
 }

@@ -158,3 +158,38 @@ class DetectResponse(BaseModel):
     detections: list[DetectedObject]
     hands: list[DetectedHand]
     relations: list[HandRelation]
+
+
+# --- POST /voice: push-to-talk commands ---
+
+# Everything a voice command can make the app do. A closed list on purpose: whatever the
+# microphone picks up (a TV, a visitor, words that reach the model any other way), the model
+# can only ever pick one of these - it cannot invent an action.
+VoiceAction = Literal[
+    "next_step", "previous_step", "repeat_step", "start_timer", "stop_timer",
+    "check_doneness", "identify", "find_recipe", "choose_recipe", "answer", "unclear",
+]
+
+
+class VoiceCommand(BaseModel):
+    """What the language model returns for one spoken request (structured output)."""
+
+    action: VoiceAction
+    timer_seconds: Optional[int] = None  # start_timer
+    search_words: list[str] = Field(default_factory=list)  # find_recipe, in Greek and English
+    choice: Optional[int] = None  # choose_recipe: 1-based number of an offered recipe
+    spoken_response: str
+
+
+class RecipeCandidate(BaseModel):
+    id: str
+    name: dict[str, str]
+
+
+class VoiceResponse(BaseModel):
+    heard: str  # the transcript, shown on screen so a misheard command is visible
+    action: VoiceAction
+    timer_seconds: Optional[int] = None
+    recipe_id: Optional[str] = None  # choose_recipe, already validated against the database
+    candidates: list[RecipeCandidate] = Field(default_factory=list)  # find_recipe results
+    spoken_response: str

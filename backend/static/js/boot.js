@@ -33,16 +33,25 @@ function registerWakeLockReacquire() {
   });
 }
 
+// Keeps the browser's own error name and message: camera_help.js turns them into instructions.
+function cameraError(name, detail) {
+  const err = new Error("Camera access failed: " + name);
+  err.mediaError = name;
+  err.detail = detail || "";
+  return err;
+}
+
 export async function boot(preferredLang = "el") {
   const warnings = [];
 
   if (!window.isSecureContext || !navigator.mediaDevices) {
-    throw new Error("Insecure context or no media device support - camera/mic access needs HTTPS.");
+    throw cameraError("insecure", "Insecure context or no media device support - camera/mic access needs HTTPS.");
   }
 
-  // Audio out. Warn, don't throw, if resume() fails.
+  // Audio out. Warn, don't throw, if resume() fails. Reused when Start is pressed again after a
+  // camera problem was fixed.
   const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-  caps.audioCtx = new AudioContextCtor();
+  caps.audioCtx = caps.audioCtx || new AudioContextCtor();
   try {
     await caps.audioCtx.resume();
   } catch (err) {
@@ -62,7 +71,7 @@ export async function boot(preferredLang = "el") {
       warnings.push("Could not confirm the rear camera is in use.");
     }
   } catch (err) {
-    throw new Error("Camera access failed: " + err.name);
+    throw cameraError(err.name, err.message);
   }
 
   // Mic. All three constraints OFF or AGC drifts the noise-floor threshold and

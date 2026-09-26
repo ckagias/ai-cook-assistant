@@ -88,6 +88,19 @@ async function testCommandQueuesBehindSafety() {
   console.log("test b (a command queues behind a safety alert) OK");
 }
 
+async function testHushSparesSafety() {
+  reset();
+  tts.speak("step one", { priority: "command", lang: "en" });
+  assert(tts.hush() === true && synth.playing === null, "talk silences a command");
+  await tick();
+  tts.speak("FIRE - turn off the burner", { priority: "safety", lang: "en" });
+  assert(tts.hush() === false && synth.playing.text === "FIRE - turn off the burner", "talk never silences safety");
+  synth.finish();
+  await tick();
+  assert(tts.hush() === true, "once the alert is over, hush works again");
+  console.log("test j (hush spares a safety alert) OK");
+}
+
 async function testCommandStillInterruptsCommand() {
   reset();
   tts.speak("old instruction", { priority: "command", lang: "en" });
@@ -224,6 +237,19 @@ function testHoverSpeaksOnceAndFocusOnlyWhenKeyboard() {
   console.log("test g (hover once, focus only for keyboard) OK");
 }
 
+function testHoldToTalkIsNeverALongPress() {
+  const s = setup();
+  const talk = makeButton("talk", "Μίλα");
+  talk.dataset.hold = "1";
+  s.root.dispatch("pointerdown", ev(talk));
+  s.runTimers();
+  assert(s.said.length === 0 && s.vibrations.length === 0, "holding the talk button stays silent");
+  s.root.dispatch("pointerover", ev(talk, { pointerType: "mouse" }));
+  s.runTimers();
+  assert(s.said.length === 1 && s.said[0].startsWith("Μίλα."), `hover still describes it: ${s.said}`);
+  console.log("test i (hold-to-talk is never a long-press) OK");
+}
+
 function testOptOut() {
   const s = setup();
   a11y.setSpeakButtons(false);
@@ -237,10 +263,12 @@ function testOptOut() {
 await testHintNeverInterruptsRealSpeech();
 await testCommandQueuesBehindSafety();
 await testCommandStillInterruptsCommand();
+await testHushSparesSafety();
 testLongPressSpeaksAndSwallowsTheClick();
 testShortTapActivatesSilently();
 testDragCancelsAndStaleSuppressionExpires();
 testHoverSpeaksOnceAndFocusOnlyWhenKeyboard();
+testHoldToTalkIsNeverALongPress();
 testOptOut();
 tts.stopAll();
 

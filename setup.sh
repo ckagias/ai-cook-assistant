@@ -9,7 +9,10 @@
 # Flags, in any order:
 #   --no-detection   skip the ~1 GB detection stack (torch, ultralytics, mediapipe) and models
 #   --skip-tests     don't run the test suite at the end
-#   --run            start uvicorn in the foreground afterwards (see also ./setup-window.sh)
+#   --run            start uvicorn in the foreground afterwards and open the app window
+#                    (see also ./setup-window.sh)
+#   --no-window      with --run: only serve, don't open the app window
+#   --no-summary     skip the closing "what it does / how to use it" summary
 set -uo pipefail
 
 RED='\033[0;31m'
@@ -21,13 +24,17 @@ cd "$SCRIPT_DIR/backend" || exit 1
 
 WITH_DETECTION=1
 RUN_SERVER=0
+OPEN_WINDOW=1
 RUN_TESTS=1
+SHOW_SUMMARY=1
 for arg in "$@"; do
   case "$arg" in
     --no-detection) WITH_DETECTION=0 ;;
     --with-detection) WITH_DETECTION=1 ;;  # the default now; kept so old commands still work
     --skip-tests) RUN_TESTS=0 ;;
     --run) RUN_SERVER=1 ;;
+    --no-window) OPEN_WINDOW=0 ;;
+    --no-summary) SHOW_SUMMARY=0 ;;  # setup-window prints its own links instead
   esac
 done
 
@@ -55,19 +62,9 @@ fi
 # shellcheck disable=SC2086
 echo "Using Python: $($PYTHON -c 'import sys; print(sys.executable, sys.version.split()[0])')"
 
-# --- 2. which venv: one per OS, side by side. A Windows venv is useless from WSL/Linux and vice
-#        versa - and an existing environment is never deleted, only ever set aside. ---
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*) PLATFORM=windows; LAYOUT=Scripts; PYEXE=python.exe ;;
-  Darwin) PLATFORM=macos; LAYOUT=bin; PYEXE=python ;;
-  *) PLATFORM=linux; LAYOUT=bin; PYEXE=python ;;
-esac
-VENV_DIR=".venv"
-if [ -d ".venv" ] && [ ! -d ".venv/$LAYOUT" ]; then
-  VENV_DIR=".venv-$PLATFORM"  # .venv was made by another OS (e.g. Windows, seen from WSL): leave it alone
-  echo "backend/.venv belongs to another operating system - using backend/$VENV_DIR for $PLATFORM."
-fi
-VENV_PYTHON="$VENV_DIR/$LAYOUT/$PYEXE"
+# --- 2. which venv: one per OS, side by side (and on WSL, in the Linux home) - see the file ---
+# shellcheck disable=SC1091
+. scripts/venv_path.sh
 
 set_aside() {  # $1 = reason. Renames, never deletes: the old environment stays on disk.
   local aside
@@ -143,13 +140,20 @@ if [ -f ".env" ]; then
 fi
 
 # --- 7. models for the configured detector (download/export once; nothing is ever deleted) ---
+SETUP_COMPLETE=1
 if [ "$WITH_DETECTION" = "1" ]; then
   echo "Checking detection models..."
-  "$VENV_PYTHON" scripts/fetch_models.py || echo -e "${RED}WARNING: model download/export failed - /detect will retry on first use.${NC}" >&2
+  "$VENV_PYTHON" scripts/fetch_models.py || { echo -e "${RED}WARNING: model download/export failed - /detect will retry on first use.${NC}" >&2; SETUP_COMPLETE=0; }
 fi
 
 # --- 8. local recipe database (created + seeded from data/recipes.json on first run) ---
-"$VENV_PYTHON" scripts/db_init.py || echo -e "${RED}WARNING: database setup failed - see above.${NC}" >&2
+"$VENV_PYTHON" scripts/db_init.py || { echo -e "${RED}WARNING: database setup failed - see above.${NC}" >&2; SETUP_COMPLETE=0; }
+
+# Everything is in place: start.sh skips setup from now on, until a requirement or setting changes.
+if [ "$SETUP_COMPLETE" = "1" ]; then
+  if [ "$WITH_DETECTION" = "1" ]; then "$VENV_PYTHON" scripts/setup_stamp.py write --detection
+  else "$VENV_PYTHON" scripts/setup_stamp.py write; fi
+fi
 
 # --- 9. run the test suite; PIPESTATUS[0], not tail's own exit code, decides pass/fail ---
 if [ "$RUN_TESTS" = "1" ]; then
@@ -163,19 +167,30 @@ if [ "$RUN_TESTS" = "1" ]; then
   fi
 fi
 
-# --- 10. next steps ---
-echo ""
-echo "Setup complete. Next steps:"
-echo "  1. Edit backend/.env and add your provider API key(s)."
-echo "  2. Verify providers: $VENV_PYTHON scripts/check_providers.py"
-echo "  3. Run everything in an app window on your network: ./setup-window.sh"
-echo "     or just the server: re-run this script with --run"
-echo "  4. Reach it from an Android tablet over USB: adb reverse tcp:8000 tcp:8000"
-echo "  5. Open http://localhost:8000/probe.html on the tablet to check capabilities."
+# --- 10. what the system does, where to open it, how to use it, and this install's status ---
+if [ "$SHOW_SUMMARY" = "1" ]; then
+  SHOWN_PYTHON="backend/$VENV_PYTHON"
+  [[ "$VENV_PYTHON" == /* ]] && SHOWN_PYTHON="$VENV_PYTHON"  # WSL: the venv is in the Linux home
+  PYTHONIOENCODING=utf-8 "$VENV_PYTHON" scripts/usage.py --shell sh --python "$SHOWN_PYTHON"
+fi
 
 # --- 11. --run: exec uvicorn in the foreground afterward ---
 if [ "$RUN_SERVER" = "1" ]; then
-  echo ""
-  echo "Starting server..."
+  # Same as setup-window: detection is on whenever it's installed.
+  if [ "$WITH_DETECTION" = "1" ] && "$VENV_PYTHON" -c "import importlib.util as u, sys; sys.exit(0 if u.find_spec('ultralytics') and u.find_spec('mediapipe') else 1)"; then
+    export DETECTION_ENABLED=true
+  fi
+  URL="http://localhost:${BACKEND_PORT:-8000}/"
+  [ -n "${BACKEND_PAIRING_TOKEN:-}" ] && URL="${URL}?token=${BACKEND_PAIRING_TOKEN}"
+  echo "Starting the server - open $URL  (Ctrl+C stops it)"
+  echo "  Any browser works - allow the camera and microphone when it asks."
+  if [ "$OPEN_WINDOW" = "1" ]; then
+    # Plus its own app window, camera and microphone already allowed for this address - it works
+    # even where the everyday browser is set to block camera requests.
+    PROFILE_DIR="$SCRIPT_DIR/.run/local-profile"
+    if command -v cygpath >/dev/null 2>&1; then PROFILE_DIR="$(cygpath -w "$PROFILE_DIR")"; fi
+    "$VENV_PYTHON" scripts/app_window.py open --url "$URL" --profile "$PROFILE_DIR" \
+      --wait "http://127.0.0.1:${BACKEND_PORT:-8000}/health" &
+  fi
   exec "$VENV_PYTHON" -m uvicorn app.main:app --host "${BACKEND_HOST:-0.0.0.0}" --port "${BACKEND_PORT:-8000}"
 fi

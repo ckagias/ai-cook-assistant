@@ -150,6 +150,15 @@ export function fireSafetyInterrupt(message, lang) {
   speak(message, { priority: "safety", lang });
 }
 
+// The cook pressed talk: stop talking over them - unless a safety alert is playing, which
+// nothing may cut off. Returns false when it was left alone.
+export function hush() {
+  const synth = window.speechSynthesis;
+  if (currentRank >= PRIORITY_RANK.safety && (speaking || synth.speaking || synth.pending)) return false;
+  stopAll();
+  return true;
+}
+
 export function stopAll() {
   window.speechSynthesis.cancel();
   current = null;

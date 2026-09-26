@@ -20,7 +20,9 @@
 param(
     [switch]$NoDetection,  # skip the ~1 GB detection stack (torch, ultralytics, mediapipe) and models
     [switch]$SkipTests,    # don't run the test suite at the end
-    [switch]$Run           # start the server on localhost afterwards (see also setup-window.ps1)
+    [switch]$Run,          # start the server on localhost afterwards and open the app window (see also setup-window.ps1)
+    [switch]$NoWindow,     # with -Run: only serve, don't open the app window
+    [switch]$NoSummary     # skip the closing "what it does / how to use it" summary
 )
 
 $ErrorActionPreference = "Continue"  # native tools report through exit codes, checked explicitly
@@ -148,15 +150,23 @@ if ($provider -and $keyVars.ContainsKey($provider)) {
 }
 
 # --- 6. models for the configured detector (download/export once; nothing is ever deleted) ---
+$SetupComplete = $true
 if ($WithDetection) {
     Write-Host "Checking detection models..."
     & $VenvPython scripts\fetch_models.py
-    if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: model download/export failed - /detect will retry on first use." }
+    if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: model download/export failed - /detect will retry on first use."; $SetupComplete = $false }
 }
 
 # --- 7. local recipe database (created + seeded from data\recipes.json on first run) ---
 & $VenvPython scripts\db_init.py
-if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: database setup failed - see above." }
+if ($LASTEXITCODE -ne 0) { Write-Warn "WARNING: database setup failed - see above."; $SetupComplete = $false }
+
+# Everything is in place: start.cmd skips setup from now on, until a requirement or setting changes.
+if ($SetupComplete) {
+    $stampArgs = @("write")
+    if ($WithDetection) { $stampArgs += "--detection" }
+    & $VenvPython scripts\setup_stamp.py @stampArgs
+}
 
 # --- 8. tests ---
 if (-not $SkipTests) {
@@ -165,24 +175,36 @@ if (-not $SkipTests) {
     if ($LASTEXITCODE -ne 0) { Write-Warn "Tests failed (exit code $LASTEXITCODE) - see above." } else { Write-Host "Tests passed." }
 }
 
-Write-Host ""
-Write-Host "Setup complete. Next steps:"
-Write-Host "  1. Edit backend\.env and add your provider API key(s)."
-Write-Host "  2. Verify providers: $VenvPython scripts\check_providers.py"
-Write-Host "  3. Run everything in an app window on your network: .\setup-window.ps1 (or double-click setup-window.cmd)"
-Write-Host "     or just the server on localhost: .\setup.ps1 -Run"
+# --- what the system does, where to open it, how to use it, and this install's status ---
+if (-not $NoSummary) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8  # the summary has Greek button names
+    & $VenvPython scripts\usage.py --shell ps --python "backend\$VenvDir\Scripts\python.exe"
+}
 
 # --- 9. -Run: the server on localhost, in the foreground, with .env loaded into its environment ---
 if ($Run) {
     foreach ($entry in (Read-DotEnv ".env").GetEnumerator()) {
         [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
     }
+    # Same as setup-window: detection is on whenever it's installed.
+    if ($WithDetection) {
+        & $VenvPython -c "import importlib.util as u, sys; sys.exit(0 if u.find_spec('ultralytics') and u.find_spec('mediapipe') else 1)"
+        if ($LASTEXITCODE -eq 0) { $env:DETECTION_ENABLED = "true" }
+    }
     $bindHost = "127.0.0.1"
     if ($env:BACKEND_HOST) { $bindHost = $env:BACKEND_HOST }
     $port = "8000"
     if ($env:BACKEND_PORT) { $port = $env:BACKEND_PORT }
-    Write-Host ""
-    Write-Host "Starting server on http://$($bindHost):$port ..."
+    $url = "http://localhost:$port/"
+    if ($env:BACKEND_PAIRING_TOKEN) { $url = "$url" + "?token=$env:BACKEND_PAIRING_TOKEN" }
+    Write-Host "Starting the server - open $url  (Ctrl+C stops it)"
+    Write-Host "  Any browser works - allow the camera and microphone when it asks."
+    if (-not $NoWindow) {
+        # Plus its own app window, camera and microphone already allowed for this address - it
+        # works even where the everyday browser is set to block camera requests.
+        $windowArgs = "scripts\app_window.py open --url `"$url`" --profile `"$(Join-Path $Root '.run\local-profile')`" --wait http://127.0.0.1:$port/health"
+        Start-Process -FilePath $VenvPython -ArgumentList $windowArgs -WindowStyle Hidden
+    }
     & $VenvPython -m uvicorn app.main:app --host $bindHost --port $port
     exit $LASTEXITCODE
 }

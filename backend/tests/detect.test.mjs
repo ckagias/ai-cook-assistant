@@ -100,6 +100,7 @@ async function testLoopKeepsOneRequestInFlight() {
   let concurrent = 0;
   let maxConcurrent = 0;
   const scheduled = [];
+  const waits = [];
   const api = {
     detectFrame: () => {
       concurrent++;
@@ -114,7 +115,7 @@ async function testLoopKeepsOneRequestInFlight() {
     getLang: () => "en",
     capture: async () => ({ blob: "jpeg", width: 640, height: 480 }),
     api,
-    schedule: (fn) => { scheduled.push(fn); return scheduled.length; },
+    schedule: (fn, ms) => { scheduled.push(fn); waits.push(ms); return scheduled.length; },
     cancel: () => {},
     now: () => (clock += 100),
   });
@@ -128,6 +129,8 @@ async function testLoopKeepsOneRequestInFlight() {
   pending.shift()();
   await new Promise((r) => setTimeout(r, 0));
   assert(scheduled.length === 1, `next frame scheduled only after the reply, got ${scheduled.length}`);
+  // The frame took 100 ms (fake clock): wait out the rest of MIN_FRAME_MS so the CPU keeps headroom.
+  assert(waits[0] === detect.MIN_FRAME_MS - 100, `frame-rate cap: waited ${waits[0]} ms`);
   assert(table.children.length === 2, "table rendered (thead + tbody)");
   assert(stats.textContent.includes("FPS") || stats.textContent === "", `stats text "${stats.textContent}"`);
 
@@ -162,10 +165,37 @@ async function testErrorsBackOff() {
   console.log("test e (errors back off) OK");
 }
 
+
+async function testWarmingUpShowsLoadingAndRetriesWithoutBackoff() {
+  const delays = [];
+  const stats = { textContent: "" };
+  const warming = Object.assign(new Error("HTTP 503"), { status: 503, detail: "warming up - the detection model is loading" });
+  const d = detect.createDetector({
+    video: { videoWidth: 640, videoHeight: 480 },
+    canvas: { getContext: () => fakeCtx(), getBoundingClientRect: () => ({ width: 1, height: 1 }) },
+    table: Object.assign(fakeElement("table"), { ownerDocument: globalThis.document }),
+    stats,
+    getLang: () => "en",
+    capture: async () => ({ blob: "jpeg" }),
+    api: { detectFrame: async () => { throw warming; } },
+    schedule: (fn, ms) => { delays.push(ms); return 1; },
+    cancel: () => {},
+  });
+  d.start();
+  await new Promise((r) => setTimeout(r, 0));
+  assert(delays[0] === 1000, `retry after 1 s while loading, got ${delays[0]}`);
+  assert(stats.textContent.startsWith("Loading"), `loading message, got "${stats.textContent}"`);
+  assert(detect.errorReason({ status: 401 }) === "not_paired", "401 -> not paired");
+  assert(detect.errorReason(new TypeError("Failed to fetch")) === "network_trouble", "fetch failure -> network");
+  d.stop();
+  console.log("test f (warming up: loading message, no backoff) OK");
+}
+
 testCoverTransformCropsWiderVideo();
 testColoursStablePerClassAndDistinctPerGroup();
 testRowsCarryPixelCentresAndRelations();
 await testLoopKeepsOneRequestInFlight();
 await testErrorsBackOff();
+await testWarmingUpShowsLoadingAndRetriesWithoutBackoff();
 
 console.log("all passed");

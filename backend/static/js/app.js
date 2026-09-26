@@ -1,5 +1,6 @@
 import { boot, caps, earcon, buzz } from "./boot.js";
-import { speak, isSpeaking, fireSafetyInterrupt } from "./tts.js";
+import { speak, isSpeaking, fireSafetyInterrupt, hush, probeVoices } from "./tts.js";
+import { cameraProblem } from "./camera_help.js";
 import { t } from "./strings.js";
 import { captureFrame } from "./capture.js";
 import * as api from "./api.js";
@@ -8,6 +9,7 @@ import { createAimer, guideUntilFramed } from "./aim.js";
 import { createSession } from "./session.js";
 import { createDetector } from "./detect.js";
 import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
+import { createPushToTalk } from "./voice.js";
 
 const el = {
   gate: document.getElementById("gate"),
@@ -32,6 +34,7 @@ const el = {
 let lang = "el";
 let busy = false;
 let lastCheck = null; // context for the one clarification round
+let offered = []; // recipe ids last listed to the cook, so "the second one" can be resolved
 
 const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 // Demo convenience: start the detection preview as soon as the camera is up.
@@ -168,7 +171,8 @@ function render(res) {
   }
 
   if (res.safety_flag && res.safety_flag.severity === "caution") {
-    say(res.safety_flag.reason, "checkin");
+    // The reason is always English (it's for the backend); read in Greek it would be gibberish.
+    say(lang === "en" ? res.safety_flag.reason : t("caution", lang), "checkin");
   }
 
   if (res.needs_clarification && res.clarifying_question && lastCheck) {
@@ -244,7 +248,14 @@ function checkDoneness(followup) {
 
 async function openRecipes() {
   const recipes = await api.listRecipes();
+  showRecipeButtons(recipes);
+  say(recipes.map((r) => r.name[lang] || r.name.en).join(", "), "command");
+}
 
+// The same buttons for the full list and for voice search results, so a sighted helper sees
+// what the cook heard - and the cook can pick by voice ("the second one") or by tapping.
+function showRecipeButtons(recipes) {
+  offered = recipes.slice(0, 5).map((r) => r.id);
   el.recipeList.innerHTML = "";
   for (const r of recipes) {
     const btn = document.createElement("button");
@@ -261,28 +272,33 @@ async function openRecipes() {
 
   el.recipeList.hidden = false;
   el.controls.hidden = true;
-
-  say(recipes.map((r) => r.name[lang] || r.name.en).join(", "), "command");
 }
 
-async function startRecipe(id) {
+async function startRecipe(id, intro = "") {
   const recipe = await api.getRecipe(id);
   session.setRecipe(recipe);
+  offered = [];
   el.recipeList.hidden = true;
   el.controls.hidden = true;
   el.stepper.hidden = false;
-  announceStep();
+  announceStep({ intro });
 }
 
-function announceStep() {
+// repeat: says the step again and leaves its timer and the change monitor alone - hearing a
+// step twice must not reset a countdown that's already running.
+function announceStep({ repeat = false, intro = "" } = {}) {
   el.clarify.hidden = true;
   const step = session.currentStep();
   if (!step) return;
 
-  say(step.instruction[lang] || step.instruction.en, "command");
+  // One utterance: two "command"s in a row would cut the first one off.
+  const text = step.instruction[lang] || step.instruction.en;
+  say(intro ? intro + " " + text : text, "command");
 
   const checkBtn = el.stepper.querySelector('[data-action="check"]');
   if (checkBtn) checkBtn.hidden = !step.checkable;
+
+  if (repeat) return;
 
   session.clearTimer();
   el.timer.textContent = "";
@@ -308,6 +324,14 @@ function nextStep() {
   }
 }
 
+function previousStep() {
+  if (session.goTo(session.getStepIndex() - 1)) {
+    announceStep();
+  } else {
+    say(t("no_previous", lang), "command");
+  }
+}
+
 function stopRecipe() {
   aimer.stop();
   monitor.stop();
@@ -318,16 +342,156 @@ function stopRecipe() {
   el.timer.textContent = "";
 }
 
+// --- push-to-talk ---
+
+let voiceStream = null;
+
+// Its own microphone stream with the browser's speech processing ON: the boot stream has it
+// OFF on purpose (sizzle detection needs the raw sound), which is the wrong input for words.
+async function getVoiceStream() {
+  if (voiceStream && voiceStream.getAudioTracks().some((tr) => tr.readyState === "live")) return voiceStream;
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch (err) {
+    if (!caps.micStream) throw err;
+    voiceStream = caps.micStream; // better unprocessed than nothing
+  }
+  return voiceStream;
+}
+
+function setTalkState(state) {
+  const listening = state === "listening";
+  document.querySelectorAll('[data-action="talk"]').forEach((b) => b.setAttribute("aria-pressed", String(listening)));
+  if (listening) {
+    earcon("ok");
+    buzz(20);
+    el.status.textContent = t("listening", lang);
+  } else if (state === "thinking") {
+    el.status.textContent = t("thinking", lang);
+  }
+  el.busy.hidden = !(busy || state === "thinking");
+}
+
+function runVoiceCommand(res) {
+  const reply = () => say(res.spoken_response, "command");
+  switch (res.action) {
+    case "next_step":
+      nextStep();
+      break;
+    case "previous_step":
+      previousStep();
+      break;
+    case "repeat_step":
+      announceStep({ repeat: true });
+      break;
+    case "start_timer":
+      session.startTimer(res.timer_seconds);
+      reply();
+      break;
+    case "stop_timer":
+      session.clearTimer();
+      el.timer.textContent = "";
+      say(t("timer_stopped", lang), "command");
+      break;
+    case "check_doneness":
+      checkDoneness();
+      break;
+    case "identify":
+      identify();
+      break;
+    case "find_recipe":
+      if (res.candidates && res.candidates.length) showRecipeButtons(res.candidates);
+      reply();
+      break;
+    case "choose_recipe":
+      if (res.recipe_id) {
+        el.status.textContent = res.spoken_response;
+        startRecipe(res.recipe_id, res.spoken_response).catch(() => say(t("network_trouble", lang), "command"));
+      } else {
+        reply();
+      }
+      break;
+    default: // answer, unclear
+      reply();
+  }
+}
+
+const talk = createPushToTalk({
+  getStream: getVoiceStream,
+  send: (blob, type) => {
+    const step = session.currentStep();
+    return api.voiceCommand(blob, type, {
+      language: lang,
+      recipeId: session.getRecipe()?.id,
+      stepIndex: step ? step.index : null,
+      candidates: offered,
+    });
+  },
+  onState: setTalkState,
+  onResult: (res, reason) => {
+    if (!res) {
+      if (reason === "too_short") say(t("hold_to_talk", lang), "command");
+      return;
+    }
+    runVoiceCommand(res);
+  },
+  onError: (err) => {
+    earcon("error");
+    if (err instanceof api.HttpError && err.status === 503) {
+      say(t("voice_unavailable", lang), "command");
+    } else if (err instanceof api.HttpError && err.status === 401) {
+      say(t("not_paired", lang), "command");
+    } else if (err && (err.name === "NotAllowedError" || err.name === "NotFoundError" || err.name === "NotReadableError")) {
+      say(t("no_mic", lang), "command");
+    } else {
+      say(t("network_trouble", lang), "command");
+    }
+  },
+});
+
+function startTalking() {
+  if (busy || el.app.hidden) return;
+  hush(); // don't talk over the cook - except a safety alert
+  talk.start();
+}
+
+// Held, not clicked: pointerdown starts, lifting (anywhere - the pointer is captured) stops.
+let talkPointer = null;
+document.addEventListener("pointerdown", (e) => {
+  const btn = e.target.closest('[data-action="talk"]');
+  if (!btn || btn.disabled || (e.pointerType === "mouse" && e.button !== 0)) return;
+  e.preventDefault();
+  try {
+    btn.setPointerCapture(e.pointerId);
+  } catch {
+    // not capturable (synthetic event) - pointerup still reaches the document
+  }
+  talkPointer = e.pointerId;
+  startTalking();
+});
+const stopTalking = (e) => {
+  if (e.pointerId !== talkPointer) return;
+  talkPointer = null;
+  talk.stop();
+};
+document.addEventListener("pointerup", stopTalking);
+document.addEventListener("pointercancel", stopTalking);
+// Focus leaving the window mid-hold would otherwise leave the V key "held" until MAX_MS.
+window.addEventListener("blur", () => talk.stop());
+
 const ACTIONS = {
   identify: () => identify(),
   recipes: () => openRecipes(),
   "close-recipes": () => {
     el.recipeList.hidden = true;
     el.controls.hidden = false;
+    offered = [];
   },
   "open-recipe": (btn) => startRecipe(btn.dataset.recipeId),
   check: () => checkDoneness(),
-  repeat: () => announceStep(),
+  repeat: () => announceStep({ repeat: true }),
   next: () => nextStep(),
   stop: () => stopRecipe(),
   "answer-yes": () => checkDoneness(lang === "el" ? "Ναι" : "yes"),
@@ -350,6 +514,12 @@ document.addEventListener("click", (e) => {
 // keydown, so this stays a convenience, not the main path.
 document.addEventListener("keydown", (e) => {
   if (el.app.hidden) return;
+  // V held = the talk button held (PC demo). e.code, not e.key: on a Greek layout V types "ω".
+  if (e.code === "KeyV" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    if (!e.repeat) startTalking();
+    return;
+  }
   if (e.key === " " || e.key === "Enter") {
     e.preventDefault();
     if (session.currentStep()) {
@@ -362,6 +532,10 @@ document.addEventListener("keydown", (e) => {
       nextStep();
     }
   }
+});
+
+document.addEventListener("keyup", (e) => {
+  if (e.code === "KeyV") talk.stop();
 });
 
 el.start.addEventListener("click", async () => {
@@ -383,10 +557,24 @@ el.start.addEventListener("click", async () => {
     }
 
     el.detectToggle.textContent = t("detect_toggle", lang);
+    document.querySelectorAll('[data-action="talk"]').forEach((b) => (b.textContent = t("talk", lang)));
     if (DETECT_ON_START) setDetection(true);
   } catch (err) {
-    el.start.disabled = false;
+    el.start.disabled = false; // fix the setting, press Start again - no reload needed
+    const key = cameraProblem(err, {
+      userAgent: navigator.userAgent,
+      embedded: window.self !== window.top,
+      secure: window.isSecureContext,
+    });
+    // Both languages on screen so whoever is helping can follow it; the browser's own words last.
+    el.gateError.textContent = `${t(key, "el")}\n\n${t(key, "en")}\n\n(${(err && err.message) || err})`;
     el.gateError.hidden = false;
-    el.gateError.textContent = (err && err.message) || String(err);
+    // Spoken as well - the Start tap already unlocked speech. English when there's no Greek voice.
+    try {
+      const spokenLang = await probeVoices("el");
+      speak(t(key, spokenLang), { priority: "command", lang: spokenLang });
+    } catch {
+      // no speech synthesis at all - the text above stands
+    }
   }
 });
