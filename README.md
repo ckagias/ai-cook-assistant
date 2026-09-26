@@ -14,7 +14,13 @@ the same origin. No Docker, no Node runtime dependency, no build step.
 
 ```powershell
 .\start.cmd            # or: powershell -ExecutionPolicy Bypass -File .\start.ps1 [-NoWindow] [-LocalOnly] [-NoDetection]
+.\start.ps1 -CheckOnly # what's installed, what a first start would download - changes nothing
 ```
+
+On Windows the first start also installs what's missing, once, with winget and for this user
+only: **Python 3.12** when no usable Python is installed (the Microsoft Store `python.exe`
+shortcut doesn't count, and detection needs 3.11/3.12), and **git** when detection needs it.
+Anything already installed is skipped.
 
 **Linux, macOS, WSL/Ubuntu:**
 
@@ -243,18 +249,29 @@ A cooking session, start to finish:
 
 1. "Γεια σου σεφ, θέλω να φτιάξω ροσμπίφ" - a dish named outright starts at once; a vaguer
    request ("something with eggs") lists up to three to pick from ("the second one").
-2. The **ingredients** are read out and shown as a checklist. "Έλεγξε τα υλικά" shows them to the
-   camera and ticks what it sees (the live detection preview ticks them too); a tap ticks one.
-   Meat recipes ask how you like it (σενιάν ... καλοψημένο).
-3. "Ξεκίνα" - step by step. A step with a usual time says so, but **timers start only when you
+2. First, **needs and preferences** for this dish: an allergy, less salt, spicier, for children.
+   Say it, type it, tap one, or say "όχι". A preference gets a matching tip from the assistant.
+3. The **ingredients** and the **tools** (knife, board, tray, oven...) are read out and shown as
+   checklists. "Έλεγξε τα υλικά" shows them to the camera and ticks what it sees (the live
+   detection preview ticks them too); a tap ticks one. Meat recipes ask how you like it.
+4. "Ξεκίνα" - step by step. A step with a usual time says so, but **timers start only when you
    say "χρονόμετρο"** (or tap it): people work at different speeds. Several run at once, and
-   "two more minutes" / "+1 λεπτό" adjust them.
-4. Cutting, grating, mixing: "τελείωσα" / "έλεγξε" and the camera judges the **work** (piece
+   "two more minutes" / "+1 λεπτό" / "πόση ώρα μένει;" adjust and read them. Each step also gets
+   its own buttons: **Done**, and one-tap questions that fit the step ("how do I know it's
+   ready?", "what can I use instead?") for a cook who reads rather than speaks.
+5. Cutting, grating, mixing: "τελείωσα" / "έλεγξε" and the camera judges the **work** (piece
    size, evenness). On the heat it judges **colour and the timer together**. When it looks ready
    it **asks** "shall we move on?" - it never moves on by itself. Not ready: "add 5 minutes?".
    Meat is never judged done by looks: you hear the thermometer target for your doneness choice.
-5. Any time: a question or reminder ("πόσο λάδι βάζω;", "what's next?") is answered from the
-   open recipe.
+6. Any time: a question or reminder ("πόσο λάδι βάζω;", "what's next?") is answered from the
+   open recipe **and what happened so far**: a short-term memory per recipe keeps the
+   preferences, the steps done, what each check saw and the assistant's own tips. "Τι κάναμε;"
+   reads it back, it's listed on screen, and reopening the recipe the same day offers to
+   continue where you were.
+
+Every button has a spoken form, in Greek and English: "τι βλέπω / what do I see", "συνταγές /
+recipes", "υλικά", "σκεύη / tools", "βοήθεια / help", "άνοιξε / κλείσε την ανίχνευση". Common
+commands are understood on the device, instantly.
 
 Everything said is also on screen (status line and conversation log), timer ends and fire
 warnings stay up with a flash and a buzz until dismissed, and the step and its timers are shown

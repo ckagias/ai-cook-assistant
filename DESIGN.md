@@ -461,3 +461,82 @@ The seed now has ten hand-curated, bilingual recipes, chosen to cover the use ca
 Ingredient lines carry per-language text, and the Greek text is indexed for search. A side
 effect: a 5-letter query word such as "σούσι" was stemmed to the 3-letter prefix "σου*", which
 matched every "κουτ. σούπας" (tablespoon). Words of 5+ letters now keep at least 4.
+
+## 27. Chrome's Greek recognizer never says "final"
+
+Measured with the real Web Speech API, fed synthesized speech through Chrome's fake microphone:
+- **English** marks a result final about 0.5 s after the speaker stops.
+- **Greek (`el-GR`)** never does in continuous mode. "Γεια σου σεφ, επόμενο βήμα" kept growing as
+  an interim result for 30 s on a loop.
+
+Both wake-word implementations (this branch's and feature/detection-db's) only acted on final
+results, so Greek hands-free commands never fired on a real microphone. That is almost
+certainly the "hey chef doesn't work" report.
+
+`wake.js` now waits `SETTLE_MS` (1 s) after the words after the wake phrase stop changing,
+then calls `stop()`. The recognizer hands over its final result about 0.1 s later, and a fresh
+session starts. The wake phrase alone never triggers this, so a pause after "Γεια σου σεφ"
+still waits for the command.
+
+The same measurement showed the φ dropping once more words follow ("γεια σου σε επόμενο
+βήμα"). "γεια σου σε" therefore counts as the wake phrase, but only when a command follows it.
+Two spellings feature/detection-db collected on a real microphone ("ε σεφ", "he chef") are
+accepted too.
+
+## 28. Needs and preferences come before the ingredients
+
+Choosing a recipe first asks: "any special needs or preferences for this dish - an allergy,
+less salt, spicier?" It can be answered in any of these ways:
+- by voice - whatever is said is the answer, with no AI call needed;
+- by typing;
+- with one-tap buttons;
+- with "no" / "none".
+
+When there is a preference, the assistant is asked once, in the background, for a tip that
+fits it (seen live: less salt → halve it, add garlic, rosemary or lemon zest). The tip is
+spoken after the ingredient list.
+
+The ingredients and the tools then follow, as spoken lists and on-screen checklists.
+
+## 29. Short-term memory per recipe
+
+`static/js/memory.js` keeps, per recipe and on the device only (localStorage, forgotten after
+12 h):
+- the cook's needs, preferences and doneness choice;
+- each step reached, and when;
+- what every camera check saw (verdict, colour/doneness words);
+- timers;
+- the assistant's own answers and tips.
+
+The memory is used three ways:
+- **Sent to the assistant:** a capped summary goes with every question (`/voice/text`
+  `memory`) and every camera check (`/analyze` `prior_context`). It is wrapped as
+  `<session_notes>` data and capped at 2000 characters server-side. Preferences are never
+  dropped to make room.
+- **Shown:** as a "Τι έχουμε κάνει" list for a cook who reads.
+- **Spoken:** on "τι κάναμε" / "what have we done".
+
+Opening the same recipe again the same day offers to continue from the step that was
+reached. Finishing a recipe clears its memory.
+
+## 30. Adopted from feature/detection-db, with fixes
+
+- **Recipes.** The seed recipes, merged with ours: 16 recipes. Their made-up Wikibooks sources
+  were dropped. Every recipe got Greek ingredient lines, step kinds and bilingual equipment,
+  and the database gained migration 004 for that. Their plural/inflection search was kept,
+  with the final-sigma fix, and "κουτ. σούπας" (tablespoon) is kept out of the index.
+- **Equipment ("cutlery") before step 1.** Spoken after the ingredients and shown as a
+  checklist, ticked by tap or by the live detector.
+- **No-cache for the page's own files.** Uses `no-cache`, not `no-store`, so an unchanged file
+  is still a cheap 304.
+- **Pairing-token skip for the laptop itself.** It now also requires a local Host name, so a
+  DNS-rebinding page or a tunnel arriving over loopback still needs the token.
+- **Detection on by default.** Remembered per device. The loop now stops when the server has
+  no detection, instead of polling forever. "Detection ready" is said once per page, not on
+  every toggle.
+
+Not adopted:
+- Their second wake listener and `TextCommandRequest` endpoint: they need an OpenAI key,
+  which is why every command answered "network trouble" on a Gemini-only machine.
+- `DOCUMENTATION-project.md`: it has factual errors.
+- The `import_greek_demo.py` wrapper: it duplicates `import_recipes.py --url-file`.

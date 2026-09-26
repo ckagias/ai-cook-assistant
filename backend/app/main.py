@@ -49,6 +49,20 @@ async def _limit_analyze_content_length(request: Request, call_next):
             return JSONResponse(status_code=413, content={"detail": "request body too large"})
     return await call_next(request)
 
+
+# The page is a dozen ES modules that must match each other: after a `git pull`, a browser that
+# heuristically cached the old app.js next to a new strings.js breaks at import time. "no-cache"
+# means "ask first" - an unchanged file still comes back as a cheap 304 (ETag), unlike "no-store".
+_API_PREFIXES = ("/analyze", "/detect", "/voice", "/recipes", "/barcode", "/reference", "/health")
+
+
+@app.middleware("http")
+async def _revalidate_static_files(request: Request, call_next):
+    response = await call_next(request)
+    if request.method == "GET" and not request.url.path.startswith(_API_PREFIXES):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 THERMOMETER_NOTE = {
     "en": (
         "Do not judge raw meat, poultry, fish or eggs by appearance. Use a food thermometer: "
@@ -444,7 +458,7 @@ def voice_text_command(req: VoiceTextRequest):
     closed action list and the same checks as /voice - only the transcription step is skipped."""
     ctx = voice.VoiceContext.build(req.language, req.recipe_id, req.step_index, req.candidates,
                                    pending=req.pending, doneness=req.doneness,
-                                   timer_remaining_sec=req.timer_remaining_sec)
+                                   timer_remaining_sec=req.timer_remaining_sec, memory=req.memory)
     try:
         return voice.handle_text(req.text, ctx)
     except voice.VoiceUnavailable as exc:

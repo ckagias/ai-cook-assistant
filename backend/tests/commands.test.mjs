@@ -27,6 +27,12 @@ function testWakePhrase() {
     ["the chef said it's done", false, ""],
     ["hey there", false, ""],
     ["σεφ", false, ""],
+    // Heard on a real microphone (feature/detection-db's list): "ε σεφ", "he chef".
+    ["ε σεφ επόμενο", true, "επόμενο"],
+    ["he chef next step", true, "next step"],
+    // Chrome's Greek recognizer, measured: the φ drops once a command follows.
+    ["γεια σου σε επόμενο βήμα", true, "επόμενο βήμα"],
+    ["γεια σου σε", false, ""],
   ];
   for (const [text, woke, rest] of cases) {
     const got = splitWake(text);
@@ -51,9 +57,25 @@ function testLocalCommands() {
     ["σταμάτα το χρονόμετρο", "stop_timer"],
     ["σταμάτα", "hush"],
     ["τι χρειάζομαι", "list_ingredients"],
+    ["Τι σκεύη χρειάζομαι;", "list_equipment"],
+    ["σκεύη", "list_equipment"],
+    ["what tools do I need", "list_equipment"],
     ["έλεγξε τα υλικά", "check_ingredients"],
     ["τι είναι αυτό;", "identify"],
     ["σταμάτα τη συνταγή", "stop_recipe"],
+    // Every button has a spoken form, in both languages.
+    ["Τι βλέπω;", "identify"],
+    ["what do I see", "identify"],
+    ["συνταγές", "list_recipes"],
+    ["what recipes do you have", "list_recipes"],
+    ["βοήθεια", "help"],
+    ["what can I say", "help"],
+    ["τι κάναμε;", "recap"],
+    ["what have we done", "recap"],
+    ["πόση ώρα μένει;", "time_left"],
+    ["how much time is left", "time_left"],
+    ["άνοιξε την ανίχνευση", "detect_on"],
+    ["detection off", "detect_off"],
   ];
   for (const [text, action] of cases) {
     const got = matchLocal(text);

@@ -497,7 +497,8 @@ footer {
   letter-spacing: 0.05em;
 }
 
-#ingredient-list {
+#ingredient-list,
+#equipment-list {
   list-style: none;
   margin: 0;
   padding: 0 12px;
@@ -505,7 +506,8 @@ footer {
   gap: 6px;
 }
 
-#ingredient-list button {
+#ingredient-list button,
+#equipment-list button {
   width: 100%;
   min-height: 56px;
   padding: 8px 12px 8px 48px;
@@ -517,7 +519,8 @@ footer {
 }
 
 /* Tick box drawn with a border + check mark, so "have it" isn't shown by colour alone. */
-#ingredient-list button::before {
+#ingredient-list button::before,
+#equipment-list button::before {
   content: "";
   position: absolute;
   left: 12px;
@@ -529,12 +532,14 @@ footer {
   border-radius: 4px;
 }
 
-#ingredient-list button[aria-pressed="true"] {
+#ingredient-list button[aria-pressed="true"],
+#equipment-list button[aria-pressed="true"] {
   border-color: #3ddc97;
   color: #cfe;
 }
 
-#ingredient-list button[aria-pressed="true"]::before {
+#ingredient-list button[aria-pressed="true"]::before,
+#equipment-list button[aria-pressed="true"]::before {
   content: "✓";
   border-color: #3ddc97;
   background: #3ddc97;
@@ -714,4 +719,69 @@ button:focus-visible {
   #wake-status[data-state="armed"]::before {
     animation: none;
   }
+}
+
+/* --- needs and preferences, before the ingredients --- */
+
+#prefs h2,
+#prefs h3,
+#prefs > p {
+  margin: 8px 16px;
+}
+
+#prefs h3 {
+  font-size: 0.9em;
+  color: #aaa;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#prefs-question {
+  font-size: 1.15em;
+}
+
+/* --- per-step actions: "Done" first and bold, then one-tap questions --- */
+
+#step-actions {
+  margin: 8px 0 0;
+}
+
+#step-actions button[data-action="done-step"] {
+  background: #0b6e4f;
+  border-color: #3ddc97;
+  color: #fff;
+  font-weight: bold;
+}
+
+#step-actions button[data-action="quick-ask"],
+#step-actions button[data-action="time-left"] {
+  text-align: left;
+}
+
+/* --- the recipe's short-term memory --- */
+
+#memory-wrap {
+  margin: 12px 12px 0;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+#memory-wrap summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #ccc;
+}
+
+#memory-list {
+  margin: 0;
+  padding: 0 0 8px 20px;
+  font-size: 0.9em;
+}
+
+#memory-list li {
+  margin: 4px 0;
 }

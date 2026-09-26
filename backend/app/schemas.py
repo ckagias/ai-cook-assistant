@@ -3,6 +3,9 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 
+MEMORY_MAX_CHARS = 2000
+
+
 class SafetyFlag(BaseModel):
     severity: Literal["alarm", "caution"]
     reason: str
@@ -21,7 +24,9 @@ class AnalyzeRequest(BaseModel):
     language: Literal["el", "en"] = "el"
     recipe_id: Optional[str] = None
     step_index: Optional[int] = None
-    prior_context: Optional[str] = None
+    # The recipe session so far (the client's short-term memory: preferences, steps done, what
+    # earlier checks saw). Data for the model, never instructions - capped so it can't crowd out the rest.
+    prior_context: Optional[str] = Field(default=None, max_length=MEMORY_MAX_CHARS)
     user_followup: Optional[str] = None
     # Deliberately NO reference_image field - backend resolves it server-side.
     doneness_preference: Optional[Doneness] = None
@@ -99,6 +104,7 @@ class EquipmentItem(BaseModel):
     name: str
     vocab_id: Optional[str] = None
     inferred: bool = False  # guessed from the step text rather than listed by the source
+    text: dict[str, str] = Field(default_factory=dict)  # per-language name; vocabulary label / name otherwise
 
 
 class RecipeTimes(BaseModel):
@@ -200,7 +206,7 @@ VoiceAction = Literal[
 ]
 
 # A question the app asked and is waiting on - "yes"/"no" only mean something against one.
-PendingQuestion = Literal["advance", "add_time", "clarify", "stop_recipe", "check_offer"]
+PendingQuestion = Literal["advance", "add_time", "clarify", "stop_recipe", "check_offer", "preferences", "resume"]
 
 
 class VoiceCommand(BaseModel):
@@ -241,3 +247,4 @@ class VoiceTextRequest(BaseModel):
     pending: Optional[PendingQuestion] = None
     doneness: Optional[Doneness] = None
     timer_remaining_sec: Optional[int] = Field(default=None, ge=0, le=86400)
+    memory: Optional[str] = Field(default=None, max_length=MEMORY_MAX_CHARS)  # see AnalyzeRequest.prior_context

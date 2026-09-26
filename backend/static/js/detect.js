@@ -111,6 +111,8 @@ export function createDetector({
   getRecipeId = () => null,
   isPaused = () => false,
   onResult = () => {}, // (response) every frame - e.g. ticking off ingredients the camera sees
+  onReady = () => {}, // the first frame that came back, once per page - the model is loaded
+  onUnavailable = () => {}, // the server has no detection at all: the loop stops instead of polling
   capture = captureJpegBlob,
   api = defaultApi,
   schedule = (fn, ms) => setTimeout(fn, ms),
@@ -125,6 +127,7 @@ export function createDetector({
   let lastTableAt = -Infinity;
   let fps = 0;
   let lastFrameAt = null;
+  let readyAnnounced = false;
 
   function viewTransform() {
     const rect = canvas.getBoundingClientRect();
@@ -273,6 +276,10 @@ export function createDetector({
       delay = Math.max(0, MIN_FRAME_MS - (finished - started));
       draw(res);
       try {
+        if (!readyAnnounced) {
+          readyAnnounced = true; // once per page, not on every toggle
+          onReady();
+        }
         onResult(res);
       } catch {
         // a listener's bug must not stop the preview
@@ -286,6 +293,12 @@ export function createDetector({
       const reason = errorReason(err);
       if (reason === "detect_loading") {
         delay = 1000; // the model is loading - not a failure, just ask again shortly
+      } else if (reason === "detect_error" && err && err.status === 503) {
+        // Not installed / DETECTION_ENABLED is off: asking again every 2 s forever helps nobody.
+        running = false;
+        if (stats) stats.textContent = t(reason, getLang());
+        onUnavailable(err);
+        return;
       } else {
         errors += 1;
         delay = Math.min(2000, 250 * errors); // a dead backend shouldn't be hammered

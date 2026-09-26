@@ -16,6 +16,12 @@ import { splitWake } from "./commands.js";
 export const ARM_MS = 8000; // wake phrase alone: how long to wait for the command
 export const RESTART_MS = 250;
 export const MAX_BACKOFF_MS = 15000;
+// Chrome's cloud recognizer never marks a Greek (el-GR) result final in continuous mode - the
+// words only grow, even across long pauses (measured: nothing final in 30 s of "Γεια σου σεφ,
+// επόμενο βήμα" on a loop). English finalizes on its own within ~0.5 s. So once the wake phrase
+// is heard and the words stop changing for SETTLE_MS, stop() the session: that hands over the
+// final result at once (measured ~0.1 s later), and onend starts a fresh session.
+export const SETTLE_MS = 1000;
 
 export function getRecognition(g = globalThis) {
   return g.SpeechRecognition || g.webkitSpeechRecognition || null;
@@ -54,6 +60,7 @@ export function createWakeListener({
   let starting = false;
   let armed = false;
   let armTimer = null;
+  let settleTimer = null;
   let restartTimer = null;
   let failures = 0;
   let wokeOn = -1; // result index whose wake phrase already fired onWake
@@ -81,7 +88,25 @@ export function createWakeListener({
     return r;
   }
 
+  function unsettle() {
+    if (settleTimer !== null) clearTimer(settleTimer);
+    settleTimer = null;
+  }
+
+  // Words are still coming in after the wake phrase: once they stop changing, ask for the final.
+  // Only when there are words to act on - the wake phrase alone keeps listening (a stop() then
+  // would restart the session just as the cook starts the command).
+  function settleLater(text) {
+    unsettle();
+    if (!text) return;
+    settleTimer = setTimer(() => {
+      settleTimer = null;
+      if (rec && running && (armed || wokeOn !== -1)) rec.stop();
+    }, SETTLE_MS);
+  }
+
   function disarm() {
+    unsettle();
     armed = false;
     if (armTimer !== null) clearTimer(armTimer);
     armTimer = null;
@@ -131,6 +156,7 @@ export function createWakeListener({
           arm();
           onWake();
         }
+        if (!result.isFinal) settleLater(hit.rest.trim());
         if (result.isFinal) {
           if (hit.rest.trim()) fire(hit.rest.trim());
           else wokeOn = -1; // the wake phrase alone: stay armed for the next result
@@ -138,13 +164,14 @@ export function createWakeListener({
         continue;
       }
       // Armed: the command, possibly repeating the wake phrase in front.
-      const heard = splitWake(alternatives[0]);
-      const text = (heard.woke ? heard.rest : alternatives[0]).trim();
+      const heard = alternatives.map(splitWake).find((w) => w.woke);
+      const text = (heard ? heard.rest : alternatives[0]).trim();
       if (!result.isFinal) {
         if (text) {
           onInterim(text);
           arm(); // still talking - keep waiting
         }
+        settleLater(text);
       } else if (text) {
         fire(text);
       }
@@ -237,6 +264,7 @@ export function createWakeListener({
       if (open === gateOpen) return;
       gateOpen = open;
       if (!open) {
+        unsettle();
         if (rec && (running || starting)) rec.abort();
       } else {
         ensureRunning();

@@ -131,6 +131,10 @@ export const STRINGS = {
   no_previous: { en: "This is the first step.", el: "Αυτό είναι το πρώτο βήμα." },
   timer_stopped: { en: "Timer stopped.", el: "Το χρονόμετρο σταμάτησε." },
   no_speech: { en: "I didn't hear anything.", el: "Δεν άκουσα τίποτα." },
+  ai_busy: {
+    en: "The assistant is busy right now. Try again in a minute - simple commands like next, repeat and timer still work.",
+    el: "Ο βοηθός είναι απασχολημένος αυτή τη στιγμή. Δοκίμασε ξανά σε ένα λεπτό - οι απλές εντολές όπως επόμενο, επανάλαβε και χρονόμετρο δουλεύουν κανονικά.",
+  },
 
   // --- hands-free: "Hey chef" (wake.js) ---
   wake_toggle: { en: "Hands-free", el: "Χωρίς χέρια" },
@@ -168,7 +172,80 @@ export const STRINGS = {
   ingredients_list: { en: "You need: {list}.", el: "Χρειάζεσαι: {list}." },
   ingredients_missing: { en: "Not ticked yet: {list}.", el: "Δεν έχουν σημειωθεί ακόμα: {list}." },
   ingredients_all: { en: "Everything's ticked. Say “start” when you're ready.", el: "Όλα σημειωμένα. Πες «ξεκίνα» όταν είσαι έτοιμος." },
+  // Tools, cookware and appliances: said right after the ingredients, before step 1.
+  overview_equipment: { en: "You'll also need: {list}.", el: "Θα χρειαστείς επίσης: {list}." },
+  equipment_list: { en: "Equipment: {list}.", el: "Σκεύη: {list}." },
+  no_equipment: { en: "This recipe doesn't list any equipment.", el: "Η συνταγή δεν αναφέρει σκεύη." },
   or: { en: "or", el: "ή" },
+  and: { en: "and", el: "και" },
+
+  // --- before the ingredients: the cook's needs and preferences for this dish ---
+  prefs_question: {
+    en: "Before we start: do you have any special needs or preferences for this dish? For example an allergy, less salt, or spicier. Tell me, or say no.",
+    el: "Πριν ξεκινήσουμε: έχεις κάποια ιδιαίτερη ανάγκη ή προτίμηση για αυτό το φαγητό; Για παράδειγμα αλλεργία, λιγότερο αλάτι ή πιο πικάντικο. Πες τη, ή πες «όχι».",
+  },
+  prefs_title: { en: "Your needs and preferences", el: "Ανάγκες και προτιμήσεις" },
+  prefs_none: { en: "None - continue", el: "Καμία - συνέχεια" },
+  prefs_done: { en: "Continue", el: "Συνέχεια" },
+  prefs_noted: { en: "Noted: {text}.", el: "Σημείωσα: {text}." },
+  prefs_tell_me: { en: "Tell me which.", el: "Πες μου ποια." },
+  pref_less_salt: { en: "Less salt", el: "Λιγότερο αλάτι" },
+  pref_nut_allergy: { en: "Nut allergy", el: "Αλλεργία σε ξηρούς καρπούς" },
+  pref_vegetarian: { en: "Vegetarian", el: "Χορτοφαγικό" },
+  pref_kids: { en: "For children", el: "Για παιδιά" },
+  pref_spicy: { en: "Spicier", el: "Πιο πικάντικο" },
+  pref_hurry: { en: "I'm in a hurry", el: "Βιάζομαι" },
+  advice_request: {
+    en: "My needs and preferences for this dish: {prefs}. Give me one or two short tips for adapting this recipe.",
+    el: "Οι ανάγκες και οι προτιμήσεις μου για αυτό το φαγητό: {prefs}. Δώσε μου μία ή δύο σύντομες συμβουλές για να προσαρμόσω τη συνταγή.",
+  },
+  resume_question: {
+    en: "Earlier today you got to step {n} of this recipe. Shall we continue from there?",
+    el: "Νωρίτερα σήμερα είχες φτάσει στο βήμα {n} αυτής της συνταγής. Να συνεχίσουμε από εκεί;",
+  },
+  resume_fresh: { en: "OK, from the start.", el: "Εντάξει, από την αρχή." },
+
+  // --- help and memory ---
+  help_text: {
+    en: "Say “Hey chef”, then for example: I want to make roast beef, recipes, what do I see, ingredients, tools, start, next, repeat, timer, how much time is left, check it, what have we done - or ask any cooking question.",
+    el: "Πες «Γεια σου σεφ» και μετά για παράδειγμα: θέλω να φτιάξω ροσμπίφ, συνταγές, τι βλέπω, υλικά, σκεύη, ξεκίνα, επόμενο, επανάλαβε, χρονόμετρο, πόση ώρα μένει, έλεγξε, τι κάναμε - ή κάνε μια ερώτηση μαγειρικής.",
+  },
+  recap_empty: { en: "We haven't done anything in this recipe yet.", el: "Δεν έχουμε κάνει τίποτα ακόμα σε αυτή τη συνταγή." },
+  recap_intro: { en: "So far:", el: "Μέχρι τώρα:" },
+  memory_title: { en: "What we've done", el: "Τι έχουμε κάνει" },
+  mem_prefs: { en: "Your preferences: {text}.", el: "Οι προτιμήσεις σου: {text}." },
+  mem_step: { en: "Step {n}: {text}", el: "Βήμα {n}: {text}" },
+  mem_ingredients: { en: "Ingredients ticked: {have} of {total}.", el: "Υλικά σημειωμένα: {have} από {total}." },
+  mem_ingredients_missing: { en: "Not ticked: {list}.", el: "Χωρίς σημείωση: {list}." },
+  mem_timer_start: { en: "Timer {label}: {human}.", el: "Χρονόμετρο {label}: {human}." },
+  mem_timer_done: { en: "Time up: {label}.", el: "Τέλος χρόνου: {label}." },
+  mem_check: { en: "Check, step {n}: {verdict}. {seen}", el: "Έλεγχος, βήμα {n}: {verdict}. {seen}" },
+  mem_done: { en: "Recipe finished.", el: "Η συνταγή ολοκληρώθηκε." },
+  verdict_ready: { en: "ready", el: "έτοιμο" },
+  verdict_not_ready: { en: "not ready yet", el: "όχι ακόμα" },
+  verdict_unsure: { en: "not sure", el: "αβέβαιο" },
+  verdict_none: { en: "use a thermometer", el: "θέλει θερμόμετρο" },
+
+  // --- per-step buttons: one tap for a cook who reads rather than speaks ---
+  done_step: { en: "Done ✓", el: "Έγινε ✓" },
+  q_ready: { en: "How do I know it's ready?", el: "Πώς καταλαβαίνω ότι είναι έτοιμο;" },
+  q_how: { en: "How do I do this properly?", el: "Πώς το κάνω σωστά;" },
+  q_temp: { en: "What heat or temperature?", el: "Σε τι φωτιά ή θερμοκρασία;" },
+  q_substitute: { en: "What can I use instead?", el: "Με τι μπορώ να το αντικαταστήσω;" },
+  q_next: { en: "What comes next?", el: "Τι ακολουθεί;" },
+  q_time_left: { en: "How much time is left?", el: "Πόση ώρα μένει;" },
+  speak_done_step: {
+    en: "Done. Tells me you've finished this step - I'll check it with the camera when it can be checked.",
+    el: "Έγινε. Μου λέει ότι τελείωσες το βήμα - αν ελέγχεται, θα το δω με την κάμερα.",
+  },
+  speak_prefs_none: { en: "None. No special needs - go to the ingredients.", el: "Καμία. Χωρίς ιδιαίτερες ανάγκες - πάμε στα υλικά." },
+  speak_prefs_done: { en: "Continue. Go to the ingredients.", el: "Συνέχεια. Πάμε στα υλικά." },
+
+  // --- detection ---
+  model_ready: { en: "The camera can now recognise objects.", el: "Η κάμερα αναγνωρίζει πλέον αντικείμενα." },
+  detect_unavailable: { en: "Detection isn't available on this computer.", el: "Η ανίχνευση δεν είναι διαθέσιμη σε αυτόν τον υπολογιστή." },
+  detect_on_said: { en: "Detection on.", el: "Ανίχνευση: ανοιχτή." },
+  detect_off_said: { en: "Detection off.", el: "Ανίχνευση: κλειστή." },
 
   // --- steps ---
   step_n_of: { en: "Step {n} of {total}.", el: "Βήμα {n} από {total}." },
@@ -231,6 +308,7 @@ export const STRINGS = {
   answer_yes: { en: "Yes", el: "Ναι" },
   answer_no: { en: "No", el: "Όχι" },
   ingredients: { en: "Ingredients", el: "Υλικά" },
+  equipment: { en: "Equipment", el: "Σκεύη" },
   read_ingredients: { en: "Read ingredients", el: "Πες τα υλικά" },
   check_ingredients: { en: "Check with camera", el: "Έλεγχος με κάμερα" },
   start_cooking: { en: "Start cooking", el: "Ξεκίνα" },
@@ -253,8 +331,11 @@ export const STRINGS = {
     el: "Χωρίς χέρια. Όταν είναι ενεργό, πες «Γεια σου σεφ» και μετά τι θέλεις - χωρίς να αγγίξεις τίποτα.",
   },
   speak_previous: { en: "Previous. Goes back one step.", el: "Προηγούμενο. Πηγαίνει ένα βήμα πίσω." },
-  speak_ingredients: { en: "Ingredients. Reads the ingredients again.", el: "Υλικά. Λέει ξανά τα υλικά." },
-  speak_read_ingredients: { en: "Read ingredients. Reads the list out loud.", el: "Πες τα υλικά. Διαβάζει δυνατά τη λίστα." },
+  speak_ingredients: { en: "Ingredients. Reads the ingredients and the equipment again.", el: "Υλικά. Λέει ξανά τα υλικά και τα σκεύη." },
+  speak_read_ingredients: {
+    en: "Read ingredients. Reads the ingredients and the equipment out loud.",
+    el: "Πες τα υλικά. Διαβάζει δυνατά τα υλικά και τα σκεύη.",
+  },
   speak_check_ingredients: {
     en: "Check with camera. Show me your ingredients and I'll tick the ones I can see.",
     el: "Έλεγχος με κάμερα. Δείξε μου τα υλικά σου και θα σημειώσω όσα βλέπω.",

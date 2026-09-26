@@ -114,6 +114,7 @@ export function voiceText(text, ctx = {}) {
   if (ctx.pending) body.pending = ctx.pending;
   if (ctx.doneness) body.doneness = ctx.doneness;
   if (ctx.timerRemainingSec !== undefined && ctx.timerRemainingSec !== null) body.timer_remaining_sec = ctx.timerRemainingSec;
+  if (ctx.memory) body.memory = String(ctx.memory).slice(0, 2000); // the recipe so far (memory.js)
   return requestJson(
     "/voice/text",
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },

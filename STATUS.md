@@ -3,6 +3,45 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
+## Update: Greek hands-free fix, preferences first, short-term memory, detection-db features (uncommitted, 2026-09-26)
+
+See DESIGN.md #27-#30. **Built and verified:**
+- **Why "Γεια σου σεφ" didn't work on a real microphone:**
+  - Chrome's Greek recognizer never marks results final. This was measured with the real Web
+    Speech API on synthesized speech.
+  - Fixed with a 1 s "words settled" stop. The real recognizer then drove this app end to end
+    with no errors ("recipes", "1", "start", "next step"...).
+- **The new recipe flow:** needs and preferences, then the ingredients and tools, then the steps.
+  Each step has its own buttons and one-tap questions, and a per-recipe short-term memory is kept.
+- **From feature/detection-db:**
+  - 16 recipes, all with bilingual tools;
+  - stemmed search;
+  - no-cache page files;
+  - the local pairing-token skip, now with a Host check;
+  - detection on by default, stopping cleanly when the server has none;
+  - "ready" said once;
+  - two more wake spellings.
+- **Every button has a spoken form**, in Greek and English (τι βλέπω, συνταγές, σκεύη, βοήθεια,
+  τι κάναμε, πόση ώρα μένει, ανίχνευση).
+- **Fixed along the way:**
+  - camera feedback answered in English to a Greek cook - seen live, now flagged;
+  - an exhausted AI quota was reported as "can't reach the server";
+  - a button's hover description could cut off a command mid-sentence.
+- **Tests:** 331 passing (Python + Node).
+- **End to end in headless Edge**, against the live server (Gemini), with a recognizer that
+  behaves like Chrome's Greek one: every step passed, from "Γεια σου σεφ θέλω να φτιάξω ροσμπίφ"
+  through preferences, the tip, tools, doneness, the steps, a one-tap question, the recap and
+  help, to stop/reopen/continue-from-step-3.
+
+**Not verified yet:**
+- A real microphone in a real kitchen. The Greek fix was measured with synthesized speech
+  through Chrome's fake microphone.
+- The Gemini free tier (5 requests/minute per model) ran out several times during testing. The
+  app now says "the assistant is busy", and simple commands keep working on the device.
+- Fanis's `origin/dev` (PWA) is not integrated. This branch already sends the timer notification
+  it expects. On merge, add `wake.js`, `commands.js`, `timers.js` and `memory.js` to `sw.js`'s
+  `SHELL_FILES`.
+
 ## Update: hands-free "Hey chef", recipe flow, deaf-friendly UI (branch `feature/hands-free-chef`, 2026-09-26)
 
 See DESIGN.md #21-#26 for the why. **Built and verified:**

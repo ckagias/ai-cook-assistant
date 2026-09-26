@@ -206,3 +206,10 @@ class TestAdversarialSuiteEndToEnd:
         body = r.json()
         assert body["confidence"] == "high"
         assert body["spoken_response"] == clean["spoken_response"]
+
+
+def test_english_camera_feedback_to_a_greek_cook_is_flagged():
+    # Seen live: "Turn on the light or point the camera at your food." for language="el".
+    response = {"spoken_response": "", "camera_feedback": "Turn on the light or point the camera at your food."}
+    assert "camera_feedback:language" in output_guard.scan_for_injection(response, "el")
+    assert output_guard.scan_for_injection({"spoken_response": "", "camera_feedback": "Άναψε το φως."}, "el") == []

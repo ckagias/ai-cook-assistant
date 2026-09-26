@@ -70,6 +70,19 @@
 
     <div id="recipe-list" hidden></div>
 
+    <!-- First thing after choosing a recipe, before the ingredients: needs and preferences. -->
+    <section id="prefs" hidden aria-labelledby="prefs-title">
+      <h2 id="prefs-recipe"></h2>
+      <h3 id="prefs-title" data-label="prefs_title">Ανάγκες και προτιμήσεις</h3>
+      <p id="prefs-question"></p>
+      <div id="prefs-options" class="chips"></div>
+      <div class="button-grid">
+        <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
+        <button class="primary" data-action="prefs-done" data-speak="prefs_done" data-label="prefs_done">Συνέχεια</button>
+        <button data-action="prefs-none" data-speak="prefs_none" data-label="prefs_none">Καμία - συνέχεια</button>
+      </div>
+    </section>
+
     <section id="overview" hidden aria-labelledby="overview-title">
       <h2 id="overview-title"></h2>
       <p id="overview-meta"></p>
@@ -79,6 +92,10 @@
       </div>
       <h3 data-label="ingredients">Υλικά</h3>
       <ul id="ingredient-list"></ul>
+      <div id="equipment" hidden>
+        <h3 data-label="equipment">Σκεύη</h3>
+        <ul id="equipment-list"></ul>
+      </div>
       <div class="button-grid">
         <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
         <button class="primary" data-action="start-cooking" data-speak="start_cooking" data-label="start_cooking">Ξεκίνα</button>
@@ -92,6 +109,8 @@
       <p id="step-count"></p>
       <p id="step-text"></p>
       <div id="timers"></div>
+      <!-- Built per step: "Done", the step's timer, and one-tap questions for a cook who reads. -->
+      <div id="step-actions" class="chips"></div>
       <div class="button-grid">
         <button class="talk" data-action="talk" data-speak="talk" data-label="talk" data-hold="1" aria-pressed="false">Μίλα</button>
         <button class="primary" data-action="check" data-speak="check" data-label="check">Έλεγξε</button>
@@ -112,6 +131,12 @@
         <button type="submit" data-speak="send" data-label="send">Στείλε</button>
       </div>
     </form>
+
+    <!-- The recipe's short-term memory, readable: preferences, steps done, what checks saw. -->
+    <details id="memory-wrap" hidden>
+      <summary data-label="memory_title">Τι έχουμε κάνει</summary>
+      <ul id="memory-list"></ul>
+    </details>
 
     <section id="log-wrap" aria-labelledby="log-title">
       <h3 id="log-title" data-label="log_title">Συνομιλία</h3>

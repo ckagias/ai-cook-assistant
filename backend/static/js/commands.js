@@ -20,9 +20,13 @@ export function fold(text) {
 // --- the wake phrase: "Hey chef" / "Γεια σου σεφ" ---
 
 // A Greek recognizer may write "Hey chef" in Latin letters or in Greek ("χέι σεφ", "έι σεφ").
-const GREETINGS = [["hey"], ["hi"], ["hei"], ["χει"], ["χαι"], ["ει"], ["γεια", "σου"], ["γεια"], ["γειασου"], ["ok"], ["okay"], ["οκ"]];
+// "ε σεφ" and "he chef" come from feature/detection-db, seen on a real microphone.
+const GREETINGS = [["hey"], ["hi"], ["hei"], ["he"], ["χει"], ["χαι"], ["ει"], ["ε"], ["γεια", "σου"], ["γεια"], ["γειασου"], ["ok"], ["okay"], ["οκ"]];
 const NAMES = new Set(["chef", "shef", "sef", "chief", "σεφ", "τσεφ"]);
 const JOINED = new Set(["heychef", "heyshef", "χεισεφ", "γειασουσεφ"]);
+// Chrome's Greek recognizer, measured: "γεια σου σε επόμενο βήμα" (the φ dropped once more words
+// follow). Only after the full "γεια σου", and only with a command after it.
+const SHORT_AFTER_GEIA_SOU = new Set(["σε"]);
 
 function words(text) {
   return (text || "").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -37,7 +41,9 @@ export function splitWake(text) {
     if (JOINED.has(folded[i])) return { woke: true, rest: original.slice(i + 1).join(" ") };
     for (const greeting of GREETINGS) {
       const n = greeting.length;
-      if (greeting.every((w, k) => folded[i + k] === w) && NAMES.has(folded[i + n])) {
+      const name = folded[i + n];
+      const short = n === 2 && greeting[0] === "γεια" && SHORT_AFTER_GEIA_SOU.has(name) && i + n + 1 < folded.length;
+      if (greeting.every((w, k) => folded[i + k] === w) && (NAMES.has(name) || short)) {
         return { woke: true, rest: original.slice(i + n + 1).join(" ") };
       }
     }
@@ -58,8 +64,18 @@ const PHRASES = {
   check_doneness: ["check", "check it", "check this", "is it ready", "is it done", "evaluate", "evaluate it", "how does it look", "look", "take a look", "ελεγξε", "ελεγξε το", "ελεγχος", "ειναι ετοιμο", "κοιτα", "κοιτα το", "κοιταξε", "αξιολογησε", "αξιολογησε το", "τσεκαρε", "τσεκαρε το", "ριξε μια ματια"],
   check_ingredients: ["check ingredients", "check my ingredients", "check the ingredients", "look at my ingredients", "ελεγξε τα υλικα", "κοιτα τα υλικα", "τσεκαρε τα υλικα", "δες τα υλικα"],
   list_ingredients: ["ingredients", "what do i need", "read the ingredients", "list ingredients", "list the ingredients", "υλικα", "τα υλικα", "συστατικα", "τι χρειαζομαι", "πες τα υλικα", "πες μου τα υλικα", "διαβασε τα υλικα", "ποια υλικα"],
-  identify: ["what is this", "whats this", "what s this", "what is that", "τι ειναι αυτο", "τι ειναι αυτο εδω", "τι ειναι"],
-  list_recipes: ["recipes", "list recipes", "show recipes", "συνταγες", "δειξε συνταγες", "πες συνταγες"],
+  list_equipment: ["equipment", "tools", "utensils", "cutlery", "what tools do i need", "what equipment do i need", "which tools", "σκευη", "τα σκευη", "εργαλεια", "τα εργαλεια", "τι σκευη χρειαζομαι", "τι εργαλεια χρειαζομαι", "ποια σκευη", "πες τα σκευη", "πες μου τα σκευη", "μαχαιροπιρουνα"],
+  identify: ["what is this", "whats this", "what s this", "what is that", "what do i see", "what do you see", "what am i looking at",
+    "what am i holding", "τι ειναι αυτο", "τι ειναι αυτο εδω", "τι ειναι", "τι βλεπω", "τι βλεπεις", "τι εχω μπροστα μου", "τι κραταω"],
+  list_recipes: ["recipes", "list recipes", "show recipes", "show me the recipes", "what recipes do you have", "which recipes",
+    "συνταγες", "δειξε συνταγες", "πες συνταγες", "δειξε μου τις συνταγες", "ποιες συνταγες εχεις", "ποιες συνταγες"],
+  help: ["help", "what can i say", "what can you do", "commands", "βοηθεια", "τι μπορω να πω", "τι μπορεις να κανεις", "εντολες"],
+  recap: ["recap", "what have we done", "what did we do", "summary", "where are we", "τι καναμε", "τι εχουμε κανει", "συνοψη",
+    "που ειμαστε", "που ημασταν"],
+  time_left: ["time left", "how much time is left", "how much time left", "how long left", "how long is left", "ποση ωρα μενει",
+    "ποσος χρονος μενει", "ποση ωρα εμεινε", "ποσο μενει", "ποση ωρα ακομα"],
+  detect_on: ["detection on", "start detection", "turn on detection", "ανιχνευση", "ανοιξε την ανιχνευση", "ξεκινα την ανιχνευση"],
+  detect_off: ["detection off", "stop detection", "turn off detection", "κλεισε την ανιχνευση", "σταματα την ανιχνευση"],
   stop_recipe: ["stop recipe", "stop the recipe", "end recipe", "end the recipe", "quit recipe", "σταματα τη συνταγη", "τελος συνταγης", "κλεισε τη συνταγη", "ακυρωσε τη συνταγη"],
   hush: ["stop", "quiet", "silence", "shh", "shush", "σταματα", "σιωπη", "ησυχια", "σουτ", "σκασμος"],
   yes: ["yes", "yeah", "yep", "yes please", "ok", "okay", "sure", "go ahead", "do it", "ναι", "ναι ναι", "ναι παρακαλω", "ενταξει", "οκ", "οκει", "βεβαια", "σωστα", "φυσικα", "κανε το"],

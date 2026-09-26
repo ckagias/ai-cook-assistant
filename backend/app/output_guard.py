@@ -90,9 +90,11 @@ def scan_for_injection(response: dict, language: str | None = None) -> list[str]
                 flagged.append(f"{field}:url")
                 break
     if language == "el":
-        spoken = str(response.get("spoken_response") or "")
-        if _mostly_not_greek(spoken):
-            flagged.append("spoken_response:language")
+        # camera_feedback is spoken too ("turn on the light"): an English one reaches a Greek cook
+        # who may not understand it at all - seen live with Gemini.
+        for field in ("spoken_response", "camera_feedback"):
+            if _mostly_not_greek(str(response.get(field) or "")):
+                flagged.append(f"{field}:language")
     return flagged
 
 

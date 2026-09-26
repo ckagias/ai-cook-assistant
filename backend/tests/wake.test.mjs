@@ -2,7 +2,7 @@
 // same breath, nothing acted on without it, the app's own speech ignored, restarts after the
 // browser ends a session, a blocked microphone, and the talk button's one-shot listening.
 
-const { createWakeListener, ARM_MS } = await import("../static/js/wake.js");
+const { createWakeListener, ARM_MS, SETTLE_MS } = await import("../static/js/wake.js");
 
 function assert(cond, message) {
   if (!cond) throw new Error("assertion failed: " + message);
@@ -14,6 +14,7 @@ class FakeRecognition {
   constructor() {
     this.started = 0;
     this.aborted = 0;
+    this.stopped = 0;
     this.active = false;
     FakeRecognition.instances.push(this);
   }
@@ -26,6 +27,9 @@ class FakeRecognition {
   abort() {
     this.aborted += 1;
     this.end();
+  }
+  stop() {
+    this.stopped += 1; // a real one hands over its final result, then ends
   }
   end() {
     if (!this.active) return;
@@ -192,6 +196,40 @@ async function testUnsupportedBrowser() {
   console.log("test k (a browser without speech recognition) OK");
 }
 
+// Measured with Chrome's real recognizer: el-GR never marks a result final in continuous mode.
+async function testGreekInterimSettles() {
+  const s = await setup();
+  await s.listener.start();
+  s.rec().hear("γεια σου σεφ", false);
+  s.rec().hear("γεια σου σεφ επόμενο βήμα", false);
+  assert(s.log.woke === 1 && s.log.commands.length === 0, "woke, waiting");
+  s.fire(SETTLE_MS);
+  assert(s.rec().stopped === 1, "words stopped changing: asked the recognizer for its final result");
+  s.rec().hear(["γεια σου σε επόμενο βήμα", "γεια σου σε επομένω βήμα"], true); // measured, no "σεφ" at all
+  assert(s.log.commands[0] === "επόμενο βήμα", `command: ${s.log.commands}`);
+  s.rec().end();
+  s.fire();
+  assert(s.rec().active && s.rec().started === 2, "a fresh session afterwards");
+  console.log("test l (Greek: no final result -> stop() once the words settle) OK");
+  const t = await setup();
+  await t.listener.start();
+  t.rec().hear("γεια σου σεφ", false);
+  t.fire(SETTLE_MS);
+  assert(t.rec().stopped === 0 && t.listener.isArmed(), "the wake phrase alone doesn't cut the session short");
+  console.log("test l2 (the wake phrase alone waits for the command) OK");
+}
+
+async function testArmedAlternativeStripsTheWakePhrase() {
+  const s = await setup();
+  await s.listener.start();
+  s.rec().hear("hey chef", false);
+  s.rec().hear(["patient I want to make roast beef", "hey chef I want to make roast beef"], true);
+  assert(s.log.commands[0] === "I want to make roast beef", `command: ${s.log.commands}`);
+  console.log("test m (armed: the wake phrase is stripped from whichever alternative has it) OK");
+}
+
+await testGreekInterimSettles();
+await testArmedAlternativeStripsTheWakePhrase();
 await testWakeAndCommandInOneBreath();
 await testWakeThenCommand();
 await testNothingWithoutTheWakePhrase();

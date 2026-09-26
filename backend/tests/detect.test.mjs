@@ -191,11 +191,62 @@ async function testWarmingUpShowsLoadingAndRetriesWithoutBackoff() {
   console.log("test f (warming up: loading message, no backoff) OK");
 }
 
+async function testNoDetectionOnTheServerStopsTheLoop() {
+  const delays = [];
+  let unavailable = 0;
+  const off = Object.assign(new Error("HTTP 503"), { status: 503, detail: "detection is disabled (DETECTION_ENABLED=false)" });
+  const d = detect.createDetector({
+    video: { videoWidth: 640, videoHeight: 480 },
+    canvas: { getContext: () => fakeCtx(), getBoundingClientRect: () => ({ width: 1, height: 1 }) },
+    table: Object.assign(fakeElement("table"), { ownerDocument: globalThis.document }),
+    stats: { textContent: "" },
+    getLang: () => "en",
+    capture: async () => ({ blob: "jpeg" }),
+    api: { detectFrame: async () => { throw off; } },
+    schedule: (fn, ms) => { delays.push(ms); return 1; },
+    cancel: () => {},
+    onUnavailable: () => unavailable++,
+  });
+  d.start();
+  await new Promise((r) => setTimeout(r, 0));
+  assert(unavailable === 1 && delays.length === 0 && !d.isRunning(), "stopped instead of polling every 2 s forever");
+  console.log("test g (no detection on the server: the loop stops) OK");
+}
+
+async function testReadyIsAnnouncedOncePerPage() {
+  let ready = 0;
+  const scheduled = [];
+  const d = detect.createDetector({
+    video: { videoWidth: 640, videoHeight: 480 },
+    canvas: { width: 0, height: 0, getContext: () => fakeCtx(), getBoundingClientRect: () => ({ width: 400, height: 300 }) },
+    table: Object.assign(fakeElement("table"), { ownerDocument: globalThis.document }),
+    stats: { textContent: "" },
+    getLang: () => "en",
+    capture: async () => ({ blob: "jpeg" }),
+    api: { detectFrame: async () => RESULT },
+    schedule: (fn) => { scheduled.push(fn); return scheduled.length; },
+    cancel: () => {},
+    onReady: () => ready++,
+  });
+  d.start();
+  await new Promise((r) => setTimeout(r, 0));
+  scheduled.shift()();
+  await new Promise((r) => setTimeout(r, 0));
+  d.stop();
+  d.start(); // toggled off and on again mid-recipe
+  await new Promise((r) => setTimeout(r, 0));
+  d.stop();
+  assert(ready === 1, `announced ${ready} times - once, not on every toggle`);
+  console.log("test h (ready announced once per page) OK");
+}
+
 testCoverTransformCropsWiderVideo();
 testColoursStablePerClassAndDistinctPerGroup();
 testRowsCarryPixelCentresAndRelations();
 await testLoopKeepsOneRequestInFlight();
 await testErrorsBackOff();
 await testWarmingUpShowsLoadingAndRetriesWithoutBackoff();
+await testNoDetectionOnTheServerStopsTheLoop();
+await testReadyIsAnnouncedOncePerPage();
 
 console.log("all passed");

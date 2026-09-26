@@ -112,3 +112,34 @@ class TestPairingTokenEnabledFlag:
     def test_enabled_when_set(self, monkeypatch):
         monkeypatch.setenv("BACKEND_PAIRING_TOKEN", "x")
         assert auth.pairing_token_enabled() is True
+
+
+class TestLocalMachineSkipsTheToken:
+    """The laptop and the adb-reverse tablet reach the server over loopback and were always trusted
+    (DESIGN.md #15); only literal local host names count, so a DNS-rebinding page or a tunnel
+    that also arrives over loopback still needs the token."""
+
+    @pytest.fixture(autouse=True)
+    def _token(self, monkeypatch):
+        monkeypatch.setenv("BACKEND_PAIRING_TOKEN", "s3cret")
+
+    @pytest.mark.parametrize("host", ["localhost:8000", "127.0.0.1:8000", "[::1]:8000", "localhost"])
+    def test_loopback_with_a_local_host_name_needs_no_token(self, host):
+        local = TestClient(app, client=("127.0.0.1", 50000))
+        assert local.get("/recipes", headers={"host": host}).status_code == 200
+
+    @pytest.mark.parametrize("host", ["evil.example:8000", "abc.ngrok.io", "localhost.evil.example"])
+    def test_loopback_with_any_other_host_still_needs_it(self, host):
+        local = TestClient(app, client=("127.0.0.1", 50000))
+        assert local.get("/recipes", headers={"host": host}).status_code == 401
+        assert local.get("/recipes", headers={"host": host, "X-Pairing-Token": "s3cret"}).status_code == 200
+
+    def test_a_lan_device_still_needs_it(self):
+        phone = TestClient(app, client=("192.168.1.23", 50000))
+        assert phone.get("/recipes", headers={"host": "192.168.1.10:8443"}).status_code == 401
+
+
+def test_static_files_are_revalidated_but_api_answers_are_untouched(client):
+    assert client.get("/js/app.js").headers["cache-control"] == "no-cache"
+    assert client.get("/").headers["cache-control"] == "no-cache"
+    assert "cache-control" not in client.get("/recipes").headers

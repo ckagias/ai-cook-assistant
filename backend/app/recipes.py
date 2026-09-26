@@ -73,7 +73,11 @@ def ensure_ready() -> None:
 def seed_from_json(conn: sqlite3.Connection, path: Path = SEED_PATH) -> int:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     for item in data:
-        save_recipe(Recipe.model_validate(item), status=PUBLISHED, conn=conn)
+        recipe = Recipe.model_validate(item)
+        if recipe.source is None:
+            # The seed file is the truth for its recipes: a source an older seed claimed goes too.
+            conn.execute("DELETE FROM recipe_sources WHERE recipe_id = ?", (recipe.id,))
+        save_recipe(recipe, status=PUBLISHED, conn=conn)
     return len(data)
 
 
@@ -112,7 +116,10 @@ def _row_to_recipe(conn: sqlite3.Connection, row: sqlite3.Row) -> Recipe:
         for i in conn.execute("SELECT * FROM recipe_ingredients WHERE recipe_id = ? ORDER BY position", (rid,))
     ]
     equipment = [
-        EquipmentItem(name=e["name"], vocab_id=e["vocab_id"], inferred=bool(e["inferred"]))
+        EquipmentItem(
+            name=e["name"], vocab_id=e["vocab_id"], inferred=bool(e["inferred"]),
+            text=json.loads(e["text_json"]) or _vocab_text(e["name"], e["vocab_id"]),
+        )
         for e in conn.execute("SELECT * FROM recipe_equipment WHERE recipe_id = ? ORDER BY rowid", (rid,))
     ]
     src = conn.execute(
@@ -209,6 +216,27 @@ def ingredient_lines(recipe: Recipe, language: str) -> list[str]:
     if recipe.ingredient_details:
         return [text_in(d.text, language, d.raw_text) for d in recipe.ingredient_details]
     return list(recipe.ingredients)
+
+
+_GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")  # U+0370-03FF Greek, U+1F00-1FFF Greek Extended
+
+
+def _vocab_text(name: str, vocab_id: Optional[str]) -> dict[str, str]:
+    """Equipment with no curated translation (imported, or listed in one language only): the name
+    as given, plus the detector vocabulary's word for the other language - so the client can show
+    it in Greek too. The name's own script says which language it is in."""
+    from .detection.vocabulary import load_vocabulary
+
+    cls = load_vocabulary().by_id(vocab_id) if vocab_id else None
+    if cls is None:
+        return {}
+    return {"el": name, "en": cls.en} if _GREEK.search(name) else {"en": name, "el": cls.el}
+
+
+def equipment_lines(recipe: Recipe, language: str) -> list[str]:
+    """What to have on the counter, in the cook's language: the curated name, else the detector
+    vocabulary's word (filled in when the recipe is read), else the stored name."""
+    return [text_in(item.text or _vocab_text(item.name, item.vocab_id), language, item.name) for item in recipe.equipment]
 
 
 def doneness_options(recipe: Recipe) -> list[str]:
@@ -317,8 +345,8 @@ def save_recipe(
             continue
         seen.add(item.name)
         conn.execute(
-            "INSERT INTO recipe_equipment (recipe_id, name, vocab_id, inferred) VALUES (?, ?, ?, ?)",
-            (recipe.id, item.name, item.vocab_id, int(item.inferred)),
+            "INSERT INTO recipe_equipment (recipe_id, name, vocab_id, inferred, text_json) VALUES (?, ?, ?, ?, ?)",
+            (recipe.id, item.name, item.vocab_id, int(item.inferred), _dump(item.text)),
         )
 
     if recipe.source is not None:
@@ -373,7 +401,12 @@ def _search_text(recipe: Recipe) -> str:
              *(text for d in recipe.ingredient_details for text in d.text.values()),
              *(e.name for e in recipe.equipment), recipe.category or "", recipe.cuisine or ""]
     parts += [alias for values in recipe.aliases.values() for alias in values]
-    return fold(" ".join(p for p in parts if p))
+    # "κουτ. σούπας" is a tablespoon, not a soup: without this, "σούπα" finds every Greek ingredient list.
+    return _SPOON_MEASURE.sub(" ", fold(" ".join(p for p in parts if p)))
+
+
+# Folded text: accents gone and a final "ς" is "σ".
+_SPOON_MEASURE = re.compile(r"κουτ\w*\.?\s+(?:τη[σς]\s+)?(?:σουπα[σς]|γλυκου)")
 
 
 def _index_recipe(conn: sqlite3.Connection, recipe: Recipe) -> None:
@@ -387,21 +420,48 @@ def _rebuild_search_index(conn: sqlite3.Connection) -> None:
         _index_recipe(conn, _row_to_recipe(conn, row))
 
 
-def search_recipes(words: list[str], limit: int = 5) -> list[Recipe]:
-    """Published recipes matching any of `words`, best first (SQLite FTS5 BM25). Words are
-    accent-folded and matched by prefix, so "αυγά" finds "αυγό" and "eggs" finds "egg"."""
+def _stem_tokens(word: str) -> list[str]:
+    """The folded word plus its likely other forms: English plurals ("eggs" -> "egg") and Greek
+    inflections ("αυγά" -> "αυγ", "αυγο", ...; "μπριζόλες" -> "μπριζολ"). Endings are written
+    folded: fold() drops accents and turns a final "ς" into "σ", in the query and in the index."""
     from .detection.vocab_match import fold
 
-    tokens = []
-    for word in words:
-        for token in re.findall(r"\w+", fold(word or "")):
-            if len(token) >= 2:
-                # Crude stem: drop inflection. Never below 4 letters for a 5+ letter word - "σούσι"
-                # as "σου*" would match every Greek "κουτ. σούπας" (tablespoon) in an ingredient line.
-                tokens.append(token[: 3 if len(token) <= 4 else max(4, len(token) - 2)])
-    if not tokens:
+    tokens: list[str] = []
+    for token in re.findall(r"\w+", fold(word or "")):
+        if len(token) < 2:
+            continue
+        tokens.append(token)
+        if token.endswith("ies") and len(token) > 4:
+            tokens.append(token[:-3] + "y")
+        elif token.endswith("es") and len(token) > 4:
+            tokens.append(token[:-2])
+        elif token.endswith("s") and len(token) > 3:
+            tokens.append(token[:-1])
+        if token.endswith(("ια", "εσ", "ων", "ουσ", "ατα", "δεσ")) and len(token) > 4:
+            tokens.append(token[:-2])
+        elif token.endswith(("α", "η", "ο", "ι", "υ", "ε", "σ")) and len(token) > 3:
+            stem = token[:-1]
+            tokens.extend([stem, stem + "α", stem + "ο", stem + "ι", stem + "ησ", stem + "ου", stem + "εσ"])
+    return tokens
+
+
+def _match_query(words: list[str]) -> str:
+    """FTS5 query: 4+ letter forms match as prefixes, shorter stems only exactly - "egg*" would
+    find "eggplants". A prefix already covered by a shorter one is dropped, so every spoken word
+    weighs about the same in BM25."""
+    tokens = list(dict.fromkeys(t for word in words for t in _stem_tokens(word)))
+    prefixes = [t for t in tokens if len(t) >= 4]
+    parts = [f'"{t}"*' for t in prefixes if not any(o != t and t.startswith(o) for o in prefixes)]
+    parts += [f'"{t}"' for t in tokens if len(t) < 4]
+    return " OR ".join(parts)
+
+
+def search_recipes(words: list[str], limit: int = 5) -> list[Recipe]:
+    """Published recipes matching any of `words`, best first (SQLite FTS5 BM25). Words are
+    accent-folded and matched by stem/prefix, so "αυγά" finds "αυγό" and "eggs" finds "egg"."""
+    query = _match_query(words)
+    if not query:
         return []
-    query = " OR ".join(f'"{t}"*' for t in dict.fromkeys(tokens))
     ensure_ready()
     with db.session() as conn:
         rows = conn.execute(

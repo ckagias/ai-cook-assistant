@@ -13,6 +13,7 @@ import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
 import { createPushToTalk } from "./voice.js";
 import { createWakeListener, getRecognition } from "./wake.js";
 import { matchLocal } from "./commands.js";
+import { createMemory } from "./memory.js";
 
 // Three ways in, two ways out, for everything the app does:
 //   in:  voice ("Hey chef" or the talk button), the buttons, and typing
@@ -29,12 +30,21 @@ const el = {
   status: document.getElementById("status"),
   controls: document.getElementById("controls"),
   recipeList: document.getElementById("recipe-list"),
+  prefs: document.getElementById("prefs"),
+  prefsRecipe: document.getElementById("prefs-recipe"),
+  prefsQuestion: document.getElementById("prefs-question"),
+  prefsOptions: document.getElementById("prefs-options"),
+  stepActions: document.getElementById("step-actions"),
+  memoryWrap: document.getElementById("memory-wrap"),
+  memoryList: document.getElementById("memory-list"),
   overview: document.getElementById("overview"),
   overviewTitle: document.getElementById("overview-title"),
   overviewMeta: document.getElementById("overview-meta"),
   doneness: document.getElementById("doneness"),
   donenessOptions: document.getElementById("doneness-options"),
   ingredientList: document.getElementById("ingredient-list"),
+  equipment: document.getElementById("equipment"),
+  equipmentList: document.getElementById("equipment-list"),
   stepper: document.getElementById("stepper"),
   stepCount: document.getElementById("step-count"),
   stepText: document.getElementById("step-text"),
@@ -61,8 +71,23 @@ const el = {
 
 const params = new URLSearchParams(window.location.search);
 const DEBUG = params.get("debug") === "1";
-// Demo convenience: start the detection preview as soon as the camera is up.
-const DETECT_ON_START = params.get("detect") === "1";
+// Detection starts with the camera unless this device said otherwise: ?detect=0 / =1 is remembered
+// (an installed app opens at "/"). When the server has no detection the loop stops by itself.
+const DETECT_PARAM = params.get("detect");
+if (DETECT_PARAM === "0" || DETECT_PARAM === "1") {
+  try {
+    localStorage.setItem("detectOnStart", DETECT_PARAM);
+  } catch {
+    // private browsing - the URL flag still applies to this load
+  }
+}
+const DETECT_ON_START = (() => {
+  try {
+    return (DETECT_PARAM || localStorage.getItem("detectOnStart")) !== "0";
+  } catch {
+    return DETECT_PARAM !== "0";
+  }
+})();
 // The language the cook speaks. Replies follow the voice the device has (lang below), but a
 // Greek cook on a device without a Greek voice still speaks Greek.
 const LISTEN_LANG = params.get("listen") === "en" ? "en" : "el";
@@ -75,7 +100,10 @@ let lastCheck = null; // context for the one clarification round
 let offered = []; // recipe ids last listed to the cook, so "the second one" can be resolved
 let pending = null; // the yes/no question the app is waiting on: { type, sec? }
 let ticked = new Set(); // ingredient positions the cook has (tapped, said, or the camera saw)
+let tickedTools = new Set(); // the same for recipe.equipment
 const finished = new Map(); // timer key -> { totalMs, endedAt }, for "how long has it been" after the alarm
+// Per recipe: needs and preferences, steps done, what checks saw, suggestions (memory.js).
+const memory = createMemory();
 
 // Per-device conveniences - nothing here is needed for the app to work.
 function loadPref(key) {
@@ -99,7 +127,14 @@ const SPEAK_BUTTONS_PARAM = params.get("speakButtons");
 if (SPEAK_BUTTONS_PARAM === "0" || SPEAK_BUTTONS_PARAM === "1") {
   setSpeakButtons(SPEAK_BUTTONS_PARAM === "1");
 }
-installSpeakOnPress({ getLang: () => lang });
+installSpeakOnPress({
+  getLang: () => lang,
+  // A button's description never talks over a cook who just said "Hey chef": speaking pauses the
+  // recognizer, and the command would be lost mid-sentence.
+  say: (text, l) => {
+    if (!wake.isArmed()) speak(text, { priority: "hint", lang: l });
+  },
+});
 
 // Present only when an operator is pairing this device for the first time - captured
 // once into localStorage, then api.js attaches it as a header on every call after.
@@ -151,7 +186,7 @@ function setBusy(on) {
   el.busy.hidden = !on;
   // Talking, typing and dismissing an alert stay possible while the camera call runs.
   document.querySelectorAll("[data-action]").forEach((btn) => {
-    if (!["talk", "wake-toggle", "alert-ok", "tick"].includes(btn.dataset.action)) btn.disabled = on;
+    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool"].includes(btn.dataset.action)) btn.disabled = on;
   });
 }
 
@@ -207,6 +242,24 @@ function answer(yes) {
         say(t("recipe_stopped", lang), "command");
       } else {
         say(t("ok", lang), "command");
+      }
+      break;
+    case "resume":
+      if (yes) {
+        resumeRecipe(question.step);
+      } else {
+        memory.reset();
+        askPreferences(t("resume_fresh", lang));
+      }
+      break;
+    case "preferences":
+      // "Yes" alone isn't a preference yet; "no" means none.
+      if (yes) {
+        pending = question;
+        el.question.hidden = true;
+        say(t("prefs_tell_me", lang), "command");
+      } else {
+        finishPreferences();
       }
       break;
   }
@@ -291,9 +344,18 @@ const timers = createTimers({
     buzz([300, 120, 300, 120, 300]);
     const text = tf("timer_done_label", lang, { label: tm.label });
     showAlert(text, "timer");
+    memory.note("timer", tf("mem_timer_done", lang, { label: tm.label }), { step: tm.stepIndex });
+    renderMemory();
     const step = session.currentStep();
     const suggest = step && step.index === tm.stepIndex && step.checkable ? " " + t("timer_done_check", lang) : "";
     say(text + suggest, "checkin"); // queued, not interrupting
+    // Phone in a pocket: a system notification, when the installed app (dev branch's service
+    // worker) is there and allowed. Android Chrome has no page-level Notification constructor.
+    if (document.hidden && "Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) {
+      navigator.serviceWorker.ready
+        .then((reg) => reg.showNotification(text, { tag: "timer-" + tm.key, renotify: true }))
+        .catch(() => {});
+    }
   },
 });
 
@@ -306,10 +368,10 @@ function startTimer(seconds, spoken) {
   }
   const key = step ? stepKey(step) : "custom";
   finished.delete(key);
-  timers.start(key, secs, {
-    label: step ? stepLabel(step) : t("timer_label_custom", lang),
-    stepIndex: step ? step.index : null,
-  });
+  const label = step ? stepLabel(step) : t("timer_label_custom", lang);
+  timers.start(key, secs, { label, stepIndex: step ? step.index : null });
+  memory.note("timer", tf("mem_timer_start", lang, { label, human: humanDuration(secs, lang) }), { step: step ? step.index : null });
+  renderMemory();
   earcon("ok");
   say(spoken || tf("timer_started", lang, { human: humanDuration(secs, lang) }), "command");
 }
@@ -325,6 +387,8 @@ function addTime(seconds, spoken) {
   timers.add(tm.key, seconds);
   earcon("ok");
   const human = humanDuration(seconds, lang);
+  memory.note("timer", `${tm.label}: ${seconds > 0 ? "+" : "−"}${human}`, { step: tm.stepIndex });
+  renderMemory();
   say(spoken || tf(seconds > 0 ? "timer_added" : "timer_removed", lang, { human }), "command");
 }
 
@@ -400,15 +464,27 @@ const detector = createDetector({
   // A vision-LLM call is running: don't compete with it for the camera frame or the CPU.
   isPaused: () => busy,
   onResult: tickFromDetections,
+  // Once per page (not on every toggle), queued behind whatever is being said.
+  onReady: () => say(t("model_ready", lang), "checkin"),
+  onUnavailable: () => {
+    detectionUnavailable = true;
+    el.detectToggle.setAttribute("aria-pressed", "false");
+  },
 });
+let detectionUnavailable = false;
 
-function setDetection(on) {
+function setDetection(on, { announce = false } = {}) {
+  if (on && detectionUnavailable) {
+    if (announce) say(t("detect_unavailable", lang), "command");
+    return;
+  }
   if (on) {
     detector.start();
   } else {
     detector.stop();
   }
   el.detectToggle.setAttribute("aria-pressed", String(on));
+  if (announce) say(t(on ? "detect_on_said" : "detect_off_said", lang), "command");
 }
 
 window.addEventListener("resize", () => detector.redraw());
@@ -450,8 +526,18 @@ function render(res, kind) {
     for (const n of res.ingredients_seen || []) ticked.add(n - 1);
     renderIngredients();
     sayMissingIngredients();
+    memory.note("check", res.spoken_response);
+    renderMemory();
   } else if (kind === "check") {
     const step = session.currentStep();
+    // What the camera saw - colour, doneness, "needs 5 more minutes" - so the next check and any
+    // question later can compare with it.
+    if (step) {
+      const verdict = t("verdict_" + (res.verdict || "none"), lang);
+      const seen = [res.doneness_stage, res.spoken_response].filter(Boolean).join(" - ");
+      memory.note("check", tf("mem_check", lang, { n: step.index + 1, verdict, seen }), { step: step.index });
+      renderMemory();
+    }
     if (res.verdict === "ready") {
       // Proposed, never done for them: the cook agrees before the app moves on.
       earcon("done");
@@ -531,6 +617,8 @@ function checkDoneness(followup) {
     };
     if (effectiveDoneness()) payload.doneness_preference = effectiveDoneness();
     if (followup) payload.user_followup = followup;
+    const notes = memory.summary();
+    if (notes) payload.prior_context = notes;
     return payload;
   }, "check");
 }
@@ -542,16 +630,61 @@ function checkIngredients() {
     return;
   }
   lastCheck = null;
-  analyze(() => ({ mode: "check_ingredients", image_base64: captureFrame(el.video), recipe_id: recipe.id }), "ingredients");
+  analyze(() => {
+    const payload = { mode: "check_ingredients", image_base64: captureFrame(el.video), recipe_id: recipe.id };
+    const notes = memory.summary();
+    if (notes) payload.prior_context = notes;
+    return payload;
+  }, "ingredients");
 }
 
-// --- recipes: list, overview with ingredients, steps ---
+// --- recipes: list, needs and preferences, ingredients and tools, steps ---
 
 function showPanel(name) {
   el.controls.hidden = name !== "home";
   el.recipeList.hidden = name !== "list";
+  el.prefs.hidden = name !== "prefs";
   el.overview.hidden = name !== "overview";
   el.stepper.hidden = name !== "steps";
+  el.memoryWrap.hidden = !(name === "prefs" || name === "overview" || name === "steps") || memory.events().length === 0;
+}
+
+// The short-term memory, readable on screen: preferences first, then the latest events.
+function renderMemory() {
+  el.memoryList.innerHTML = "";
+  const prefs = memory.prefs();
+  const items = [];
+  if (prefs.length) items.push(tf("mem_prefs", lang, { text: prefs.join(", ") }));
+  for (const e of memory.events().slice(-12).reverse()) items.push(e.text);
+  for (const text of items) {
+    const li = document.createElement("li");
+    li.textContent = text; // never HTML - some of it is the model's words
+    el.memoryList.appendChild(li);
+  }
+  el.memoryWrap.hidden = items.length === 0 || !session.getRecipe();
+}
+
+// "What have we done?" - the latest few things, spoken; the full list is on screen.
+function recap() {
+  const recipe = session.getRecipe();
+  const events = memory.events();
+  if (!recipe || (!events.length && !memory.prefs().length)) {
+    say(t(recipe ? "recap_empty" : "no_recipe_open", lang), "command");
+    return;
+  }
+  const parts = [t("recap_intro", lang)];
+  if (memory.prefs().length) parts.push(tf("mem_prefs", lang, { text: memory.prefs().join(", ") }));
+  for (const e of events.slice(-4)) parts.push(e.text.endsWith(".") ? e.text : e.text + ".");
+  say(parts.join(" "), "command");
+}
+
+function timeLeft() {
+  const list = timers.list();
+  if (!list.length) {
+    say(t("no_timer", lang), "command");
+    return;
+  }
+  say(list.map((tm) => tf("timer_left", lang, { time: humanDuration(Math.ceil(tm.remainingMs / 1000), lang), label: tm.label })).join(" "), "command");
 }
 
 async function openRecipes() {
@@ -597,20 +730,37 @@ function donenessOptions(recipe) {
   return order.filter((k) => offeredKeys.has(k));
 }
 
-function renderIngredients() {
-  const recipe = session.getRecipe();
-  el.ingredientList.innerHTML = "";
-  if (!recipe) return;
-  ingredientLines(recipe).forEach((text, i) => {
+// Knife, pot, oven... in the cook's language; imported recipes may only have `name`.
+function equipmentLines(recipe) {
+  return (recipe.equipment || []).map((e) => (e.text && (e.text[lang] || e.text.en)) || e.name);
+}
+
+// "a, b and c" - a spoken list, not a comma run.
+function spokenList(items) {
+  if (items.length < 2) return items.join("");
+  return items.slice(0, -1).join(", ") + ` ${t("and", lang)} ` + items[items.length - 1];
+}
+
+function renderChecklist(list, lines, done, action) {
+  list.innerHTML = "";
+  lines.forEach((text, i) => {
     const li = document.createElement("li");
     const btn = document.createElement("button");
-    btn.dataset.action = "tick"; // no data-speak: long-press reads the ingredient itself
+    btn.dataset.action = action; // no data-speak: long-press reads the line itself
     btn.dataset.index = String(i);
-    btn.setAttribute("aria-pressed", String(ticked.has(i)));
+    btn.setAttribute("aria-pressed", String(done.has(i)));
     btn.textContent = text;
     li.appendChild(btn);
-    el.ingredientList.appendChild(li);
+    list.appendChild(li);
   });
+}
+
+function renderIngredients() {
+  const recipe = session.getRecipe();
+  renderChecklist(el.ingredientList, recipe ? ingredientLines(recipe) : [], ticked, "tick");
+  const tools = recipe ? equipmentLines(recipe) : [];
+  el.equipment.hidden = tools.length === 0;
+  renderChecklist(el.equipmentList, tools, tickedTools, "tick-tool");
 }
 
 function renderDoneness() {
@@ -634,6 +784,8 @@ function overviewSpeech(recipe, { withName = true } = {}) {
   if (recipe.times && recipe.times.total_min) parts.push(tf("overview_time", lang, { minutes: recipe.times.total_min }));
   const lines = ingredientLines(recipe);
   parts.push(tf("overview_ingredients", lang, { count: lines.length, list: lines.join(", ") }));
+  const tools = equipmentLines(recipe);
+  if (tools.length) parts.push(tf("overview_equipment", lang, { list: spokenList(tools) }));
   const options = donenessOptions(recipe);
   if (options.length && !effectiveDoneness(recipe)) {
     const names = options.map((k) => t("done_" + k, lang));
@@ -657,10 +809,86 @@ async function startRecipe(id, intro = "") {
   session.setRecipe(recipe);
   offered = [];
   ticked = new Set();
+  tickedTools = new Set();
   lastCheck = null;
   clearPending();
   monitor.stop();
 
+  const name = recipe.name[lang] || recipe.name.en;
+  // Made earlier today? Offer to pick up at the step they reached - the memory has the rest.
+  const resumed = memory.open(recipe.id);
+  renderMemory();
+  const lastStep = memory.lastStep();
+  if (resumed && lastStep !== null && lastStep < recipe.steps.length) {
+    showOverview({ speak: false });
+    askQuestion("resume", `${intro || name + "."} ${tf("resume_question", lang, { n: lastStep + 1 })}`, { step: lastStep });
+    return;
+  }
+  askPreferences(intro || name + ".");
+}
+
+// Before the ingredients: anything the cook needs or wants for this dish - an allergy, less salt,
+// spicier, for children. Answered by voice, typed, or with a tap; "no" moves straight on.
+const PREF_CHIPS = ["pref_less_salt", "pref_nut_allergy", "pref_vegetarian", "pref_kids", "pref_spicy", "pref_hurry"];
+
+function askPreferences(intro = "") {
+  const recipe = session.getRecipe();
+  if (!recipe) return;
+  el.prefsRecipe.textContent = recipe.name[lang] || recipe.name.en;
+  el.prefsQuestion.textContent = t("prefs_question", lang);
+  renderPrefChips();
+  showPanel("prefs");
+  pending = { type: "preferences" }; // free-form answer: heard() takes the words as the preference
+  say(`${intro} ${t("prefs_question", lang)}`.trim(), "command");
+}
+
+function renderPrefChips() {
+  el.prefsOptions.innerHTML = "";
+  const chosen = memory.prefs();
+  for (const key of PREF_CHIPS) {
+    const btn = document.createElement("button");
+    const text = t(key, lang);
+    btn.dataset.action = "pref";
+    btn.dataset.pref = text;
+    btn.setAttribute("aria-pressed", String(chosen.includes(text)));
+    btn.textContent = text;
+    el.prefsOptions.appendChild(btn);
+  }
+}
+
+function addPreference(text) {
+  memory.addPreference(text);
+  renderPrefChips();
+  renderMemory();
+}
+
+// Done with the question: say what was noted, show the ingredients, and ask the assistant for a
+// tip that fits (one call, in the background - it queues behind the ingredient list).
+function finishPreferences(text = "") {
+  if (pending && pending.type === "preferences") pending = null;
+  if (text) addPreference(text);
+  const prefs = memory.prefs();
+  const noted = prefs.length ? tf("prefs_noted", lang, { text: prefs.join(", ") }) : "";
+  showOverview({ intro: noted });
+  if (prefs.length) requestAdvice(prefs);
+}
+
+async function requestAdvice(prefs) {
+  try {
+    const res = await api.voiceText(tf("advice_request", lang, { prefs: prefs.join(", ") }), voiceContext());
+    if (res.action === "answer" && res.spoken_response) {
+      say(res.spoken_response, "checkin");
+      memory.note("advice", res.spoken_response);
+      renderMemory();
+    }
+  } catch {
+    // no key, no network - the recipe works without the tip
+  }
+}
+
+function showOverview({ intro = "", speak: speakIt = true } = {}) {
+  const recipe = session.getRecipe();
+  if (!recipe) return;
   el.overviewTitle.textContent = recipe.name[lang] || recipe.name.en;
   const meta = [];
   if (recipe.servings) meta.push(tf("overview_serves", lang, { n: recipe.servings }));
@@ -669,11 +897,17 @@ async function startRecipe(id, intro = "") {
   renderDoneness();
   renderIngredients();
   showPanel("overview");
+  // One utterance: two "command"s in a row would cut the first one off.
+  if (speakIt) say(`${intro} ${overviewSpeech(recipe, { withName: false })}`.trim(), "command");
+}
 
-  // One utterance: two "command"s in a row would cut the first one off. The server's
-  // "Starting: Roast Beef." already names it.
-  const speech = overviewSpeech(recipe, { withName: !intro });
-  say(intro ? `${intro} ${speech}` : speech, "command");
+function resumeRecipe(stepIndex) {
+  if (!session.goTo(stepIndex)) {
+    askPreferences();
+    return;
+  }
+  showPanel("steps");
+  announceStep();
 }
 
 function readIngredients() {
@@ -682,7 +916,19 @@ function readIngredients() {
     say(t("no_recipe_open", lang), "command");
     return;
   }
-  say(tf("ingredients_list", lang, { list: ingredientLines(recipe).join(", ") }), "command");
+  const tools = equipmentLines(recipe);
+  const toolsSpeech = tools.length ? " " + tf("equipment_list", lang, { list: spokenList(tools) }) : "";
+  say(tf("ingredients_list", lang, { list: ingredientLines(recipe).join(", ") }) + toolsSpeech, "command");
+}
+
+function readEquipment() {
+  const recipe = session.getRecipe();
+  if (!recipe) {
+    say(t("no_recipe_open", lang), "command");
+    return;
+  }
+  const tools = equipmentLines(recipe);
+  say(tools.length ? tf("equipment_list", lang, { list: spokenList(tools) }) : t("no_equipment", lang), "command");
 }
 
 function sayMissingIngredients() {
@@ -696,13 +942,21 @@ function sayMissingIngredients() {
 // announcement per ingredient would talk over everything else.
 function tickFromDetections(res) {
   const recipe = session.getRecipe();
-  if (!recipe || session.getPhase() !== "overview" || !recipe.ingredient_details) return;
+  if (!recipe || session.getPhase() !== "overview") return;
   let changed = false;
   for (const d of res.detections || []) {
     if (d.confidence < 0.4) continue;
-    recipe.ingredient_details.forEach((line, i) => {
+    (recipe.ingredient_details || []).forEach((line, i) => {
       if (line.vocab_id && line.vocab_id === d.class_id && !ticked.has(i)) {
         ticked.add(i);
+        changed = true;
+      }
+    });
+    // Appliances aren't gathered, and the stove is the detector's least precise class.
+    if (d.group === "appliance") continue;
+    (recipe.equipment || []).forEach((item, i) => {
+      if (item.vocab_id && item.vocab_id === d.class_id && !tickedTools.has(i)) {
+        tickedTools.add(i);
         changed = true;
       }
     });
@@ -713,10 +967,13 @@ function tickFromDetections(res) {
   }
 }
 
-function setDoneness(key, spoken) {
+function setDoneness(key, spoken, { quiet = false } = {}) {
   doneness = key;
   savePref("doneness", key);
+  memory.setDoneness(key);
   renderDoneness();
+  renderMemory();
+  if (quiet) return;
   const step = session.currentStep();
   const target = step && step.by_doneness && step.by_doneness[key];
   let text = spoken || tf("doneness_set", lang, { name: t("done_" + key, lang) });
@@ -725,7 +982,14 @@ function setDoneness(key, spoken) {
 }
 
 function beginSteps() {
+  const recipe = session.getRecipe();
   if (!session.beginSteps()) return;
+  if (pending && pending.type === "preferences") pending = null; // "start" also answers the question
+  const lines = ingredientLines(recipe);
+  const missing = lines.filter((_, i) => !ticked.has(i));
+  let note = tf("mem_ingredients", lang, { have: lines.length - missing.length, total: lines.length });
+  if (missing.length && missing.length < lines.length) note += " " + tf("mem_ingredients_missing", lang, { list: missing.join(", ") });
+  memory.note("ingredients", note);
   showPanel("steps");
   announceStep();
 }
@@ -766,12 +1030,16 @@ function announceStep({ repeat = false, intro = "" } = {}) {
   el.stepCount.textContent = tf("step_n_of", lang, { n: step.index + 1, total: session.getRecipe().steps.length });
   el.stepText.textContent = step.instruction[lang] || step.instruction.en;
   updateStepButtons();
+  renderStepActions(step);
 
   const speech = stepSpeech(step);
   say(intro ? `${intro} ${speech}` : speech, "command");
 
   if (repeat) return;
   lastCheck = null;
+  const text = step.instruction[lang] || step.instruction.en;
+  memory.note("step", tf("mem_step", lang, { n: step.index + 1, text: text.length > 90 ? text.slice(0, 89) + "…" : text }), { step: step.index });
+  renderMemory();
   // Baselines against the scene as it currently is - must go at the end of the
   // announcement, not at recipe start.
   monitor.stop();
@@ -792,8 +1060,33 @@ function nextStep() {
   if (session.next()) {
     announceStep();
   } else {
+    memory.reset(); // finished: the next time starts fresh, not with "continue from step 8?"
     stopRecipe();
     say(t("recipe_done", lang), "command");
+  }
+}
+
+// Per step, for a cook who reads rather than listens: "Done", the step's own timer, and one-tap
+// questions that fit the step. The questions go to the assistant exactly as if typed.
+function renderStepActions(step) {
+  el.stepActions.innerHTML = "";
+  const add = (label, action, extra = {}) => {
+    const btn = document.createElement("button");
+    btn.dataset.action = action;
+    for (const [k, v] of Object.entries(extra)) btn.dataset[k] = v;
+    btn.textContent = label;
+    el.stepActions.appendChild(btn);
+  };
+  add(t("done_step", lang), "done-step", { speak: "done_step" });
+  const questions = [];
+  if (step.checkable && step.kind !== "prep") questions.push("q_ready");
+  if (step.kind === "prep") questions.push("q_how");
+  if (step.kind === "cook") questions.push("q_temp");
+  if (stepSeconds(step)) questions.push("q_time_left");
+  questions.push("q_substitute", "q_next");
+  for (const key of questions) {
+    if (key === "q_time_left") add(t(key, lang), "time-left");
+    else add(t(key, lang), "quick-ask", { text: t(key, lang) });
   }
 }
 
@@ -821,7 +1114,9 @@ function stopRecipe() {
   clearPending();
   lastCheck = null;
   ticked = new Set();
+  tickedTools = new Set();
   offered = [];
+  memory.close(); // kept on the device: opening this recipe again today offers to continue
   showPanel("home");
 }
 
@@ -839,6 +1134,7 @@ function voiceContext() {
     // With a recipe open, only a choice that recipe offers; before one, the saved preference.
     doneness: session.getRecipe() ? effectiveDoneness() : doneness,
     timerRemainingSec: tm ? Math.round(tm.remainingMs / 1000) : null,
+    memory: memory.summary() || null,
   };
 }
 
@@ -858,6 +1154,28 @@ function heard(text) {
   logLine("you", words);
   el.interim.textContent = "";
   const local = matchLocal(words);
+  // The needs-and-preferences question takes free words: "less salt, my son is allergic to
+  // nuts" is the answer itself, not a command - kept as said, no server needed.
+  if (pending && pending.type === "preferences") {
+    const action = local && local.action;
+    if (action === "start" || action === "done" || action === "next_step") {
+      finishPreferences(); // "let's go" = nothing special - on to the ingredients, not past them
+      return;
+    }
+    if (action === "set_doneness" && localApplies(local)) {
+      setDoneness(local.doneness, null, { quiet: true });
+      finishPreferences();
+      return;
+    }
+    if (action === "repeat_step") {
+      say(t("prefs_question", lang), "command");
+      return;
+    }
+    if (!["yes", "no", "hush", "help"].includes(action)) {
+      finishPreferences(words);
+      return;
+    }
+  }
   if (local && localApplies(local)) {
     runAction(local);
     return;
@@ -885,6 +1203,9 @@ function voiceError(err) {
   earcon("error");
   if (err instanceof api.HttpError && err.status === 503) {
     say(t("voice_unavailable", lang), "command");
+  } else if (err instanceof api.HttpError && (err.status === 502 || err.status === 429)) {
+    // The server is fine - the AI service is busy or out of quota for the minute.
+    say(t("ai_busy", lang), "command");
   } else if (err instanceof api.HttpError && err.status === 401) {
     say(t("not_paired", lang), "command");
   } else if (err && (err.name === "NotAllowedError" || err.name === "NotFoundError" || err.name === "NotReadableError")) {
@@ -894,7 +1215,7 @@ function voiceError(err) {
   }
 }
 
-const NEEDS_RECIPE = new Set(["next_step", "previous_step", "check_ingredients", "list_ingredients", "stop_recipe", "done"]);
+const NEEDS_RECIPE = new Set(["next_step", "previous_step", "check_ingredients", "list_ingredients", "list_equipment", "stop_recipe", "done"]);
 
 function runAction(res) {
   const action = res.action;
@@ -909,7 +1230,7 @@ function runAction(res) {
     return;
   }
   // Doing anything else is also an answer to a pending question: it's dropped.
-  if (pending && !["yes", "no", "hush"].includes(action)) clearPending();
+  if (pending && !["yes", "no", "hush", "help"].includes(action)) clearPending();
 
   if (NEEDS_RECIPE.has(action) && !session.getRecipe()) {
     say(t("no_recipe_open", lang), "command");
@@ -963,6 +1284,9 @@ function runAction(res) {
     case "list_ingredients":
       readIngredients();
       break;
+    case "list_equipment": // local only: the server answers "do I need a blender?" from the recipe
+      readEquipment();
+      break;
     case "identify":
       identify();
       break;
@@ -986,7 +1310,28 @@ function runAction(res) {
     case "stop_recipe":
       askQuestion("stop_recipe", t("ask_stop", lang));
       break;
-    default: // answer, unclear
+    case "help":
+      say(t("help_text", lang), "command");
+      break;
+    case "recap":
+      recap();
+      break;
+    case "time_left":
+      timeLeft();
+      break;
+    case "detect_on":
+    case "detect_off":
+      setDetection(action === "detect_on", { announce: true });
+      break;
+    case "answer":
+      reply();
+      // The assistant's own suggestions are part of what "we" did - later answers stay consistent.
+      if (session.getRecipe() && res.heard) {
+        memory.note("answer", `${res.heard} → ${res.spoken_response}`);
+        renderMemory();
+      }
+      break;
+    default: // unclear
       reply();
   }
 }
@@ -1007,7 +1352,9 @@ function renderWakeState(state, detail) {
   let text;
   if (state === "idle") text = `${t("wake_idle", lang)} · ${t(detail === "local" ? "wake_local" : "wake_cloud", lang)}`;
   else if (state === "armed") text = t("wake_armed", lang);
-  else if (state === "error") text = t(detail === "unsupported" ? "wake_unsupported" : "wake_blocked", lang);
+  // The browser's own error code stays on screen (feature/detection-db showed it too): it tells
+  // whoever is helping whether it's the microphone, the network or the language.
+  else if (state === "error") text = detail === "unsupported" ? t("wake_unsupported", lang) : `${t("wake_blocked", lang)} (${detail})`;
   else text = Recognition ? t("wake_off", lang) : t("wake_unsupported", lang);
   el.wakeStatus.textContent = text;
   el.wakeToggle.setAttribute("aria-pressed", String(state === "idle" || state === "armed"));
@@ -1186,7 +1533,32 @@ const ACTIONS = {
     else ticked.add(i);
     btn.setAttribute("aria-pressed", String(ticked.has(i)));
   },
+  "tick-tool": (btn) => {
+    const i = Number(btn.dataset.index);
+    if (tickedTools.has(i)) tickedTools.delete(i);
+    else tickedTools.add(i);
+    btn.setAttribute("aria-pressed", String(tickedTools.has(i)));
+  },
   doneness: (btn) => setDoneness(btn.dataset.doneness),
+  pref: (btn) => {
+    const text = btn.dataset.pref;
+    if (memory.prefs().includes(text)) memory.removePreference(text);
+    else memory.addPreference(text);
+    renderPrefChips();
+    renderMemory();
+  },
+  "prefs-done": () => {
+    const typed = el.askInput.value.trim(); // typed but not sent yet: it's the answer
+    el.askInput.value = "";
+    finishPreferences(typed);
+  },
+  "prefs-none": () => {
+    for (const p of memory.prefs()) memory.removePreference(p);
+    finishPreferences();
+  },
+  "done-step": () => runAction({ action: "done", local: true }),
+  "quick-ask": (btn) => heard(btn.dataset.text),
+  "time-left": () => timeLeft(),
   check: () => checkDoneness(),
   "start-timer": () => startTimer(),
   "timer-add": (btn) => {
