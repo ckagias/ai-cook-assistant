@@ -37,8 +37,32 @@ let lastCheck = null; // context for the one clarification round
 let offered = []; // recipe ids last listed to the cook, so "the second one" can be resolved
 
 const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
-// Demo convenience: start the detection preview as soon as the camera is up.
-const DETECT_ON_START = new URLSearchParams(window.location.search).get("detect") === "1";
+// ?detect=1 / =0 persists so the installed PWA (start_url is "/") still auto-starts detection.
+const DETECT_STORAGE_KEY = "detectOnStart";
+const DETECT_PARAM = new URLSearchParams(window.location.search).get("detect");
+if (DETECT_PARAM === "1") {
+  try {
+    localStorage.setItem(DETECT_STORAGE_KEY, "1");
+  } catch {
+    // private browsing - the URL flag still applies for this load
+  }
+} else if (DETECT_PARAM === "0") {
+  try {
+    localStorage.removeItem(DETECT_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+const DETECT_ON_START =
+  DETECT_PARAM === "1" ||
+  (DETECT_PARAM !== "0" &&
+    (() => {
+      try {
+        return localStorage.getItem(DETECT_STORAGE_KEY) === "1";
+      } catch {
+        return false;
+      }
+    })());
 
 // ?speakButtons=0 / =1 persists the per-device choice (0 for screen-reader users).
 const SPEAK_BUTTONS_PARAM = new URLSearchParams(window.location.search).get("speakButtons");

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Windows registers .js as text/plain, which makes browsers refuse to execute ES modules served that way.
 mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
