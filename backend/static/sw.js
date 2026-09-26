@@ -1,5 +1,6 @@
 // Classic script (not a module): sw.test.mjs evaluates this with a shimmed self.
-const SHELL_CACHE = "cook-assist-shell-v1";
+// Bump the version whenever SHELL_FILES changes: installed apps then re-fetch the whole list.
+const SHELL_CACHE = "cook-assist-shell-v2";
 const SHELL_FILES = [
   "/",
   "/app.css",
@@ -18,6 +19,10 @@ const SHELL_FILES = [
   "/js/a11y.js",
   "/js/voice.js",
   "/js/camera_help.js",
+  "/js/wake.js",
+  "/js/commands.js",
+  "/js/timers.js",
+  "/js/memory.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/icon-512-maskable.png",

@@ -1,7 +1,7 @@
 // Evaluates sw.js as a classic worker script against a shimmed self/caches.
 // No browser, no network: shellPath allow-list + notificationclick registration.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
@@ -56,6 +56,12 @@ assert(
   "navigation with pairing query still caches as /"
 );
 assert(shellPath(req("GET", "/js/app.js"), ORIGIN) === "/js/app.js", "GET /js/app.js");
+
+// Every module the app can import is in the offline shell - a missing one breaks an installed app
+// opened without a connection (app.js's imports fail). New modules must be added to SHELL_FILES.
+for (const file of readdirSync(join(dirname(fileURLToPath(import.meta.url)), "../static/js")).filter((f) => f.endsWith(".js"))) {
+  assert(shellPath(req("GET", "/js/" + file), ORIGIN) === "/js/" + file, `/js/${file} is in sw.js SHELL_FILES`);
+}
 
 assert(
   (listeners.notificationclick || []).length > 0,
