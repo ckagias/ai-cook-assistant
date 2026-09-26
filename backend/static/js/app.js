@@ -38,7 +38,7 @@ let offered = []; // recipe ids last listed to the cook, so "the second one" can
 
 const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 // Demo convenience: start the detection preview as soon as the camera is up.
-const DETECT_ON_START = new URLSearchParams(window.location.search).get("detect") === "1";
+const DETECT_ON_START = new URLSearchParams(window.location.search).get("detect") !== "0";
 
 // ?speakButtons=0 / =1 persists the per-device choice (0 for screen-reader users).
 const SPEAK_BUTTONS_PARAM = new URLSearchParams(window.location.search).get("speakButtons");

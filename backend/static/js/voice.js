@@ -109,10 +109,12 @@ export function createWakeWordListener({ getLang, onWakeWord, onTranscript }) {
   let isRunning = false;
 
   recognition.onresult = (e) => {
+    let interimTranscript = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const result = e.results[i];
+      const transcript = result[0].transcript.toLowerCase();
+      
       if (result.isFinal) {
-        const transcript = result[0].transcript.toLowerCase();
         if (onTranscript) onTranscript(transcript);
         
         // Look for the wake word in Greek or English
@@ -120,8 +122,17 @@ export function createWakeWordListener({ getLang, onWakeWord, onTranscript }) {
         if (wakeWords.some(w => transcript.includes(w))) {
           onWakeWord(transcript);
         }
+      } else {
+        interimTranscript += transcript;
       }
     }
+    if (interimTranscript && onTranscript) {
+      onTranscript(interimTranscript + "...");
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (onTranscript) onTranscript("Error: " + e.error);
   };
 
   recognition.onend = () => {
