@@ -25,6 +25,10 @@ export const STRINGS = {
     en: "Time's up.",
     el: "Ο χρόνος τελείωσε.",
   },
+  caution: {
+    en: "Careful: something near the heat needs attention.",
+    el: "Πρόσεξε: κάτι κοντά στη φωτιά θέλει προσοχή.",
+  },
 
   // --- spoken button descriptions (long-press / hover / keyboard focus), see a11y.js ---
   speak_start: {

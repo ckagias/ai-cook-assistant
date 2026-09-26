@@ -10,6 +10,7 @@
 #   --no-detection   skip the ~1 GB detection stack (torch, ultralytics, mediapipe) and models
 #   --skip-tests     don't run the test suite at the end
 #   --run            start uvicorn in the foreground afterwards (see also ./setup-window.sh)
+#   --no-summary     skip the closing "what it does / how to use it" summary
 set -uo pipefail
 
 RED='\033[0;31m'
@@ -22,12 +23,14 @@ cd "$SCRIPT_DIR/backend" || exit 1
 WITH_DETECTION=1
 RUN_SERVER=0
 RUN_TESTS=1
+SHOW_SUMMARY=1
 for arg in "$@"; do
   case "$arg" in
     --no-detection) WITH_DETECTION=0 ;;
     --with-detection) WITH_DETECTION=1 ;;  # the default now; kept so old commands still work
     --skip-tests) RUN_TESTS=0 ;;
     --run) RUN_SERVER=1 ;;
+    --no-summary) SHOW_SUMMARY=0 ;;  # setup-window prints its own links instead
   esac
 done
 
@@ -163,19 +166,15 @@ if [ "$RUN_TESTS" = "1" ]; then
   fi
 fi
 
-# --- 10. next steps ---
-echo ""
-echo "Setup complete. Next steps:"
-echo "  1. Edit backend/.env and add your provider API key(s)."
-echo "  2. Verify providers: $VENV_PYTHON scripts/check_providers.py"
-echo "  3. Run everything in an app window on your network: ./setup-window.sh"
-echo "     or just the server: re-run this script with --run"
-echo "  4. Reach it from an Android tablet over USB: adb reverse tcp:8000 tcp:8000"
-echo "  5. Open http://localhost:8000/probe.html on the tablet to check capabilities."
+# --- 10. what the system does, where to open it, how to use it, and this install's status ---
+if [ "$SHOW_SUMMARY" = "1" ]; then
+  PYTHONIOENCODING=utf-8 "$VENV_PYTHON" scripts/usage.py --shell sh --python "backend/$VENV_PYTHON"
+fi
 
 # --- 11. --run: exec uvicorn in the foreground afterward ---
 if [ "$RUN_SERVER" = "1" ]; then
-  echo ""
-  echo "Starting server..."
+  URL="http://localhost:${BACKEND_PORT:-8000}/"
+  [ -n "${BACKEND_PAIRING_TOKEN:-}" ] && URL="${URL}?token=${BACKEND_PAIRING_TOKEN}"
+  echo "Starting the server - open $URL  (Ctrl+C stops it)"
   exec "$VENV_PYTHON" -m uvicorn app.main:app --host "${BACKEND_HOST:-0.0.0.0}" --port "${BACKEND_PORT:-8000}"
 fi

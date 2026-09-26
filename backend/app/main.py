@@ -2,6 +2,7 @@ import base64
 import logging
 import mimetypes
 import os
+import re
 import threading
 from pathlib import Path
 from typing import Optional
@@ -56,7 +57,18 @@ THERMOMETER_NOTE = {
     ),
 }
 
-_ALARM_KEYWORDS = ("flame", "fire", "burning", "burnt", "burned", "char", "scorch", "blacken", "spark", "melting")
+# Said first on every alarm - fixed text, so neither the model nor anything in the photo can
+# change or drop the warning a user who can't see the stove relies on.
+ALARM_NOTE = {
+    "en": "Warning: possible fire or burning. Turn off the heat. Never pour water on burning oil.",
+    "el": "Προσοχή: πιθανή φωτιά ή κάψιμο. Κλείσε την εστία. Μη ρίξεις ποτέ νερό σε λάδι που καίγεται.",
+}
+
+# An alarm whose reason names an open flame or sparks always stays an alarm. Weaker signs of
+# burning can be downgraded to "caution" when the reason also points at steam - so a steaming
+# pot doesn't cry wolf, but "flames from the pan, lots of steam" is never talked down.
+_STRONG_ALARM = re.compile(r"\b(flam(e|es|ing)|fire|sparks?)\b")
+_ALARM_KEYWORDS = ("burning", "burnt", "burned", "char", "scorch", "blacken", "melting", "smoke", "smoking")
 _ALARM_VETO = ("steam", "haze", "vapor", "vapour", "condensation")
 
 # Checked in this order: anthropic -> ANTHROPIC_API_KEY, openai -> OPENAI_API_KEY, gemini -> GEMINI_API_KEY or GOOGLE_API_KEY.
@@ -87,6 +99,11 @@ def _rate_limit_dependency(prefix: str, max_requests: int, window_sec: float):
     return dependency
 
 
+def _is_alarm(response: dict) -> bool:
+    flag = response.get("safety_flag")
+    return bool(flag) and flag.get("severity") == "alarm"
+
+
 def _apply_protein_safety(response: dict, mode: str, language: str, recipe_flagged) -> dict:
     triggered = bool(response.get("raw_protein_detected")) if recipe_flagged is None else recipe_flagged
     if not triggered:
@@ -100,6 +117,9 @@ def _apply_protein_safety(response: dict, mode: str, language: str, recipe_flagg
         response["evidence"] = []
         response["needs_clarification"] = False
         response["clarifying_question"] = None
+        if _is_alarm(response):
+            # A fire outranks a thermometer lecture: keep the alarm words, drop only the verdict.
+            return response
         response["spoken_response"] = note
     else:
         # "what is this package" still deserves an answer, not only a lecture.
@@ -113,6 +133,8 @@ def _apply_safety_flag(response: dict) -> dict:
         return response
 
     reason = (flag.get("reason") or "").lower()
+    if _STRONG_ALARM.search(reason):
+        return response
     has_alarm_keyword = any(kw in reason for kw in _ALARM_KEYWORDS)
     has_veto = any(v in reason for v in _ALARM_VETO)
 
@@ -121,6 +143,16 @@ def _apply_safety_flag(response: dict) -> dict:
 
     response = dict(response)
     response["safety_flag"] = {**flag, "severity": "caution"}
+    return response
+
+
+def _apply_alarm_voice(response: dict, language: str) -> dict:
+    if not _is_alarm(response):
+        return response
+    note = ALARM_NOTE.get(language, ALARM_NOTE["en"])
+    spoken = str(response.get("spoken_response") or "").strip()
+    response = dict(response)
+    response["spoken_response"] = note if not spoken or spoken.startswith(note) else f"{note} {spoken}"
     return response
 
 
@@ -134,8 +166,10 @@ def _apply_safety_rules(response: dict, req: AnalyzeRequest, recipe_flagged) -> 
     # sanitize_response runs first so every path (fixture and live) is covered, not just callers that remember to.
     response = output_guard.sanitize_response(response, req.language, guard_context)
     response = output_guard.apply_plausibility_check(response, guard_context)
+    # Settle the alarm first: the protein rule must know whether it is looking at a fire.
+    response = _apply_safety_flag(response)
     response = _apply_protein_safety(response, req.mode, req.language, recipe_flagged)
-    return _apply_safety_flag(response)
+    return _apply_alarm_voice(response, req.language)
 
 
 def _canned_demo_miss(language: str) -> dict:

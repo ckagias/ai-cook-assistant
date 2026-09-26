@@ -20,7 +20,8 @@
 param(
     [switch]$NoDetection,  # skip the ~1 GB detection stack (torch, ultralytics, mediapipe) and models
     [switch]$SkipTests,    # don't run the test suite at the end
-    [switch]$Run           # start the server on localhost afterwards (see also setup-window.ps1)
+    [switch]$Run,          # start the server on localhost afterwards (see also setup-window.ps1)
+    [switch]$NoSummary     # skip the closing "what it does / how to use it" summary
 )
 
 $ErrorActionPreference = "Continue"  # native tools report through exit codes, checked explicitly
@@ -165,12 +166,11 @@ if (-not $SkipTests) {
     if ($LASTEXITCODE -ne 0) { Write-Warn "Tests failed (exit code $LASTEXITCODE) - see above." } else { Write-Host "Tests passed." }
 }
 
-Write-Host ""
-Write-Host "Setup complete. Next steps:"
-Write-Host "  1. Edit backend\.env and add your provider API key(s)."
-Write-Host "  2. Verify providers: $VenvPython scripts\check_providers.py"
-Write-Host "  3. Run everything in an app window on your network: .\setup-window.ps1 (or double-click setup-window.cmd)"
-Write-Host "     or just the server on localhost: .\setup.ps1 -Run"
+# --- what the system does, where to open it, how to use it, and this install's status ---
+if (-not $NoSummary) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8  # the summary has Greek button names
+    & $VenvPython scripts\usage.py --shell ps --python "backend\$VenvDir\Scripts\python.exe"
+}
 
 # --- 9. -Run: the server on localhost, in the foreground, with .env loaded into its environment ---
 if ($Run) {
@@ -181,8 +181,9 @@ if ($Run) {
     if ($env:BACKEND_HOST) { $bindHost = $env:BACKEND_HOST }
     $port = "8000"
     if ($env:BACKEND_PORT) { $port = $env:BACKEND_PORT }
-    Write-Host ""
-    Write-Host "Starting server on http://$($bindHost):$port ..."
+    $url = "http://localhost:$port/"
+    if ($env:BACKEND_PAIRING_TOKEN) { $url = "$url" + "?token=$env:BACKEND_PAIRING_TOKEN" }
+    Write-Host "Starting the server - open $url  (Ctrl+C stops it)"
     & $VenvPython -m uvicorn app.main:app --host $bindHost --port $port
     exit $LASTEXITCODE
 }

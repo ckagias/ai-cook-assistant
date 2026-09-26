@@ -35,7 +35,7 @@ $RunDir = Join-Path $Root ".run"
 New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 
 # --- 1. setup: install/verify everything (seconds when nothing changed) ---
-& (Join-Path $Root "setup.ps1") -SkipTests -NoDetection:$NoDetection
+& (Join-Path $Root "setup.ps1") -SkipTests -NoSummary -NoDetection:$NoDetection
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Set-Location $Backend

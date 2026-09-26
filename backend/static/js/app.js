@@ -168,7 +168,8 @@ function render(res) {
   }
 
   if (res.safety_flag && res.safety_flag.severity === "caution") {
-    say(res.safety_flag.reason, "checkin");
+    // The reason is always English (it's for the backend); read in Greek it would be gibberish.
+    say(lang === "en" ? res.safety_flag.reason : t("caution", lang), "checkin");
   }
 
   if (res.needs_clarification && res.clarifying_question && lastCheck) {

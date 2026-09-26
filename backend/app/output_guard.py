@@ -1,48 +1,98 @@
 import logging
+import re
+import unicodedata
 
 from . import vision
 
 logger = logging.getLogger(__name__)
 
-# Patterns that suggest the model is reporting on/responding to injected
-# instructions rather than describing the photo. Short, reviewed, and
-# expected to grow - not a claim of completeness.
-_META_INSTRUCTION_MARKERS = (
-    "ignore previous",
-    "ignore prior",
-    "as an ai",
-    "i am now",
-    "system prompt",
-    "you are now",
-    "new instructions",
+
+def fold(text: str) -> str:
+    """Casefold and strip accents, so Greek markers match with or without tonos."""
+    decomposed = unicodedata.normalize("NFD", text.casefold())
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
+# Patterns that suggest the model is reporting on/responding to injected instructions rather
+# than describing the photo. Matched against accent-folded, casefolded text. Short, reviewed,
+# and expected to grow - not a claim of completeness. Phrased tightly on purpose: a bare
+# "you are now" would also catch the perfectly normal "you are now ready to flip".
+# Patterns go through the same fold() as the text (casefold also turns the final sigma ς
+# into σ), so both sides are always normalized identically.
+_MARKER_PATTERNS = tuple(
+    re.compile(fold(p))
+    for p in (
+        # English
+        r"ignore (all |the |any )?(previous|prior|above|earlier)",
+        r"\bas an ai\b",
+        r"\b(i am|i'm|you are|you're) now (a|an)\b",
+        r"system prompt",
+        r"new instructions",
+        # Greek (folded: no accents)
+        r"(προηγουμεν\w*|παραπανω) οδηγι\w*",
+        r"\bνε(ες|α|ων) οδηγι\w*",
+        r"\b(ειμαι|εισαι) (πλεον|τωρα) (ενας|μια|ενα)\b",
+        r"(μηνυμα|οδηγιες|προτροπη) (του )?συστηματος",
+        r"\bως (τεχνητη νοημοσυνη|μοντελο)\b",
+    )
 )
 
-_FREE_TEXT_FIELDS = ("spoken_response", "evidence", "clarifying_question")
+# A cooking answer never needs to read out a web address - its only use would be to steer a
+# user who can't see the screen somewhere else (the off-task injection case).
+_URL_PATTERN = re.compile(r"https?://|www\.|\b[a-z0-9-]+\.(com|net|org|gr|io|info|biz|example)\b")
 
-_REASSURANCE_MARKERS = ("safe", "no flame", "not burning")
+# Every field the client can speak aloud. safety_flag.reason is spoken for a "caution" in
+# English, so it's checked like the rest.
+_FREE_TEXT_FIELDS = ("spoken_response", "evidence", "clarifying_question", "camera_feedback", "safety_flag.reason")
+
+_REASSURANCE_MARKERS = tuple(fold(m) for m in ("safe", "no flame", "not burning", "ασφαλ", "χωρίς φωτιά", "δεν καίγεται"))
+
+# Said before a downgraded answer, so a user who can't see the confidence level still hears it.
+_HEDGE = {
+    "en": "I'm not sure about this.",
+    "el": "Δεν είμαι σίγουρος γι' αυτό.",
+}
+
+_GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")
+_LATIN = re.compile(r"[A-Za-z]")
 
 
 def _field_texts(response: dict, field: str) -> list[str]:
-    value = response.get(field)
-    if value is None:
-        return []
+    value = response
+    for part in field.split("."):
+        value = value.get(part) if isinstance(value, dict) else None
+        if value is None:
+            return []
     if isinstance(value, list):
         return [str(v) for v in value]
     return [str(value)]
 
 
-def scan_for_injection(response: dict) -> list[str]:
-    """Returns a list of free-text fields that tripped a heuristic check
-    (empty list = clean). Checks spoken_response, evidence, and
-    clarifying_question - the three free-text fields the model fully
-    controls."""
+def _mostly_not_greek(text: str) -> bool:
+    greek = len(_GREEK.findall(text))
+    latin = len(_LATIN.findall(text))
+    # Short answers and a Latin brand name or two ("Barilla") are fine; a whole English answer
+    # to a Greek request is the language-breakout injection.
+    return greek + latin >= 12 and greek < latin
+
+
+def scan_for_injection(response: dict, language: str | None = None) -> list[str]:
+    """Returns the checks that tripped (empty list = clean): a meta-instruction marker or a web
+    address in any spoken field, or - for a Greek request - a spoken answer that isn't Greek."""
     flagged: list[str] = []
     for field in _FREE_TEXT_FIELDS:
         for text in _field_texts(response, field):
-            lowered = text.lower()
-            if any(marker in lowered for marker in _META_INSTRUCTION_MARKERS):
+            folded = fold(text)
+            if any(p.search(folded) for p in _MARKER_PATTERNS):
                 flagged.append(field)
                 break
+            if _URL_PATTERN.search(folded):
+                flagged.append(f"{field}:url")
+                break
+    if language == "el":
+        spoken = str(response.get("spoken_response") or "")
+        if _mostly_not_greek(spoken):
+            flagged.append("spoken_response:language")
     return flagged
 
 
@@ -66,7 +116,7 @@ def sanitize_response(response: dict, language: str, context: dict | None = None
     rather than trying to salvage the good fields - a response that trips a
     safety heuristic should degrade the same way a failed API call already
     does, using a path that's already tested."""
-    reasons = scan_for_injection(response)
+    reasons = scan_for_injection(response, language)
     if not reasons:
         return response
 
@@ -87,7 +137,7 @@ def check_confidence_plausibility(response: dict) -> bool:
     if response.get("confidence") == "high" and not response.get("evidence"):
         return False
 
-    spoken = str(response.get("spoken_response") or "").lower()
+    spoken = fold(str(response.get("spoken_response") or ""))
     has_reassurance = any(marker in spoken for marker in _REASSURANCE_MARKERS)
     if has_reassurance and response.get("safety_flag") is None and response.get("doneness_stage"):
         return False
@@ -97,12 +147,19 @@ def check_confidence_plausibility(response: dict) -> bool:
 
 def apply_plausibility_check(response: dict, context: dict | None = None) -> dict:
     """Second, softer pass after sanitize_response - downgrades rather than
-    discards a response that fails check_confidence_plausibility()."""
+    discards a response that fails check_confidence_plausibility(). The downgrade is
+    made audible: a user who can't see the screen only ever hears spoken_response, so a
+    lowered confidence field alone would change nothing they experience."""
     if check_confidence_plausibility(response):
         return response
 
-    log_flagged_response(["implausible_confidence"], response, context or {})
+    context = context or {}
+    log_flagged_response(["implausible_confidence"], response, context)
     response = dict(response)
     response["confidence"] = "low"
     response["needs_clarification"] = True
+    hedge = _HEDGE.get(context.get("language") or "el", _HEDGE["en"])
+    spoken = str(response.get("spoken_response") or "").strip()
+    if not spoken.startswith(hedge):
+        response["spoken_response"] = f"{hedge} {spoken}".strip()
     return response

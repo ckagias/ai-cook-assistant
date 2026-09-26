@@ -41,7 +41,7 @@ RUN_DIR="$SCRIPT_DIR/.run"
 mkdir -p "$RUN_DIR"
 
 # --- 1. setup: install/verify everything (seconds when nothing changed) ---
-SETUP_ARGS=(--skip-tests)
+SETUP_ARGS=(--skip-tests --no-summary)
 WITH_DETECTION=1
 for arg in "$@"; do
   [ "$arg" = "--no-detection" ] && { SETUP_ARGS+=(--no-detection); WITH_DETECTION=0; }

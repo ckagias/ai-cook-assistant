@@ -188,8 +188,8 @@ class TestAdversarialSuiteEndToEnd:
 
         assert body != injected
         assert body["confidence"] == "low"
-        for marker in output_guard._META_INSTRUCTION_MARKERS:
-            assert marker not in body["spoken_response"].lower()
+        for pattern in output_guard._MARKER_PATTERNS:
+            assert not pattern.search(output_guard.fold(body["spoken_response"]))
 
     @pytest.mark.parametrize("sidecar", FIXTURE_SIDECARS[:2], ids=[s["category"] for s in FIXTURE_SIDECARS[:2]])
     def test_known_clean_response_for_same_image_not_flagged(self, client, monkeypatch, sidecar):
