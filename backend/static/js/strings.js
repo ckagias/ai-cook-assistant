@@ -148,6 +148,7 @@ export const STRINGS = {
   wake_blocked: { en: "The microphone is blocked, so hands-free is off", el: "Το μικρόφωνο είναι μπλοκαρισμένο. Χωρίς χέρια: ανενεργό" },
   wake_local: { en: "on this device", el: "στη συσκευή" },
   wake_cloud: { en: "via the browser's speech service", el: "μέσω της υπηρεσίας ομιλίας του browser" },
+  wake_where: { en: "Speech recognition {where}", el: "Αναγνώριση ομιλίας {where}" },
   wake_on_said: { en: "Hands-free on. Say “Hey chef”.", el: "Χωρίς χέρια: ενεργό. Πες «Γεια σου σεφ»." },
   wake_off_said: { en: "Hands-free off. Tap Talk when you need me.", el: "Χωρίς χέρια: ανενεργό. Πάτα Μίλα όταν με χρειαστείς." },
   wake_timeout: { en: "I'm here when you need me.", el: "Είμαι εδώ όταν με χρειαστείς." },
@@ -171,6 +172,7 @@ export const STRINGS = {
   },
   ingredients_list: { en: "You need: {list}.", el: "Χρειάζεσαι: {list}." },
   ingredients_missing: { en: "Not ticked yet: {list}.", el: "Δεν έχουν σημειωθεί ακόμα: {list}." },
+  ingredients_count: { en: "{have} of {total}", el: "{have} από {total}" },
   ingredients_all: { en: "Everything's ticked. Say “start” when you're ready.", el: "Όλα σημειωμένα. Πες «ξεκίνα» όταν είσαι έτοιμος." },
   // Tools, cookware and appliances: said right after the ingredients, before step 1.
   overview_equipment: { en: "You'll also need: {list}.", el: "Θα χρειαστείς επίσης: {list}." },
@@ -204,6 +206,12 @@ export const STRINGS = {
     el: "Νωρίτερα σήμερα είχες φτάσει στο βήμα {n} αυτής της συνταγής. Να συνεχίσουμε από εκεί;",
   },
   resume_fresh: { en: "OK, from the start.", el: "Εντάξει, από την αρχή." },
+
+  // --- home: things to say (quick-ask chips) ---
+  examples_title: { en: "Try saying", el: "Δοκίμασε να πεις" },
+  ex_make_pasta: { en: "I want to make pasta", el: "Θέλω να φτιάξω ζυμαρικά" },
+  ex_what_see: { en: "What do you see?", el: "Τι βλέπεις;" },
+  ex_help: { en: "What can I say?", el: "Τι μπορώ να πω;" },
 
   // --- help and memory ---
   help_text: {
@@ -347,7 +355,12 @@ export const STRINGS = {
   speak_stop_timer: { en: "Stops this timer.", el: "Σταματά αυτό το χρονόμετρο." },
   speak_send: { en: "Send. Sends what you typed.", el: "Στείλε. Στέλνει αυτό που έγραψες." },
   speak_alert_ok: { en: "OK. Closes the alert.", el: "Εντάξει. Κλείνει την ειδοποίηση." },
-  theme_toggle: { en: "Dark theme", el: "Σκούρο θέμα" },
+  theme_toggle: { en: "Dark", el: "Σκούρο" },
+  text_size: { en: "Large text", el: "Μεγάλα γράμματα" },
+  speak_text_size: {
+    en: "Large text. Makes all the writing on screen bigger, or back to normal.",
+    el: "Μεγάλα γράμματα. Μεγαλώνει όλα τα γράμματα της οθόνης, ή τα επιστρέφει στο κανονικό.",
+  },
   speak_theme_toggle: {
     en: "Dark theme. Switches the screen between dark and light colours.",
     el: "Σκούρο θέμα. Αλλάζει την οθόνη ανάμεσα σε σκούρα και ανοιχτά χρώματα.",

@@ -11,11 +11,12 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="app.css" />
   <script>
-    // Before the first paint, so a saved choice never flashes the other theme. No saved choice:
-    // app.css follows the system's light/dark setting.
+    // Before the first paint, so a saved choice never flashes the other theme or text size. No
+    // saved theme: app.css follows the system's light/dark setting.
     try {
       var savedTheme = localStorage.getItem("theme");
       if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+      if (localStorage.getItem("textSize") === "large") document.documentElement.dataset.text = "large";
     } catch (e) {}
   </script>
 </head>
@@ -38,7 +39,10 @@
   <div id="app" hidden>
     <header class="topbar">
       <h1 class="brand">Βοηθός Μαγειρικής</h1>
-      <button id="theme-toggle" class="switch" data-action="theme" data-speak="theme_toggle" data-label="theme_toggle" aria-pressed="false">Σκούρο θέμα</button>
+      <div class="topbar-tools">
+        <button id="text-toggle" data-action="text-size" data-speak="text_size" aria-label="Μεγάλα γράμματα" aria-pressed="false">Aa</button>
+        <button id="theme-toggle" class="switch" data-action="theme" data-speak="theme_toggle" data-label="theme_toggle" aria-pressed="false">Σκούρο</button>
+      </div>
     </header>
 
     <div class="vision-col">
@@ -74,7 +78,7 @@
       </p>
     </div>
 
-    <main class="panel">
+    <main id="panel" class="panel">
       <!-- Timer ends, fire warnings: stays on screen until dismissed, for a cook who can't hear it. -->
       <div id="alert" role="alert" hidden>
         <p id="alert-text"></p>
@@ -94,6 +98,11 @@
         <button class="primary" data-action="recipes" data-speak="recipes" data-label="recipes">Συνταγές</button>
         <button data-action="identify" data-speak="identify" data-label="identify">Τι είναι αυτό;</button>
         <button id="wake-toggle" class="wide" data-action="wake-toggle" data-speak="wake_toggle" data-label="wake_toggle" aria-pressed="false">Χωρίς χέρια</button>
+        <!-- Things to say, built per language: one tap runs each exactly as if it were said. -->
+        <div id="examples" class="wide">
+          <h3 data-label="examples_title">Δοκίμασε να πεις</h3>
+          <div id="example-chips" class="chips"></div>
+        </div>
       </div>
 
       <div id="recipe-list" hidden></div>
@@ -117,7 +126,7 @@
           <h3 data-label="doneness_title">Ψήσιμο</h3>
           <div id="doneness-options" class="chips"></div>
         </div>
-        <h3 data-label="ingredients">Υλικά</h3>
+        <h3><span data-label="ingredients">Υλικά</span> <span id="ingredient-count"></span></h3>
         <ul id="ingredient-list"></ul>
         <div id="equipment" hidden>
           <h3 data-label="equipment">Σκεύη</h3>
@@ -133,6 +142,8 @@
 
       <section id="stepper" hidden aria-labelledby="step-count">
         <p id="step-count"></p>
+        <!-- How far through the recipe, at a glance; the line above says it in words. -->
+        <div id="step-progress" aria-hidden="true"><span></span></div>
         <p id="step-text"></p>
         <div id="timers"></div>
         <!-- Built per step: "Done", the step's timer, and one-tap questions for a cook who reads. -->

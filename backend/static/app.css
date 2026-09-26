@@ -278,10 +278,31 @@ input:focus-visible {
   letter-spacing: -0.01em;
 }
 
-#theme-toggle {
+/* The header keeps its size with large text on, so its two switches always fit beside the name. */
+.topbar {
+  font-size: 17px;
+}
+
+.topbar-tools {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+#theme-toggle,
+#text-toggle {
   min-height: 36px;
   padding: 4px 12px;
   font-size: 0.85em;
+}
+
+#text-toggle {
+  min-width: 44px;
+}
+
+/* Large text: body sets the size everything else is relative to. */
+:root[data-text="large"] body {
+  font-size: 20px;
 }
 
 .vision-col {
@@ -511,6 +532,13 @@ input:focus-visible {
   font-weight: 700;
 }
 
+/* Start-up warnings and check confidence, in English: for whoever runs the app (?debug=1), not
+   for the cook or an audience. */
+:root:not([data-debug]) #debug,
+:root:not([data-debug]) .meta:has(#timer:empty) {
+  display: none;
+}
+
 /* --- the panel: whatever the cook is doing now, and the only part that scrolls --- */
 
 .panel {
@@ -574,6 +602,13 @@ input:focus-visible {
   }
 }
 
+/* Large text on a phone: two to a row, or "Προηγούμενο" no longer fits and splits mid-word. */
+@container (max-width: 480px) {
+  :root[data-text="large"] #stepper .button-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* A wider panel (laptop, tablet): four to a row, so the step's buttons take two rows. */
 @container (min-width: 520px) {
   #stepper .button-grid {
@@ -617,10 +652,7 @@ input:focus-visible {
 }
 
 #recipe-list button[data-action="close-recipes"] {
-  position: sticky;
-  bottom: 0;
   text-align: center;
-  border-color: var(--ink);
 }
 
 /* --- yes/no question, alerts that stay until dismissed, and a full-screen flash --- */
@@ -712,6 +744,12 @@ input:focus-visible {
   color: var(--muted);
 }
 
+#ingredient-count {
+  margin-left: 4px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -787,6 +825,21 @@ input:focus-visible {
   color: var(--muted);
   font-size: 0.85em;
   font-weight: 600;
+}
+
+#step-progress {
+  height: 6px;
+  margin: 6px 0 2px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+#step-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--ink);
 }
 
 #step-text {
@@ -977,6 +1030,10 @@ button.talk[aria-pressed="true"] {
 
   body {
     font-size: 18px;
+  }
+
+  :root[data-text="large"] body {
+    font-size: 22px;
   }
 
   .brand {

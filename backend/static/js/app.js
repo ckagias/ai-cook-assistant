@@ -47,11 +47,13 @@ const el = {
   doneness: document.getElementById("doneness"),
   donenessOptions: document.getElementById("doneness-options"),
   ingredientList: document.getElementById("ingredient-list"),
+  ingredientCount: document.getElementById("ingredient-count"),
   equipment: document.getElementById("equipment"),
   equipmentList: document.getElementById("equipment-list"),
   stepper: document.getElementById("stepper"),
   stepCount: document.getElementById("step-count"),
   stepText: document.getElementById("step-text"),
+  stepProgress: document.getElementById("step-progress"),
   timers: document.getElementById("timers"),
   startTimer: document.getElementById("start-timer"),
   question: document.getElementById("question"),
@@ -72,10 +74,14 @@ const el = {
   detectStats: document.getElementById("detect-stats"),
   detectTable: document.getElementById("detect-table"),
   themeToggle: document.getElementById("theme-toggle"),
+  textToggle: document.getElementById("text-toggle"),
+  panel: document.getElementById("panel"),
+  exampleChips: document.getElementById("example-chips"),
 };
 
 const params = new URLSearchParams(window.location.search);
 const DEBUG = params.get("debug") === "1";
+if (DEBUG) document.documentElement.dataset.debug = "1"; // app.css shows the diagnostics line
 // Detection starts with the camera unless this device said otherwise: ?detect=0 / =1 is remembered
 // (an installed app opens at "/"). When the server has no detection the loop stops by itself.
 const DETECT_PARAM = params.get("detect");
@@ -152,6 +158,22 @@ function toggleTheme() {
 darkQuery.addEventListener("change", renderTheme);
 renderTheme();
 
+// Large text, for a cook who sees poorly: every size in app.css is relative to the page's, so one
+// switch scales it all. Per device, remembered; index.html applies it before the first paint.
+function renderTextSize() {
+  el.textToggle.setAttribute("aria-pressed", String(document.documentElement.dataset.text === "large"));
+}
+
+function toggleTextSize() {
+  const large = document.documentElement.dataset.text !== "large";
+  if (large) document.documentElement.dataset.text = "large";
+  else delete document.documentElement.dataset.text;
+  savePref("textSize", large ? "large" : "normal");
+  renderTextSize();
+}
+
+renderTextSize();
+
 // ?speakButtons=0 / =1 persists the per-device choice (0 for screen-reader users).
 const SPEAK_BUTTONS_PARAM = params.get("speakButtons");
 if (SPEAK_BUTTONS_PARAM === "0" || SPEAK_BUTTONS_PARAM === "1") {
@@ -203,6 +225,7 @@ function showAlert(text, kind) {
   el.alertText.textContent = text;
   el.alert.dataset.kind = kind;
   el.alert.hidden = false;
+  panelToTop(); // it's the panel's first line: in view however far the cook had scrolled
   el.flash.dataset.kind = kind;
   el.flash.hidden = false;
   el.flash.classList.remove("go");
@@ -216,8 +239,24 @@ function setBusy(on) {
   el.busy.hidden = !on;
   // Talking, typing and dismissing an alert stay possible while the camera call runs.
   document.querySelectorAll("[data-action]").forEach((btn) => {
-    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme"].includes(btn.dataset.action)) btn.disabled = on;
+    if (!["talk", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme", "text-size"].includes(btn.dataset.action)) btn.disabled = on;
   });
+}
+
+// Home: things to say. A tap runs one exactly as if it were said, so they show a newcomer what the
+// assistant understands, and stand in for a microphone that isn't working. One goes to the
+// assistant (a dish by name); the other two are understood on the device.
+const EXAMPLES = ["ex_make_pasta", "ex_what_see", "ex_help"];
+
+function renderExamples() {
+  el.exampleChips.innerHTML = "";
+  for (const key of EXAMPLES) {
+    const btn = document.createElement("button");
+    btn.dataset.action = "quick-ask";
+    btn.dataset.text = t(key, lang);
+    btn.textContent = lang === "el" ? `«${t(key, lang)}»` : `“${t(key, lang)}”`;
+    el.exampleChips.appendChild(btn);
+  }
 }
 
 function localize() {
@@ -227,6 +266,7 @@ function localize() {
     if (text) node.textContent = text;
   });
   el.askInput.placeholder = t("ask_placeholder", lang);
+  el.textToggle.setAttribute("aria-label", t("text_size", lang)); // it only shows "Aa"
 }
 
 // --- the yes/no question the app is waiting on ---
@@ -235,6 +275,7 @@ function askQuestion(type, text, extra = {}) {
   pending = { type, ...extra };
   el.questionText.textContent = text;
   el.question.hidden = false;
+  panelToTop(); // Yes and No in view, not above a scrolled list
   say(text, "checkin"); // queued behind whatever answer came before it
 }
 
@@ -670,6 +711,12 @@ function checkIngredients() {
 
 // --- recipes: list, needs and preferences, ingredients and tools, steps ---
 
+// Only the panel scrolls: a new view, a new step or something waiting on the cook starts at its
+// top, not wherever the previous one was left.
+function panelToTop() {
+  el.panel.scrollTop = 0;
+}
+
 function showPanel(name) {
   el.controls.hidden = name !== "home";
   el.recipeList.hidden = name !== "list";
@@ -677,6 +724,7 @@ function showPanel(name) {
   el.overview.hidden = name !== "overview";
   el.stepper.hidden = name !== "steps";
   el.memoryWrap.hidden = !(name === "prefs" || name === "overview" || name === "steps") || memory.events().length === 0;
+  panelToTop();
 }
 
 // The short-term memory, readable on screen: preferences first, then the latest events.
@@ -743,7 +791,7 @@ function showRecipeButtons(recipes) {
   backBtn.textContent = t("back", lang);
   backBtn.dataset.action = "close-recipes";
   backBtn.dataset.speak = "back";
-  el.recipeList.appendChild(backBtn);
+  el.recipeList.prepend(backBtn); // first: in view without scrolling a long list
   showPanel("list");
 }
 
@@ -785,9 +833,17 @@ function renderChecklist(list, lines, done, action) {
   });
 }
 
+// "2 of 5" beside the heading, counted from the boxes on screen: ticked by tap, voice or camera.
+function renderIngredientCount() {
+  const total = el.ingredientList.children.length;
+  const have = el.ingredientList.querySelectorAll('[aria-pressed="true"]').length;
+  el.ingredientCount.textContent = total ? tf("ingredients_count", lang, { have, total }) : "";
+}
+
 function renderIngredients() {
   const recipe = session.getRecipe();
   renderChecklist(el.ingredientList, recipe ? ingredientLines(recipe) : [], ticked, "tick");
+  renderIngredientCount();
   const tools = recipe ? equipmentLines(recipe) : [];
   el.equipment.hidden = tools.length === 0;
   renderChecklist(el.equipmentList, tools, tickedTools, "tick-tool");
@@ -1057,10 +1113,13 @@ function announceStep({ repeat = false, intro = "" } = {}) {
   const step = session.currentStep();
   if (!step) return;
 
-  el.stepCount.textContent = tf("step_n_of", lang, { n: step.index + 1, total: session.getRecipe().steps.length });
+  const total = session.getRecipe().steps.length;
+  el.stepCount.textContent = tf("step_n_of", lang, { n: step.index + 1, total });
+  el.stepProgress.firstElementChild.style.width = `${((step.index + 1) / total) * 100}%`;
   el.stepText.textContent = step.instruction[lang] || step.instruction.en;
   updateStepButtons();
   renderStepActions(step);
+  panelToTop(); // the step's text, not the buttons the cook scrolled down to
 
   const speech = stepSpeech(step);
   say(intro ? `${intro} ${speech}` : speech, "command");
@@ -1380,13 +1439,16 @@ function setListening(on) {
 function renderWakeState(state, detail) {
   el.wakeStatus.dataset.state = state;
   let text;
-  if (state === "idle") text = `${t("wake_idle", lang)} · ${t(detail === "local" ? "wake_local" : "wake_cloud", lang)}`;
+  // Where the words are recognized is a hover detail, not part of the label: "· via the browser's
+  // speech service" wrapped the pill to three lines beside a phone's camera.
+  if (state === "idle") text = t("wake_idle", lang);
   else if (state === "armed") text = t("wake_armed", lang);
   // The browser's own error code stays on screen (feature/detection-db showed it too): it tells
   // whoever is helping whether it's the microphone, the network or the language.
   else if (state === "error") text = detail === "unsupported" ? t("wake_unsupported", lang) : `${t("wake_blocked", lang)} (${detail})`;
   else text = Recognition ? t("wake_off", lang) : t("wake_unsupported", lang);
   el.wakeStatus.textContent = text;
+  el.wakeStatus.title = state === "idle" ? tf("wake_where", lang, { where: t(detail === "local" ? "wake_local" : "wake_cloud", lang) }) : "";
   el.wakeToggle.setAttribute("aria-pressed", String(state === "idle" || state === "armed"));
   if (state !== "armed") setListening(false);
 }
@@ -1555,6 +1617,7 @@ window.addEventListener("blur", () => {
 
 const ACTIONS = {
   theme: () => toggleTheme(),
+  "text-size": () => toggleTextSize(),
   identify: () => identify(),
   recipes: () => openRecipes(),
   "close-recipes": () => {
@@ -1570,6 +1633,7 @@ const ACTIONS = {
     if (ticked.has(i)) ticked.delete(i);
     else ticked.add(i);
     btn.setAttribute("aria-pressed", String(ticked.has(i)));
+    renderIngredientCount();
   },
   "tick-tool": (btn) => {
     const i = Number(btn.dataset.index);
@@ -1682,6 +1746,7 @@ el.start.addEventListener("click", async () => {
     el.gate.hidden = true;
     el.app.hidden = false;
     localize();
+    renderExamples();
 
     el.debug.textContent = warnings.length ? warnings.join(" | ") : "";
 
