@@ -64,7 +64,12 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        if (res.ok) caches.open(SHELL_CACHE).then((c) => c.put(path, res.clone()));
+        // Clone now, before the page reads the body - a clone taken later, inside the
+        // caches.open() callback, fails with "Response body is already used".
+        if (res.ok) {
+          const copy = res.clone();
+          event.waitUntil(caches.open(SHELL_CACHE).then((c) => c.put(path, copy)));
+        }
         return res;
       })
       .catch(() => caches.match(path))

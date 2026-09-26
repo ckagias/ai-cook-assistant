@@ -62,4 +62,31 @@ assert(
   "notificationclick handler should be registered"
 );
 
+// fetch: the copy for the cache is cloned before the page reads the body. Cloning later, inside
+// the caches.open() callback, threw "Response body is already used" on every shell file.
+{
+  let bodyUsed = false;
+  const res = {
+    ok: true,
+    clone() {
+      if (bodyUsed) throw new TypeError("Failed to execute 'clone' on 'Response': Response body is already used");
+      return { copy: true };
+    },
+  };
+  let openCache;
+  const puts = [];
+  context.fetch = () => Promise.resolve(res);
+  context.caches = { open: () => new Promise((resolve) => (openCache = resolve)), match: async () => undefined };
+  let responded;
+  const waits = [];
+  const event = { request: req("GET", "/js/app.js"), respondWith: (p) => (responded = p), waitUntil: (p) => waits.push(p) };
+  for (const fn of listeners.fetch) fn(event);
+  const served = await responded;
+  bodyUsed = true; // the page consumes the response
+  openCache({ put: (path, copy) => puts.push([path, copy]) });
+  await Promise.all(waits);
+  assert(served === res, "the page gets the network response itself");
+  assert(puts.length === 1 && puts[0][0] === "/js/app.js" && puts[0][1].copy, "the cache got a clone taken in time");
+}
+
 console.log("all passed");

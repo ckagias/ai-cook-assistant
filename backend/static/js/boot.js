@@ -74,18 +74,14 @@ export async function boot(preferredLang = "el") {
     throw cameraError(err.name, err.message);
   }
 
-  // Mic. All three constraints OFF or AGC drifts the noise-floor threshold and
-  // noise suppression removes sizzle. Not fatal if refused.
+  // Mic: asked for here, inside the Start tap, so the permission is granted up front - and then
+  // let go at once. A page that keeps the microphone open blocks the browser's own speech
+  // recognition on Android ("Γεια σου σεφ" never heard). Push-to-talk opens its own stream only
+  // while recording. Not fatal if refused.
   try {
-    caps.micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-    });
+    const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+    probe.getTracks().forEach((track) => track.stop());
     caps.audioIn = true;
-    const audioTrack = caps.micStream.getAudioTracks()[0];
-    const audioSettings = audioTrack ? audioTrack.getSettings() : {};
-    if (audioSettings.noiseSuppression || audioSettings.autoGainControl) {
-      warnings.push("Microphone processing could not be fully disabled - sizzle detection may be unreliable.");
-    }
   } catch (err) {
     warnings.push("Microphone access was not granted.");
   }

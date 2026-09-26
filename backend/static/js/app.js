@@ -1407,19 +1407,25 @@ async function setHandsFree(on, { announce = true } = {}) {
 
 let voiceStream = null;
 
-// Its own microphone stream with the browser's speech processing ON: the boot stream has it
-// OFF on purpose (sizzle detection needs the raw sound), which is the wrong input for words.
+// A microphone stream with the browser's speech processing on, opened for one recording and
+// closed right after (releaseVoiceStream): an open stream blocks the browser's own recognizer on
+// Android, so hands-free listening would go deaf after the first push-to-talk.
 async function getVoiceStream() {
   if (voiceStream && voiceStream.getAudioTracks().some((tr) => tr.readyState === "live")) return voiceStream;
   try {
     voiceStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
-  } catch (err) {
-    if (!caps.micStream) throw err;
-    voiceStream = caps.micStream; // better unprocessed than nothing
+  } catch {
+    // a device that refuses the processing constraints: plain audio beats nothing
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   }
   return voiceStream;
+}
+
+function releaseVoiceStream() {
+  if (voiceStream) voiceStream.getTracks().forEach((tr) => tr.stop());
+  voiceStream = null;
 }
 
 // RMS level of a stream, for the recorder's end-of-speech detection.
@@ -1444,6 +1450,7 @@ function levelMeter(stream) {
 
 function setRecordState(state) {
   setListening(state === "listening");
+  if (state !== "listening") releaseVoiceStream(); // the recording is over (or never started)
   if (state === "listening") {
     earcon("ok");
     buzz(20);
