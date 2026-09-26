@@ -324,7 +324,7 @@ function testTheDescriptionIsShownToo() {
   assert(u.tips.at(-1) === null, `hidden after a while: ${u.tips}`);
 
   const k = setup();
-  const lock = makeButton("lock", "🔒", { focusVisible: true });
+  const lock = makeButton("lock", "🎤", { focusVisible: true });
   k.root.dispatch("focusin", ev(lock));
   assert(k.tips[0].startsWith("Κλείδωμα."), `keyboard focus shows it: ${k.tips}`);
   k.root.dispatch("focusout", ev(lock));

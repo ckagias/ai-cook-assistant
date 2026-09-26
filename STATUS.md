@@ -3,6 +3,23 @@
 Where this rebuild actually stands today, and what to test next. This file
 reflects real state as of this writing, not the plan's projections.
 
+## Update: hold to talk, 🎤 lock, voice checklist, own voice removed (2026-09-27)
+
+From the first real use (DESIGN.md #35):
+- **Wake word:** "chef"/"σεφ" said to the app, or «γεια σου σεφ», wakes it even when the "hey"
+  is lost. Still not perfect with a Greek accent; the 🎤 lock avoids the wake word altogether.
+- **Talk:** hold to talk, let go to send; pauses no longer cut you off. **🎤 lock:** commands one
+  after another, no wake word, until tapped again.
+- **The app's own words** caught by the mic are removed before a command is understood.
+- **Waits longer** before a command ends (1.8 s).
+- **Checklist by voice** with substitutes; **"let's start"** starts the steps instead of
+  re-reading the ingredients.
+- **Button descriptions** shown in a bubble as well as spoken; **"Τι είναι αυτό;"** always in the
+  bottom bar.
+
+Tested: 355 tests pass; checklist phrases against the real model. The user tried it on the
+laptop: works, "Hey chef" still a bit hard to land. Not yet: a phone.
+
 ## Update: "Hey chef" interrupts at any moment; one wake phrase (2026-09-26, evening)
 
 On top of ckagias's pitch UI (PR #7). `main-backup` keeps the working `main` from before it. See

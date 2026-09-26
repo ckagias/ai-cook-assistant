@@ -310,20 +310,32 @@ personal or demo use; republishing needs the site's permission.
 
 ## Speaking buttons
 
-Every big button says what it does before you press it:
+Every big button says what it does before you press it, and shows the same words in a bubble
+beside it (for a cook who can't hear them):
 - **Long-press** (phone/tablet): it speaks and does *not* activate. A normal tap still works.
 - **Mouse hover** (PC demo): it speaks after about a quarter of a second.
 - **Keyboard focus** (Tab, Bluetooth remote): it speaks when the button is focused.
 
-Screen-reader (TalkBack) users can turn this off per device with `?speakButtons=0`.
+Screen-reader (TalkBack) users can turn the speaking off per device with `?speakButtons=0`; the
+bubble still shows.
 
 ## Hands-free: "Hey chef"
 
 Say **"Hey chef"** (in Greek «Χέι σεφ»; it's the same phrase in every language), then what you
-need. You can say it in one breath ("Hey chef, next step") or after the beep. Tapping the green
-**Μίλα / Talk** button (or the **V** key) does the same without the wake phrase. A cook who
-doesn't speak **types** the same commands in the box under the buttons, and every button does
-what a voice command does.
+need. You can say it in one breath ("Hey chef, next step") or after the beep. Just **«σεφ, …»**
+or **«γεια σου σεφ»** works too: the app wakes on the name said *to* it, so a "hey" the
+recognizer drops doesn't matter, and "ο σεφ είπε…" (talking *about* a chef) doesn't wake it.
+
+Three ways to talk, always in the bottom bar:
+- **Hold Μίλα / Talk** (or the **V** key) while you speak, let go when you're done. A pause while
+  holding doesn't cut you off. A quick tap only reminds you to hold it.
+- **🎤 (the lock)**: tap once and it keeps listening, command after command, with no wake phrase,
+  until you tap it again. Locked listening is shown on the button in the talk colour.
+- **"Hey chef"** with hands-free on (the **Χωρίς χέρια / Hands-free** switch).
+
+**Τι είναι αυτό; / What is this?** sits in the same bar, so the camera can name anything at any
+point. A cook who doesn't speak **types** the same commands in the box under the buttons, and
+every button does what a voice command does.
 
 **"Hey chef" interrupts at any moment, even while the app is talking:** mid-step, mid-list, or
 during the opening questions. The app stops talking, and only talking. The recipe, the step,
@@ -348,8 +360,12 @@ A cooking session, start to finish:
    assistant. With no key or no network, whatever is said is kept as the preference.
 3. The **ingredients** and the **tools** (knife, board, tray, oven...) are read out and shown as
    checklists. "Έλεγξε τα υλικά" shows them to the camera and ticks what it sees (the live
-   detection preview ticks them too); a tap ticks one. Meat recipes ask how you like it.
-4. "Ξεκίνα" - step by step. A step with a usual time says so, but **timers start only when you
+   detection preview ticks them too); a tap ticks one. **By voice too:** "έχω τα αυγά και το
+   γάλα, δεν έχω βούτυρο" ticks those two, and for the butter the assistant suggests a
+   substitute or says it can be left out; "τα έχω όλα εκτός από το σύρμα" ticks the rest. With
+   everything ticked it asks "Ξεκινάμε;". Only what you say is ticked or unticked: something not
+   mentioned is never counted as missing. Meat recipes ask how you like it.
+4. "Ξεκίνα", "πάμε στα βήματα" or "τα έχω όλα, μπορούμε να ξεκινήσουμε" - step by step. A step with a usual time says so, but **timers start only when you
    say "χρονόμετρο"** (or tap it): people work at different speeds. Several run at once, and
    "two more minutes" / "+1 λεπτό" / "πόση ώρα μένει;" adjust and read them. Each step also gets
    its own buttons: **Done**, and one-tap questions that fit the step ("how do I know it's
@@ -380,15 +396,19 @@ large - so the whole app works without hearing it.
 - **Nothing is acted on without the wake phrase** or a tap.
 - **While the app speaks, only "Hey chef" counts.** The microphone also hears the app's own
   voice, and that is never taken for a command.
+- **The app's own words are taken out of what you said.** It knows what it said in the last 15 s,
+  so when the mic catches the end of its sentence before yours ("2 αυγά… okay, τα έχω όλα"),
+  that part is dropped by comparing the words (`static/js/echo.js`).
+- **It waits for you to finish:** 1.8 s of quiet ends a command (a breath in the middle doesn't).
 - **A sentence that itself says "Hey chef"** (the greeting, help) mutes listening while it plays,
   so the app can't wake itself.
 - **Common commands never leave the device** ("next", "yes", "timer", "check it", "σενιάν"...,
   `static/js/commands.js`): instant, free, and they work with no API key at all. Free speech goes
   to `POST /voice/text`, understood by whichever key is set - OpenAI (`gpt-5-mini`), Gemini, or
   Anthropic (`VOICE_PROVIDER` picks one explicitly).
-- **Browsers without speech recognition (Firefox):** tap Talk and it records until you stop
-  talking, or hold it while you speak; the recording is transcribed on the server
-  (`gpt-4o-mini-transcribe`, needs `OPENAI_API_KEY`).
+- **Browsers without speech recognition (Firefox):** hold Talk while you speak (up to 30 s), or
+  use the 🎤 lock, which records until each pause and then listens again; the recording is
+  transcribed on the server (`gpt-4o-mini-transcribe`, needs `OPENAI_API_KEY`).
 - **A closed set of actions:** the model can only pick one from a fixed list. Code checks the
   result: timer bounds, that a chosen recipe was actually offered, that a step action has an
   open recipe, that "yes" answers a question the app asked. Recipe text is passed as tagged

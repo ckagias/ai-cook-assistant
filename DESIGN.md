@@ -661,3 +661,33 @@ Verified in the real page with an Android user agent:
 - Greek listed after 2.5 s: the app started in Greek.
 - Greek listed after 7 s: English with the Android steps, then "Βρέθηκε ελληνική φωνή" and Greek
   from there on.
+
+## 35. Hold to talk, a lock, and the app's own voice taken out
+
+What the first real use showed, and what changed:
+- **"Hey chef" with a Greek accent is often heard as just "chef …" or not at all.** The wake word
+  is now the name said *to* the app: "chef"/"σεφ" anywhere, unless an article or a word like
+  "σαν"/"like" makes it a chef being talked about. «γεια σου σεφ» counts again. When the
+  recognizer offers several readings, the one that woke *with a command after it* wins.
+- **The talk button cut people off at the first pause** (the ingredients, a list of what they
+  have). Now: hold to talk, let go to send, nothing cuts in between. For long stretches without
+  holding or a wake word, a separate **lock** (🎤) keeps listening until it's tapped again.
+  A switch that stays on was the old behaviour people found confusing; the lock is a deliberate,
+  visible state, and hands-free stays its own choice.
+- **The mic hears the app's last words before the cook's** ("2 αυγά Okay έχω συλλέξει…" was
+  read as a request for the ingredients). The app keeps what it said in the last 15 s and drops,
+  by word comparison, a run of ≥2 of its words at the start of what was heard, or ≥3 anywhere.
+  Short overlaps stay: "έχω τα 2 αυγά" is the cook. A string comparison is enough - the app
+  knows exactly what it said, and no audio processing is needed.
+- **"I have everything, let's start" re-read the list:** there was no action for it. Now
+  `start_cooking` (ready: tick everything and start the steps) and `have_ingredients`
+  (tick/untick from speech, with substitutes). The model tended to mark what wasn't mentioned as
+  missing and to confuse the two lists, so: **one numbering** for ingredients then equipment
+  (the server splits it), and "missing" only counts when the words say something is lacking
+  (no/δεν/χωρίς/εκτός…).
+- **Descriptions are shown, not only spoken**, for cooks who can't hear them.
+- **"What is this?" lives in the bottom bar**, reachable from every screen.
+
+Verified: the suites (355), and the checklist phrases against the real model (7/7 after the
+two fixes above). The hold, lock and echo paths are covered by the fake-recognizer tests; the
+real microphone test is the next one.
