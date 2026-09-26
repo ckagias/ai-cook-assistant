@@ -1,0 +1,17 @@
+# Curated Greek Recipe URLs for Local Database Import (Demo / Personal Use)
+# Usage:
+#   python scripts/import_recipes.py url --url-file data/greek_demo_urls.txt --browser-ua
+#   python scripts/curate_recipe.py --list
+#
+# Akis Petretzikis (akispetretzikis.com)
+https://akispetretzikis.com/recipe/182/moysakas
+https://akispetretzikis.com/recipe/2555/to-pastitsio-toy-akh
+https://akispetretzikis.com/recipe/3196/spanakopita
+https://akispetretzikis.com/recipe/2437/gemista-me-ryzi
+https://akispetretzikis.com/recipe/2088/gioyvetsi-me-mosxari
+
+# Argiro Barbarigou (argiro.gr)
+https://www.argiro.gr/recipe/choriatiki-salata/
+https://www.argiro.gr/recipe/tzatziki/
+https://www.argiro.gr/recipe/fakes-soupa/
+https://www.argiro.gr/recipe/kotopoulo-sto-fourno-me-patates/
