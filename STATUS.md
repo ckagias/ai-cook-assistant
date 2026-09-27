@@ -1,427 +1,118 @@
 # Status
 
-Where this rebuild actually stands today, and what to test next. This file
-reflects real state as of this writing, not the plan's projections.
+What works today, how it was verified, and what hasn't been tried yet. The reasons behind each
+part are in `DESIGN.md` (decisions #1-#35); how to run and use it is in `README.md`.
 
-## Update: hold to talk, mic lock, voice checklist, own voice removed (2026-09-27)
+Last updated: 2026-09-27, `main` = `integration`.
 
-From the first real use (DESIGN.md #35):
-- **Wake word:** "chef"/"σεφ" said to the app, or «γεια σου σεφ», wakes it even when the "hey"
-  is lost. Still not perfect with a Greek accent; the mic lock avoids the wake word altogether.
-- **Talk:** hold to talk, let go to send; pauses no longer cut you off. **mic lock:** commands one
-  after another, no wake word, until tapped again.
-- **The app's own words** caught by the mic are removed before a command is understood.
-- **Waits longer** before a command ends (1.8 s).
-- **Checklist by voice** with substitutes; **"let's start"** starts the steps instead of
-  re-reading the ingredients.
-- **Button descriptions** shown in a bubble as well as spoken; **"Τι είναι αυτό;"** always in the
-  bottom bar.
+## Tests
 
-Tested: 355 tests pass; checklist phrases against the real model. The user tried it on the
-laptop: works, "Hey chef" still a bit hard to land. Not yet: a phone.
+**355 passing** (Python + the Node `.test.mjs` suites, run through `test_client_js.py`). GitHub
+Actions runs both on every push to `main` and every pull request (`.github/workflows/tests.yml`).
 
-## Update: "Hey chef" interrupts at any moment; one wake phrase (2026-09-26, evening)
+## What works
 
-On top of ckagias's pitch UI (PR #7). `main-backup` keeps the working `main` from before it. See
-DESIGN.md #33. **Built and verified:**
-- **"Hey chef" works while the app is talking.** It stops the talking and keeps the recipe, the
-  step, the timers and the open question. After an aside, it goes back to the sentence it was
-  in ("Όπως έλεγα: …"); after "next step" and the like, it drops it. Safety alerts are never cut
-  off.
-- **Needs and allergies at any point** (`add_preference`): checked against the recipe in the
-  reply, and kept in the session memory. During the opening preferences question, the assistant
-  tells a need from a question.
-- **Urgent reports** get the immediate safety step first.
-- **One wake phrase: "Hey chef"** («Χέι σεφ»). "Γεια σου σεφ" and "ok chef" were dropped.
-- **A Greek voice that Android lists late now counts** (DESIGN #34). The app waits up to 4 s on
-  Android and keeps watching: a Greek voice arriving later switches it back to Greek. With none,
-  it says (in English) and shows (in both languages) where to install one on that device.
-  Verified in the real page with an Android user agent: Greek at 2.5 s gave a Greek start;
-  Greek at 7 s gave English, then "Βρέθηκε ελληνική φωνή".
-- **Tests:** 350 passing. New: interruptions and the app's own voice in `wake.test.mjs`, the
-  interrupt-and-resume logic in `a11y.test.mjs`, the wake-phrase forms, and `add_preference` on
-  the server, including a preference carrying an injected instruction.
-- **Live**, in the real app against the real server, with a scripted recognizer and a held voice:
-  - the greeting muted listening;
-  - "για πόσα άτομα είναι" in the middle of the preferences question was answered, and the
-    question came back from its sentence;
-  - "λιγότερο αλάτι" was noted, and the app moved on;
-  - "ο γιος μου είναι αλλεργικός στα καρύδια" mid-step went into the memory, and step 1 resumed;
-  - "επόμενο βήμα" moved on without resuming;
-  - "χέι σεφ" and then silence resumed after 8 s.
-  - One bug was found and fixed that way: a first-word rule sent "για πόσα άτομα είναι" in as a
-    preference.
+**Talking to it** (`static/js/wake.js`, `commands.js`, `echo.js`, `app/voice.py`)
+- **Hold Μίλα / Talk** (or the V key) while speaking, let go to send. Pauses don't cut the cook off.
+- **The mic lock** (the mic button beside Talk): commands one after another, no wake phrase, until
+  it's tapped again.
+- **"Hey chef" / «Χέι σεφ»** with hands-free on. It wakes on the name said *to* the app, so
+  «σεφ, …» and «γεια σου σεφ» work too, and "ο σεφ είπε…" doesn't.
+- **It interrupts at any moment**, even while the app talks. The recipe, the step, the timers and
+  an open question stay. After an aside the app carries on from the sentence it was in; after
+  "next step" it doesn't. Fire warnings always play to the end.
+- **The app's own voice** is never taken for a command: its words from the last 15 s are removed
+  from what the mic heard, and while it talks only the wake phrase counts.
+- **Common commands are understood on the device** (instant, no key needed). Free speech and
+  typed text go to `POST /voice/text`, where the model picks from a closed list of actions and
+  code checks the result.
+- **Firefox** (no recognizer): hold Talk, or the mic lock, which records until each pause; the
+  server transcribes it.
 
-**Not verified yet:**
-- **A real microphone and a real speaker.** Listening while the app talks relies on the
-  recognizer hearing "Hey chef" over the app's own voice, and phones and laptops cancel that
-  echo differently.
-- **Voices that report no word boundaries.** Then the whole interrupted sentence is repeated,
-  which is fine.
+**Cooking a recipe**
+- Needs and preferences first (an allergy, less salt, for children), then the ingredients and
+  tools as checklists, then the steps.
+- **Checklists tick** by tap, by showing them to the camera, from the live detection, or **by
+  voice**: "έχω τα αυγά και το γάλα, δεν έχω βούτυρο" ticks two and suggests a substitute for
+  the butter. Only what is said changes; with everything ticked it asks "Ξεκινάμε;".
+  "Τα έχω όλα, μπορούμε να ξεκινήσουμε" starts the steps.
+- Timers start only when the cook asks, several at once. "Is it ready?" checks judge colour and
+  the timer together, or the work for cutting and mixing; meat is never judged done by looks
+  (the cook gets the thermometer target). The app asks before moving on.
+- Needs and allergies said at any point are kept for the whole recipe and checked in answers.
+  A short-term memory per recipe answers "τι κάναμε;" and offers to continue the same day.
+- **16 curated bilingual recipes** in SQLite (`backend/data/cook.db`, seeded from
+  `recipes.json`). Recipes imported from any URL stay *staged* until a person curates them.
 
-## Update: one branch - `integration`, now `main` (2026-09-26)
+**Seeing**
+- **"Τι είναι αυτό; / What is this?"** is always in the bottom bar.
+- **Live object and hand detection** (YOLOE-26s at 480 px on OpenVINO, MediaPipe hands in
+  parallel): boxes, labels and "which hand touches what", about 6 FPS on this 15 W laptop CPU.
 
-`integration` = ckagias's `feature/hands-free-chef` + Fanis's `dev` (Android PWA) + the rest of
-`feature/detection-db`. It was pushed, and `main` was fast-forwarded to it. See DESIGN.md
-#31-#32. **Built and verified:**
-- **The merge.**
-  - `dev`: two `app.js` conflicts, both kept from hands-free, which already registered the
-    service worker, remembered the detect flag and sent the timer notification.
-  - `detection-db`: the Greek demo URL list came over (import it with
-    `import_recipes.py url --url-file`). Its `import_greek_demo.py` wrapper stayed out, as
-    DESIGN #30 decided. `DOCUMENTATION-project.md` was rewritten with its errors fixed.
-- **The microphone is only open while it's used** (Android). Start used to hold the mic for
-  good, and push-to-talk kept its stream too, and on Android an open page mic blocks the
-  browser's own recognizer. Verified: every stream the page opened is closed after Start and
-  after talking.
-- **Start no longer waits for the notification prompt** (a `dev` change). Firefox, or a desktop
-  prompt nobody clicks, used to leave the app on the start screen for good.
-- **Service worker.**
-  - It cloned responses too late ("Response body is already used"), so nothing was cached.
-  - `wake.js`, `commands.js`, `timers.js` and `memory.js` were missing from the offline shell.
-    The cache is now `-v2`, and a test fails if a JS module is ever left out.
-  - Live: 20 files cached, no errors.
-- **`start.ps1`.**
-  - Every start is clean: the previous server and window are closed, and the profile, QR
-    images and logs are removed. The stamp and certificates stay.
-  - The phone QR is printed in the terminal.
-  - **Default: phones use the network the laptop is on** (a Wi-Fi, or a phone's hotspot).
-    Live: `https://192.168.43.200:8443`, with a certificate for that address from the same
-    local CA, so a phone trusts it after one install on any network.
-  - **`-Hotspot` (opt-in)** turns on the laptop's own hotspot. Phones use
-    `https://192.168.137.1:8443`, the laptop's fixed address there, and **static QR codes for
-    slides** are written to `qr/`: Wi-Fi, certificate, app. It was the default for an hour; the
-    user wanted phones on the network they are already on.
-  - Live with `-Hotspot`: internet still shared, `/health` over HTTPS at 192.168.137.1, a
-    certificate for that address, the Python firewall rule matching the listening process, and
-    all QR codes decoded back to the right text.
-- **Tests:** 348 passing (Python + Node). New: the service-worker module guard, `LAN_IP` pinning,
-  and the static QR payloads (decoded back with OpenCV).
-- **Live, in headless browsers:**
+**Without hearing, without sight**
+- Every button says what it does (long-press, hover, keyboard focus) and shows the same words in
+  a bubble.
+- Everything said is also on screen (status line, conversation log); alerts stay up with a flash
+  and a buzz; the step and timers are large; a large-text switch ("Aa").
+- Greek speech by default. A Greek voice that Android lists late still switches the app to
+  Greek; with none, the app says where to install one.
 
-  | Browser | Detection | Typed request | Hands-free |
-  |---|---|---|---|
-  | Edge (fake camera) | 6-6.7 FPS, "Χέρι 63%, μαχαίρι 39%, ακουμπά" | "θέλω να φτιάξω ροσμπίφ" opened roast beef | - |
-  | Firefox (canvas camera) | 5.5-5.9 FPS | same | tells the cook to tap Μίλα (no recognizer) |
+**Running it**
+- `start.ps1` / `start.cmd` (Windows), `start.sh` (Linux, macOS, WSL). Setup runs only when
+  something changed; a later start takes about 5 s, and every start closes the previous session.
+- One process serves `http://localhost:8000` and `https://<LAN IP>:8443`. Phones join the
+  network the laptop is on by scanning the QR printed in the terminal, and trust the local CA
+  after one install. `-Hotspot` uses the laptop's own hotspot at a fixed address and writes
+  static QR codes for slides.
+- Installable on Android as a PWA; the service worker keeps the app shell offline.
 
-  Push-to-talk through `/voice` also opened roast beef.
-- **Real microphone (laptop mic, phrase played through its speakers):**
-  - **Chrome woke on "γεια σου σεφ"** through room chatter and started a beef recipe. It heard
-    "ροσμπίφ" as "προς πεις", so it picked the steak.
-  - **Edge's recognizer missed the wake phrase three times out of three.**
-  - Headless Chromium feeds its recognizer a beep, not the fake-mic file. Only an acoustic test
-    shows real recognition.
+**Security**: a pairing token (skipped only for the laptop itself), rate limits and size caps,
+an output guard on every model answer, voice actions from a closed list, and audio, transcripts
+and typed text never stored.
 
-**Not verified yet:**
-- **A real Android phone:** the microphone fix, hands-free, the installed PWA, and the hotspot
-  from a phone's side.
-- **Edge as a hands-free browser.** Use Chrome on a PC; Android uses Google's recognizer anyway.
-- **`start.sh` (WSL/Linux)** has neither the clean-start nor the hotspot changes; Windows only.
-- **Fanis's manifest test regenerates the three icon files on every run**, so they show as
-  modified in git afterwards. The tree was left as `dev` has it.
+## Verified live
 
-## Update: Greek hands-free fix, preferences first, short-term memory, detection-db features (branch `feature/hands-free-chef`, 2026-09-26)
+- **On this laptop, by the user:** hands-free, hold to talk, the mic lock and the voice checklist
+  work. "Hey chef" works but is still a bit hard to land with a Greek accent.
+- **OpenAI** (the key configured here) runs voice understanding and vision. Checked on
+  2026-09-27: 7 of 7 checklist and start phrases got the right action and the right boxes.
+- **Earlier, with Gemini:** a full recipe end to end in headless Edge, and `check_doneness`
+  against a reference photo (see DESIGN #9 for timings).
+- **Chrome's Greek recognizer on a real microphone** (a phrase played through the speakers):
+  woke and opened a recipe. Edge's recognizer missed the wake phrase 3 of 3 times.
+- **Detection** in Edge and Firefox with a fake camera and the laptop webcam: 4-7 FPS.
+- **Barge-in and resume** in the real page against the real server, with a scripted recognizer.
+- **`start.ps1`**, the default network and `-Hotspot`: `/health` over HTTPS, the certificate for
+  the address, and every QR code decoded back to the right text.
 
-See DESIGN.md #27-#30. **Built and verified:**
-- **Why "Γεια σου σεφ" didn't work on a real microphone:**
-  - Chrome's Greek recognizer never marks results final. This was measured with the real Web
-    Speech API on synthesized speech.
-  - Fixed with a 1 s "words settled" stop. The real recognizer then drove this app end to end
-    with no errors ("recipes", "1", "start", "next step"...).
-- **The new recipe flow:** needs and preferences, then the ingredients and tools, then the steps.
-  Each step has its own buttons and one-tap questions, and a per-recipe short-term memory is kept.
-- **From feature/detection-db:**
-  - 16 recipes, all with bilingual tools;
-  - stemmed search;
-  - no-cache page files;
-  - the local pairing-token skip, now with a Host check;
-  - detection on by default, stopping cleanly when the server has none;
-  - "ready" said once;
-  - two more wake spellings.
-- **Every button has a spoken form**, in Greek and English (τι βλέπω, συνταγές, σκεύη, βοήθεια,
-  τι κάναμε, πόση ώρα μένει, ανίχνευση).
-- **Fixed along the way:**
-  - camera feedback answered in English to a Greek cook - seen live, now flagged;
-  - an exhausted AI quota was reported as "can't reach the server";
-  - a button's hover description could cut off a command mid-sentence.
-- **Tests:** 331 passing (Python + Node).
-- **End to end in headless Edge**, against the live server (Gemini), with a recognizer that
-  behaves like Chrome's Greek one: every step passed, from "Γεια σου σεφ θέλω να φτιάξω ροσμπίφ"
-  through preferences, the tip, tools, doneness, the steps, a one-tap question, the recap and
-  help, to stop/reopen/continue-from-step-3.
+## Not verified yet
 
-**Not verified yet:**
-- A real microphone in a real kitchen. The Greek fix was measured with synthesized speech
-  through Chrome's fake microphone.
-- The Gemini free tier (5 requests/minute per model) ran out several times during testing. The
-  app now says "the assistant is busy", and simple commands keep working on the device.
-- ~~Fanis's `origin/dev` (PWA) is not integrated.~~ Done in `integration`, including the
-  `SHELL_FILES` additions (see the entry above).
+- **A real Android phone:** the microphone, hands-free, hold to talk, the mic lock, the installed
+  PWA, and joining from the phone's side. Phone speakers and echo cancellation differ from the
+  laptop's, so the app's-own-voice removal needs a check there.
+- **Edge as a hands-free browser**: use Chrome on a PC.
+- **Anthropic** has never been called with a real key. Gemini isn't configured on this laptop now.
+- **A live import from a recipe site**: the importer is tested on hand-written HTML only.
+- **Detection in a real kitchen**: so far photos, a fake camera and a desk.
+- **The recipes are hand-written, not cooked.** Times and temperatures follow standard guidance.
+- **`start.sh`** has neither the clean start nor `-Hotspot`.
+- **Demo fixtures** (`DEMO_MODE`) have never been recorded from a real provider.
+- **Two of five reference photos are missing** (see `backend/data/reference_images/SOURCES.md`);
+  checks skip the comparison when a photo is missing.
 
-## Update: hands-free "Hey chef", recipe flow, deaf-friendly UI (branch `feature/hands-free-chef`, 2026-09-26)
+## Known quirks
 
-See DESIGN.md #21-#26 for the why. **Built and verified:**
-- **Wake phrase "Γεια σου σεφ" / "Hey chef"** (`static/js/wake.js`), with the talk button as a
-  tap-to-listen. Common commands are matched on the device (`static/js/commands.js`), and free
-  speech or typed text goes to the new `POST /voice/text`.
-- **Voice text understood with any one key.** Measured live with the Gemini key on this machine
-  (text only, no audio):
-  - 8 of 8 real Greek/English requests got the right action:
-    - "θέλω να φτιάξω ροσμπίφ" opened roast beef directly;
-    - "πόσο λάδι βάζω;" was answered from the recipe;
-    - "τελείωσα με το κόψιμο" became a check;
-    - "βάλε δύο λεπτά ακόμα" added 120 s;
-    - "το θέλω μέτρια ψημένο" set medium, target 60°C;
-    - "yeah go ahead" became yes to the pending question;
-  - 3-11 s each - mostly Gemini's 503s and the free tier's 5 requests/minute per model. That
-    is why simple commands never leave the device.
-- **Recipe flow:**
-  - an overview with an ingredient checklist (tap, camera check via the new `check_ingredients`
-    mode, or live detection);
-  - a doneness choice for meat, with curated thermometer targets;
-  - steps whose timers start only when the cook says so, several at once;
-  - check -> "shall we move on?" / "add 5 minutes?" - never advances on its own;
-  - cut and prep steps judged on the work.
-- **Deaf / non-speaking use:** a text box for every command and question, a conversation log,
-  the step and timers shown large, and alerts that stay with a flash until dismissed.
-- **10 curated bilingual seed recipes** (roast beef, steak, Greek salad, lemon potatoes, oven
-  chicken, tomato pasta, tzatziki + the original 3). They reach existing databases
-  automatically when `recipes.json` changes.
-- **End to end in headless Edge 153 against the real server (Gemini):**
-  - real `app.js`, a fake camera, and scripted stand-ins for the recognizer and the speech voice;
-  - 13 scenarios passed, no page errors. Among them:
-    - nothing happens without the wake phrase;
-    - "Hey chef, I want to make roast beef" -> overview in 4.4-13.2 s;
-    - "medium", "start", "timer" and "next" are handled locally;
-    - timer +1 min; the app's own voice is ignored;
-    - "done" on the garlic step -> a camera check in 10-13 s, not moved on;
-    - a typed reminder question gets "2 tbsp";
-    - a 3-second timer -> an alert stays on screen;
-    - "stop the recipe" asks first;
-    - hands-free off -> the talk button still works.
-- Fixed along the way:
-  - **a Gemini `504 DEADLINE_EXCEEDED` ended the model fallback chain** instead of trying the
-    next model (seen live; affected `/analyze` too);
-  - **the seed file was hashed from one path and seeded from another** (a default argument
-    bound at import time);
-  - **silent recordings echoing the transcription hint** (the "Known, not fixed yet" item
-    below) now count as "not heard".
-- Test suite: 307 passing (Python + Node). New: `test_hands_free.py`, `/voice/text` tests in
-  `test_voice.py`, `commands.test.mjs`, `wake.test.mjs`, `timers.test.mjs`, and tap-to-talk
-  tests in `voice.test.mjs`.
+- **The manifest test rewrites the three app icons** (`backend/static/icons/`) on every run, so
+  they show as modified in git afterwards. Leave them out of commits.
+- Speech recognition can mishear dish names ("ροσμπίφ" once came back as "προς πεις"). The app
+  says which recipe it opened and shows what it heard.
+- The Gemini free tier (5 requests a minute per model) runs out quickly; the app then says the
+  assistant is busy, and on-device commands keep working.
 
-**Not verified yet:**
-- **A real microphone with real browser recognition.** Everything above used a scripted
-  `SpeechRecognition`. Not yet measured:
-  - how reliably Chrome/Edge's `el-GR` recognizer writes "Γεια σου σεφ" or "Hey chef" (the
-    matcher accepts the Latin and Greek spellings seen in `commands.test.mjs`);
-  - false wakes from a TV;
-  - kitchen noise.
-- **Android Chrome** beeps each time continuous recognition restarts, and it restarts often.
-  Test on the tablet before relying on hands-free there.
-- **On-device recognition (`processLocally`)** is used when the browser reports it available.
-  No browser here did, so every run was cloud mode.
-- **Firefox tap-to-talk** (records until silence) is unit-tested only, and needs `OPENAI_API_KEY`.
-- **The Anthropic voice path** has never been called live (no key here).
-- **The new recipes are hand-written, not cooked.** Times and temperatures follow standard
-  guidance; a person should read them through like any curated recipe. The ingredient camera
-  check has only seen the fake camera's pasta pot.
-- **Imported recipes (Akis Petretzikis, any-URL) are still `staged`** until curated with
-  `scripts/curate_recipe.py`, so hands-free search can't find them yet. That is on purpose
-  (DESIGN #18): their safety fields need a human.
+## What to test next
 
-## Update: instant start, camera in any browser, voice commands (2026-09-26)
-
-**Built and verified:**
-- **`start.cmd` / `start.ps1`** (Windows) and **`start.sh`** (Linux, macOS, WSL):
-  - setup runs only on first use or after a change (the `.run/setup-*.stamp` fingerprint);
-  - one process serves both `http://localhost:8000` and `https://<LAN IP>:8443`;
-  - the app window opens with the camera and microphone pre-allowed.
-
-  Measured on this laptop: first start with the setup check took 35.9 s, a later start 5.7 s.
-  Both addresses answered `/health` from one process.
-- **Camera in any browser**: a refused camera gets per-browser instructions (Greek and
-  English, spoken) and Start retries. Verified in real browsers:
-  - Firefox with "block new requests" set (as on this machine) shows the Firefox steps;
-  - Edge with the camera denied shows the site-permission steps;
-  - with the laptop's real webcam, Edge ran at 1280x720 / 4.3 FPS detection and Firefox also
-    started (its first camera open takes ~9 s).
-- **Detection end to end in both browsers** (hand holding a knife):
-  - Edge: 5.5 FPS, "Χέρι 71%, μαχαίρι 40%, ακουμπά";
-  - Firefox: 4.2 FPS, same detections.
-- **Push-to-talk voice commands** (`app/voice.py`, `static/js/voice.js`), verified end to end in
-  headless Edge with recorded Greek speech: find recipe, pick "the first one", set a 5-minute
-  timer, repeat without resetting the timer, next step, a cooking question, and an accidental
-  tap. About 3.4-5.4 s per command, including a ~3 s hold.
-- WSL: `setup.sh` never finished on `/mnt/c`, because unpacking torch through the Windows
-  drive is too slow. The Linux venv now lives in `~/.local/share/ai-cook-assistant/`. The old
-  partial `backend/.venv-linux` is left in place and can be deleted by hand.
-
-- **Detection speed.** Under the app's continuous load this laptop throttled (the same
-  inference went from ~90 ms to 385 ms). Three changes, measured together under load, took a
-  frame from 318 ms to 195 ms with identical detections: letterboxing to the frame's shape
-  (`DETECTOR_RECT`), hands in parallel with the detector, and a ~6 FPS cap. See DESIGN.md #17.
-
-**Known, not fixed yet:**
-- ~~**Silent recordings echo the prompt.**~~ Fixed on `feature/hands-free-chef`: a transcript
-  that is mostly the hint's own words now counts as "not heard" (`voice._echoes_hint`).
-- **Voice in Firefox isn't verified.** Headless Firefox recorded silence from the test's fake
-  microphone.
-- **`start.sh` hasn't been run end to end on WSL.** It's only syntax-checked, because a full
-  Linux install needs a large download.
-
-## Update: detection, recipe database, any-URL import, speaking buttons (branch `feature/detection-db`)
-
-**Built and verified:**
-- **Object + hand detection** (`backend/app/detection/`, `POST /detect`): pretrained models only.
-  The model was chosen by `scripts/benchmark_detectors.py` on this laptop (Ryzen 5 4500U, no
-  CUDA). See `backend/data/benchmarks/detector_report.md` for the numbers and caveats.
-  Verified live: a real photo through the running server, and the full client in headless Edge
-  with a fake camera fed from that photo. Boxes land on the object in both the desktop and
-  phone layouts, and the table fills with pixel positions.
-- **Detection preview** (`static/js/detect.js`): overlay colored by group, "label NN%", a table
-  under the preview, FPS and latency shown. Measured about 8 FPS end to end while the benchmark
-  was competing for the CPU.
-- **Speaking buttons** (`static/js/a11y.js`): long-press speaks without activating, a short tap
-  activates, and mouse hover speaks. Verified in headless Edge with real touch events and by
-  recording what reached `speechSynthesis`.
-- **SQLite recipe database** (`app/db.py`, `app/recipes.py`): seeded from `recipes.json`. The
-  seed recipes round-trip exactly, and staged recipes are never served.
-- **Any-URL importer** (`app/importers/generic.py`): schema.org via `recipe-scrapers`; honours
-  robots.txt; idempotent; never overwrites published recipes. Tested with hand-written HTML
-  fixtures only, *not yet run against a live site*.
-- Fixed along the way:
-  - `main` had been red (8 failing tests);
-  - the importer crashed on any recipe with ingredients, and its `source_id` could escape the
-    staging folder;
-  - curation defaulted Greek instructions to English text and could silently overwrite a
-    curated recipe;
-  - a TTS command could cut off a safety alert;
-  - `#video`'s height never resolved in the portrait layout, which left a black band.
-- Test suite: 220 passing (Python + Node), with and without the detection dependencies.
-- **Setup scripts** (`setup.sh`, `setup.ps1`, `setup-window.sh`, `setup-window.ps1`, `.cmd`
-  wrappers), all run for real:
-  - a re-run with nothing to do takes seconds and downloads nothing;
-  - a version change keeps the old wheel in `.wheelhouse/`;
-  - `setup-window` serves on the LAN over HTTPS and opens an Edge app window; closing the
-    window stops the server;
-  - `bash setup-window.sh` from WSL hands over to the Windows launcher;
-  - a venv partly deleted by an interrupted WSL run was repaired offline with
-    `sync_deps.py --repair`.
-
-**Not verified yet:**
-- A live import from a real recipe site (the fixtures cover the parser, not any site's markup).
-- Detection on a **physical tablet camera in a real kitchen**: everything so far is photos and
-  a fake camera. The Open Images eval set is not your kitchen; add an in-house labeled set with
-  `benchmark_detectors.py --extra-dir`.
-- Hand relations are 2D ("touching" = overlapping in the image) and shown visually only. Spoken
-  hand alerts were deliberately left for after real-footage false-alarm rates are measured.
-
-## What's built and verified
-
-All 23 phases of the rebuild plan are implemented:
-
-- **Backend**: FastAPI app, recipe schema/knowledge base, demo fixture cache,
-  Open Food Facts barcode proxy, the three-provider vision seam, `/analyze`
-  with both backend-enforced safety rules, full route set.
-- **Client**: static markup/styling, one-gesture unlock + four-level audio
-  priority stack, frame capture + HTTP client, illumination-invariant
-  feature extraction, local sigma-based progress monitor, audible
-  camera-aiming assist, recipe-stepping session with absolute-deadline
-  timers, and `app.js` wiring all of it together.
-- **Diagnostics**: `probe.html` (dynamically imports the real
-  `features.js`/`aim.js`, not a reimplementation), client-JS checks run
-  from pytest.
-- **Tooling**: `setup.sh`, `check_providers.py`,
-  `record_fixture.py`/`add_reference.py`, `fetch_reference_candidates.py`,
-  `check_dependencies.py` (`pip-audit` wrapper - currently zero findings
-  against `requirements.txt`).
-- **Security**: opt-in pairing-token auth, per-IP rate limiting and request
-  size caps on `/analyze`/`/barcode`, and a heuristic output-injection guard
-  on every vision response (`backend/SECURITY_THREAT_MODEL_network.md`,
-  `backend/SECURITY_THREAT_MODEL_vision.md`, `DESIGN.md` #13 and #15).
-- **Data**: 3 of 5 reference photos installed from Wikimedia Commons (see
-  `backend/data/reference_images/SOURCES.md` for the 2 that are still
-  missing and why).
-- **Docs**: this file, `README.md`, `DESIGN.md`.
-- **Stretch**: standalone cutlery detection utility, not wired in.
-
-Test suite: 46 backend pytest tests passing (safety rules, routes, demo
-mode, vision failure paths, the real per-SDK schema normalizer regression
-test). 2 client-side `.test.mjs` suites passing with real measured numbers
-(see `DESIGN.md` #6 for the `features.test.mjs` figures).
-`test_client_js.py` skips cleanly when `node` isn't on `PATH` and passes
-fully when it is - both paths verified directly (this dev environment
-didn't have Node preinstalled).
-
-`app.js`'s wiring was verified with a throwaway integration harness (shimmed
-DOM/browser surface, real sibling modules) rather than a committed test, per
-the plan; it caught and fixed a real bug in the harness itself, not the app
-code.
-
-## Real bugs found and fixed during this rebuild
-
-Worth listing because they're exactly the kind of cross-file consistency
-issue that's easy to miss when phases are built one file at a time:
-
-- `features.js` computed `Aannulus` but never attached it to the returned
-  object, even though `monitor.js`'s motion-veto logic (written one phase
-  later) reads `row.Aannulus`. Fixed by exposing it alongside `Acentre`.
-- `test_smoke.py` imported via `from backend.app import ...`, which only
-  resolves when pytest is invoked from the repo root - but `setup.sh`
-  (correctly) `cd`s into `backend/` first, so `backend` isn't importable
-  from there, only `app` is (the convention every other file already
-  follows). `setup.sh`'s own first real run caught this.
-- `fetch_reference_candidates.py`'s license filter checked for the literal
-  substring `"cc-by"`, but Wikimedia's actual `LicenseShortName` values use
-  a space (`"CC BY-SA 4.0"`), not a hyphen - every genuinely reusable CC-BY
-  file was being silently rejected. Also extracted a candidate's file
-  extension from the raw URL including its query string, producing garbage
-  filenames like `candidate_1.org&utm_campaign=...` (and an `&` in a
-  filename that then breaks the exact copy-pasteable `add_reference.py`
-  command the script prints). Both fixed and re-verified against the real
-  Commons API with actual downloads eye-checked.
-
-## What hasn't been tested here
-
-- **Anthropic and OpenAI still have no successful live call.** Both have
-  only been exercised far enough to confirm error handling - a deliberately
-  invalid key correctly surfaced as a real 401, reported as `FAIL` by
-  `check_providers.py` without crashing the run.
-- **Gemini now does.** With a real `GEMINI_API_KEY`, `check_providers.py`
-  completed a genuine `check_doneness` round-trip against the pancake
-  reference step in 14.3s, and a full `/analyze` request through the
-  running backend (with pairing-token auth enabled) returned a correct,
-  honest low-confidence response for a synthetic test image. That run also
-  exercised the `GEMINI_MODEL` fallback chain for real: the first two
-  models hit a transient 503 before the third succeeded. See `DESIGN.md`
-  #9 for the timing and fallback detail.
-- **No demo fixtures recorded.** `record_fixture.py` is implemented and its
-  validation logic (rejects a non-schema-valid response, rejects an empty
-  `spoken_response`, correct `{mode}__{recipe}__{step}.json` /
-  `{mode}.json` naming) is unit-tested by monkeypatching
-  `vision.analyze_frame`, but no fixture recorded from a real provider
-  response exists in `backend/data/demo_fixtures/` yet.
-- **No real device testing.** Camera aiming, the acoustic gate, wake lock
-  re-acquisition on `visibilitychange`, and the monitor's calibration
-  against real kitchen lighting have all been verified against synthetic
-  painted-canvas shims in Node, never a physical camera or a real stove.
-  `probe.html` exists specifically to close this gap on an actual tablet.
-- **`cutlery_detection/detect.py` has not been run.** `ultralytics`/`torch`
-  weren't installed (deliberately - see its README), so only a syntax
-  check has been done on it.
-
-## What to test next, in order
-
-1. ~~Configure one real provider API key and run `check_providers.py` for
-   real~~ - done for Gemini (see above). Do the same for Anthropic and
-   OpenAI once a key for either is available.
-2. Record real demo fixtures with `record_fixture.py`, at minimum
-   `identify.json` and a `check_doneness` fixture for `scrambled_eggs`/1.
-3. Shoot or fetch the two missing pancake reference photos.
-4. `adb reverse tcp:8000 tcp:8000` to a real Android tablet, open
-   `/probe.html` first, run every section, then open the main app and walk
-   through a full recipe start-to-finish with the camera pointed at a real
-   stove.
-5. Commit whatever real-hardware bugs that surfaces as their own `fix:`
-   commits - that part isn't scriptable in advance.
+1. A real Android phone on the same network: scan the QR, install the CA, then hands-free, hold
+   to talk, the mic lock and a whole recipe.
+2. The app's own voice through a phone speaker: talk over it, and check that its words don't end
+   up in commands.
+3. Import a few Greek recipes from `backend/data/greek_demo_urls.txt`, curate them, and cook one.

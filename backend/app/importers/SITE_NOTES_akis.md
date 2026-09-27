@@ -1,8 +1,8 @@
 # Site notes: akispetretzikis.com
 
 Re-verified 2026-09-25 against the live site (browser, after a non-browser
-fetch was challenged). These notes are the working reference for later
-importer phases. Compare against `plans/PLAN_IMPORT_AKIS.md` "Ground truth".
+fetch was challenged). These notes are the working reference for the
+Akis importer (`akis_petretzikis.py`).
 
 ## robots.txt
 

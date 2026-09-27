@@ -106,8 +106,8 @@ reachable without a code change.
 
 ## 9. Per-model latency: partially measured now
 
-The plan for this rebuild called for recording measured per-provider
-latency once real providers were tested. For most of this rebuild that
+Measured per-provider latency was to be recorded once real providers
+were tested. For most of this rebuild that
 hadn't happened - no real API key for any provider had been available, so
 every live network call deliberately used an invalid key to verify error
 handling (`check_providers.py` correctly reporting `FAIL` on a real 401, in

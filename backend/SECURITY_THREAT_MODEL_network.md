@@ -15,7 +15,7 @@
    count as "on the network."
 
 `adb reverse` has no exposure to worry about. Self-signed HTTPS on a LAN is
-the shape this plan is actually defending.
+the shape this design is actually defending.
 
 ## What each unauthenticated route costs
 
@@ -38,7 +38,7 @@ the shape this plan is actually defending.
 
 ## Explicitly not in scope
 
-This plan does not attempt full multi-tenant user accounts, OAuth, or
+This design does not attempt full multi-tenant user accounts, OAuth, or
 anything sized for a public SaaS. This is a **single-household
 device-pairing model**: one backend, one or a few tablets on the same
 network, matching how the rest of the app is designed. The goal is making

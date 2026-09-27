@@ -18,10 +18,10 @@ identically over every response regardless of what the model said (see
 `raw_protein_detected` being manipulated by an injected instruction is
 caught by backend logic that doesn't trust the model's self-report.
 
-What's **not** covered: `spoken_response`, `evidence`, and
-`clarifying_question` are free text the model fully controls, and nothing
-currently checks them before they're spoken. That's what
-`backend/app/output_guard.py` (added in a later phase of this plan) is for.
+What the schema can't cover: `spoken_response`, `evidence`, and
+`clarifying_question` are free text the model fully controls. That's what
+`backend/app/output_guard.py` is for: it checks them before they're spoken
+(and the voice replies too).
 
 ## Threat categories
 
@@ -60,7 +60,7 @@ that should be Greek prose.
 
 ## This is defense-in-depth, not a guarantee
 
-Nothing in this plan claims prompt injection can be made impossible. The
+Nothing here claims prompt injection can be made impossible. The
 checks that follow are heuristic, reviewed by hand, and expected to miss a
 sufficiently novel attack. Their job is to raise the cost and narrow the
 blast radius of a successful injection, not to eliminate the risk. See

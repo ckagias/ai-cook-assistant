@@ -446,8 +446,8 @@ GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
 - **Dependency vulnerability check**: `python backend/scripts/check_dependencies.py`
   wraps `pip-audit` against `backend/requirements.txt` and exits non-zero on
   any known vulnerability (installs `pip-audit` into the current environment
-  if it isn't already present). Run it periodically by hand - there is no CI
-  pipeline in this repo to run it automatically yet.
+  if it isn't already present). Run it periodically by hand - CI
+  (`.github/workflows/tests.yml`) runs the tests, not this check.
 - **Prompt-injection defense**: `backend/SECURITY_THREAT_MODEL_vision.md`
   and `DESIGN.md` #13 cover the heuristic output-injection guard on vision
   responses.
@@ -467,13 +467,14 @@ GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
   `DEMO_MODE`/`DEMO_STRICT` therefore still haven't been exercised against
   real recorded content, only against fixtures the automated test suite
   builds itself at test time.
-- **Anthropic and OpenAI have not been called with a genuine, valid API
-  key** in this environment - only far enough to confirm correct error
-  handling (a live 401 against a deliberately invalid key). **Gemini has**:
-  a real `check_doneness` round-trip against the pancake reference step
-  succeeded in 14.3s (see `DESIGN.md` #9), including a real exercise of the
-  `GEMINI_MODEL` fallback chain (two models returned a transient 503 before
-  the third succeeded).
+- **Anthropic has not been called with a genuine, valid API key** - only
+  far enough to confirm correct error handling (a live 401 against a
+  deliberately invalid key). **OpenAI** runs voice and vision live on the
+  development laptop, and **Gemini** did earlier: a real `check_doneness`
+  round-trip against the pancake reference step in 14.3s (see `DESIGN.md`
+  #9), including the `GEMINI_MODEL` fallback chain.
+- **Not yet tried on a real Android phone** end to end - see `STATUS.md`
+  for everything verified so far and what to test next.
 - **Cutlery detection (`cutlery_detection/`) is a standalone script**, not
   wired into `scene_description` mode - see its README for why and the
   ~30-minute follow-up if it's ever needed.
