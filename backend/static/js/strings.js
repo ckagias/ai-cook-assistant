@@ -402,6 +402,17 @@ export const STRINGS = {
     el: "Σκούρο θέμα. Αλλάζει την οθόνη ανάμεσα σε σκούρα και ανοιχτά χρώματα.",
   },
 
+  // --- disclaimer and data (the text itself is DISCLAIMER, below) ---
+  disclaimer_link: { en: "Disclaimer and your data", el: "Αποποίηση ευθύνης και δεδομένα" },
+  disclaimer_read: { en: "Read it aloud", el: "Διάβασέ το" },
+  disclaimer_close: { en: "Close", el: "Κλείσε" },
+  speak_disclaimer: {
+    en: "Disclaimer and your data. What the app does with your photos, your voice and your settings.",
+    el: "Αποποίηση ευθύνης και δεδομένα. Τι κάνει η εφαρμογή με τις φωτογραφίες, τη φωνή και τις ρυθμίσεις σου.",
+  },
+  speak_disclaimer_read: { en: "Read it aloud. Reads the whole page.", el: "Διάβασέ το. Διαβάζει όλη τη σελίδα." },
+  speak_disclaimer_close: { en: "Close. Back to the app.", el: "Κλείσε. Πίσω στην εφαρμογή." },
+
   // --- detection preview (visual panel) ---
   detect_toggle: { en: "Detection", el: "Ανίχνευση" },
   detect_error: { en: "Detection unavailable. Is the server running with DETECTION_ENABLED=true?", el: "Η ανίχνευση δεν είναι διαθέσιμη." },
@@ -427,6 +438,122 @@ export const STRINGS = {
   group_food: { en: "food", el: "φαγητό" },
   group_hazard: { en: "hazard", el: "κίνδυνος" },
 };
+
+// The disclaimer page, one version per language. Keep it true to the code: what leaves the device
+// (vision.py, voice.py, wake.js), what stays (localStorage, memory.js MEMORY_TTL_MS), what the
+// server logs. Change both versions together.
+export const DISCLAIMER = {
+  el: {
+    title: "Αποποίηση ευθύνης και δεδομένα",
+    updated: "Τελευταία ενημέρωση: 27 Σεπτεμβρίου 2026",
+    sections: [
+      {
+        heading: "Με λίγα λόγια",
+        items: [
+          "Δεν έχουμε λογαριασμούς, διαφημίσεις ή εργαλεία παρακολούθησης.",
+          "Δεν αποθηκεύουμε τις φωτογραφίες σου, τη φωνή σου ή όσα λες και γράφεις.",
+          "Για να σου απαντήσει, η εφαρμογή στέλνει κάποια από αυτά σε υπηρεσίες τεχνητής νοημοσύνης. Παρακάτω λέμε ποια και πού.",
+        ],
+      },
+      {
+        heading: "Τι φεύγει από τη συσκευή σου",
+        items: [
+          "Έλεγχοι με την κάμερα («Τι είναι αυτό;», «Έλεγξε», έλεγχος υλικών): μία φωτογραφία, μαζί με τη συνταγή και τις σημειώσεις της, πηγαίνει στον διακομιστή της εφαρμογής και από εκεί στην υπηρεσία τεχνητής νοημοσύνης που έχει ρυθμιστεί (Google Gemini, OpenAI ή Anthropic).",
+          "Ανίχνευση αντικειμένων: οι εικόνες της κάμερας επεξεργάζονται στον υπολογιστή που τρέχει την εφαρμογή και δεν στέλνονται πουθενά αλλού.",
+          "Φωνή: την αναγνώριση ομιλίας την κάνει ο browser σου, που μπορεί να στέλνει τον ήχο στον κατασκευαστή του (Google στο Chrome και στο Android, Apple στο Safari). Όσο είναι ανοιχτό το «Χωρίς χέρια» ή το κλείδωμα του μικροφώνου, ο browser ακούει συνεχώς για να πιάσει το «Χέι σεφ».",
+          "Ό,τι λες ή γράφεις, εκτός από απλές εντολές όπως «επόμενο», πηγαίνει ως κείμενο στην υπηρεσία τεχνητής νοημοσύνης. Σε browser χωρίς αναγνώριση ομιλίας (π.χ. Firefox), η ηχογράφηση του «Μίλα» πηγαίνει στην OpenAI για να γίνει κείμενο.",
+          "Αυτές οι υπηρεσίες επεξεργάζονται ό,τι λαμβάνουν με τους δικούς τους όρους. Κάποιες, ειδικά στα δωρεάν πακέτα, μπορεί να το κρατούν ή να το χρησιμοποιούν για να βελτιώσουν τις υπηρεσίες τους. Μη στρέφεις την κάμερα σε έγγραφα, πρόσωπα ή οτιδήποτε προσωπικό.",
+        ],
+      },
+      {
+        heading: "Τι μένει στη συσκευή σου",
+        items: [
+          "Οι ρυθμίσεις σου (θέμα, μεγάλα γράμματα, «Χωρίς χέρια», ανίχνευση) και, αν χρησιμοποιήθηκε, ο κωδικός σύνδεσης της συσκευής.",
+          "Οι σημειώσεις της συνταγής: ανάγκες και αλλεργίες, βήματα που έγιναν, τι είδαν οι έλεγχοι. Σβήνονται μόνες τους μετά από 12 ώρες.",
+          "Όλα αυτά μένουν μόνο στον browser. Τα σβήνεις όλα αν σβήσεις τα δεδομένα αυτού του ιστότοπου από τις ρυθμίσεις του browser.",
+          "Η συνομιλία στην οθόνη δεν αποθηκεύεται. Χάνεται όταν κλείσεις την εφαρμογή.",
+        ],
+      },
+      {
+        heading: "Στον διακομιστή",
+        items: [
+          "Διακομιστής είναι ο υπολογιστής που τρέχει την εφαρμογή. Δεν έχει στοιχεία χρηστών: η βάση του έχει μόνο συνταγές.",
+          "Κρατά τεχνικά αρχεία (ώρα, είδος αιτήματος, διεύθυνση δικτύου της συσκευής, σφάλματα). Ποτέ φωτογραφίες, ήχο ή τα λόγια σου.",
+        ],
+      },
+      {
+        heading: "Αποποίηση ευθύνης",
+        items: [
+          "Η εφαρμογή είναι πρωτότυπο. Οι απαντήσεις της βγαίνουν από τεχνητή νοημοσύνη και μπορεί να είναι λάθος: στο τι βλέπει, στο αν κάτι είναι έτοιμο, στις ποσότητες, στα αλλεργιογόνα.",
+          "Δεν αντικαθιστά την κρίση σου, ένα θερμόμετρο τροφίμων, τις ετικέτες των προϊόντων ή τη συμβουλή γιατρού ή διατροφολόγου.",
+          "Κρέας, κοτόπουλο, ψάρι και αυγά: έλεγχε πάντα τη θερμοκρασία με θερμόμετρο.",
+          "Αλλεργίες: έλεγχε εσύ τις ετικέτες. Η εφαρμογή μπορεί να μην εντοπίσει ένα αλλεργιογόνο.",
+          "Οι προειδοποιήσεις για φωτιά είναι βοήθημα, όχι ανιχνευτής καπνού. Σε έκτακτη ανάγκη κάλεσε το 112.",
+          "Τη χρησιμοποιείς με δική σου ευθύνη. Στο μέτρο που το επιτρέπει ο νόμος, η ομάδα που τη δημιούργησε δεν ευθύνεται για ζημιά, τραυματισμό ή απώλεια από τη χρήση της.",
+          "Οι συνταγές από ιστοσελίδες ανήκουν στους δημιουργούς τους.",
+        ],
+      },
+    ],
+  },
+  en: {
+    title: "Disclaimer and your data",
+    updated: "Last updated: 27 September 2026",
+    sections: [
+      {
+        heading: "In short",
+        items: [
+          "No accounts, no ads, no tracking.",
+          "We don't store your photos, your voice, or what you say and type.",
+          "To answer you, the app sends some of this to AI services. Below is what goes where.",
+        ],
+      },
+      {
+        heading: "What leaves your device",
+        items: [
+          "Camera checks (“What is this?”, “Check”, the ingredient check): one photo, with the recipe and its notes, goes to the app's server and from there to the AI service it is set up with (Google Gemini, OpenAI or Anthropic).",
+          "Object detection: camera frames are processed on the computer running the app and not sent anywhere else.",
+          "Voice: speech recognition is done by your browser, which may send the audio to its maker (Google in Chrome and on Android, Apple in Safari). While hands-free or the microphone lock is on, the browser listens all the time to catch “Hey chef”.",
+          "What you say or type, except simple commands like “next”, goes as text to the AI service. In a browser without speech recognition (such as Firefox), the Talk recording goes to OpenAI to be turned into text.",
+          "These services process what they receive under their own terms. Some, especially on free plans, may keep it or use it to improve their services. Don't point the camera at documents, faces or anything private.",
+        ],
+      },
+      {
+        heading: "What stays on your device",
+        items: [
+          "Your settings (theme, large text, hands-free, detection) and, if one was used, this device's pairing code.",
+          "The recipe's notes: needs and allergies, steps done, what the checks saw. They delete themselves after 12 hours.",
+          "All of this stays in the browser only. Clearing this site's data in the browser's settings deletes it.",
+          "The conversation on screen isn't saved. It's gone when you close the app.",
+        ],
+      },
+      {
+        heading: "On the server",
+        items: [
+          "The server is the computer running the app. It holds no user data: its database has recipes only.",
+          "It keeps technical logs (time, kind of request, the device's network address, errors). Never photos, audio or your words.",
+        ],
+      },
+      {
+        heading: "Disclaimer",
+        items: [
+          "This app is a prototype. Its answers come from AI and can be wrong: about what it sees, whether food is ready, quantities, allergens.",
+          "It doesn't replace your own judgement, a food thermometer, product labels, or advice from a doctor or dietitian.",
+          "Meat, poultry, fish and eggs: always check the temperature with a thermometer.",
+          "Allergies: check the labels yourself. The app can miss an allergen.",
+          "Fire warnings are an aid, not a smoke detector. In an emergency, call 112.",
+          "You use it at your own risk. To the extent the law allows, the team that made it isn't liable for damage, injury or loss from using it.",
+          "Recipes from websites belong to their authors.",
+        ],
+      },
+    ],
+  },
+};
+
+// The whole page as one text, for reading aloud.
+export function disclaimerText(lang) {
+  const page = DISCLAIMER[lang] || DISCLAIMER.en;
+  return [page.title + ".", ...page.sections.map((s) => `${s.heading}. ${s.items.join(" ")}`)].join(" ");
+}
 
 export function t(key, lang = "el") {
   const entry = STRINGS[key];

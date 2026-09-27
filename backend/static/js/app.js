@@ -1,10 +1,10 @@
 import { boot, caps, earcon, buzz } from "./boot.js";
 import {
   speak, isSpeaking, fireSafetyInterrupt, hush, interrupt, probeVoices, registerAcousticGate, onGreekVoice,
-  greekVoiceHelpKey, recentSpeech,
+  greekVoiceHelpKey, recentSpeech, effectiveLang,
 } from "./tts.js";
 import { cameraProblem } from "./camera_help.js";
-import { t, tf, humanDuration } from "./strings.js";
+import { t, tf, humanDuration, DISCLAIMER, disclaimerText } from "./strings.js";
 import { captureFrame } from "./capture.js";
 import * as api from "./api.js";
 import { createMonitor } from "./monitor.js";
@@ -81,6 +81,11 @@ const el = {
   textToggle: document.getElementById("text-toggle"),
   panel: document.getElementById("panel"),
   exampleChips: document.getElementById("example-chips"),
+  disclaimer: document.getElementById("disclaimer"),
+  disclaimerTitle: document.getElementById("disclaimer-title"),
+  disclaimerBody: document.getElementById("disclaimer-body"),
+  disclaimerRead: document.getElementById("disclaimer-read"),
+  disclaimerClose: document.getElementById("disclaimer-close"),
 };
 
 const params = new URLSearchParams(window.location.search);
@@ -256,7 +261,8 @@ function setBusy(on) {
   el.busy.hidden = !on;
   // Talking, typing and dismissing an alert stay possible while the camera call runs.
   document.querySelectorAll("[data-action]").forEach((btn) => {
-    if (!["talk", "lock", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme", "text-size"].includes(btn.dataset.action)) btn.disabled = on;
+    if (!["talk", "lock", "wake-toggle", "alert-ok", "tick", "tick-tool", "theme", "text-size",
+      "disclaimer", "disclaimer-lang", "disclaimer-read", "disclaimer-close"].includes(btn.dataset.action)) btn.disabled = on;
   });
 }
 
@@ -1798,9 +1804,76 @@ window.addEventListener("blur", () => {
   if (talkHeld) talkReleased();
 });
 
+// --- disclaimer and data ---
+
+// Its own language, not the app's: a helper may want the other version. Opens in the app's.
+let disclaimerLang = "el";
+let readingDisclaimer = false;
+
+function renderDisclaimer() {
+  const page = DISCLAIMER[disclaimerLang];
+  el.disclaimer.lang = disclaimerLang; // a screen reader pronounces it in the right language
+  el.disclaimerTitle.textContent = page.title;
+  el.disclaimerRead.textContent = t("disclaimer_read", disclaimerLang);
+  el.disclaimerClose.textContent = t("disclaimer_close", disclaimerLang);
+  el.disclaimer.querySelectorAll('[data-action="disclaimer-lang"]').forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.lang === disclaimerLang));
+  });
+  el.disclaimerBody.innerHTML = "";
+  for (const section of page.sections) {
+    const h = document.createElement("h3");
+    h.textContent = section.heading;
+    const ul = document.createElement("ul");
+    for (const item of section.items) {
+      const li = document.createElement("li");
+      li.textContent = item;
+      ul.appendChild(li);
+    }
+    el.disclaimerBody.append(h, ul);
+  }
+  const updated = document.createElement("p");
+  updated.className = "note";
+  updated.textContent = page.updated;
+  el.disclaimerBody.appendChild(updated);
+  el.disclaimerBody.scrollTop = 0;
+}
+
+function openDisclaimer() {
+  disclaimerLang = lang;
+  renderDisclaimer();
+  if (typeof el.disclaimer.showModal === "function") el.disclaimer.showModal();
+  else el.disclaimer.setAttribute("open", "");
+}
+
+function readDisclaimer() {
+  // Without a Greek voice the Greek page can't be read out, so the English one is.
+  const l = effectiveLang(disclaimerLang);
+  readingDisclaimer = true;
+  speak(disclaimerText(l), { priority: "command", lang: l });
+}
+
+// Closing stops the reading - by the button, or by the Back key / Esc (the dialog's own close).
+el.disclaimer.addEventListener("close", () => {
+  if (readingDisclaimer) hush();
+  readingDisclaimer = false;
+});
+
 // --- buttons, keys, typing ---
 
 const ACTIONS = {
+  disclaimer: () => openDisclaimer(),
+  "disclaimer-lang": (btn) => {
+    disclaimerLang = btn.dataset.lang === "en" ? "en" : "el";
+    renderDisclaimer();
+  },
+  "disclaimer-read": () => readDisclaimer(),
+  "disclaimer-close": () => {
+    if (typeof el.disclaimer.close === "function") el.disclaimer.close();
+    else {
+      el.disclaimer.removeAttribute("open");
+      el.disclaimer.dispatchEvent(new Event("close"));
+    }
+  },
   lock: () => setLock(!isLocked()),
   theme: () => toggleTheme(),
   "text-size": () => toggleTextSize(),
@@ -1893,7 +1966,7 @@ el.ask.addEventListener("submit", (e) => {
 // remote and a laptop operator pressing space. A touch-only tablet never emits
 // keydown, so this stays a convenience, not the main path.
 document.addEventListener("keydown", (e) => {
-  if (el.app.hidden) return;
+  if (el.app.hidden || el.disclaimer.open) return; // reading the disclaimer: keys are for the page
   const tag = e.target && e.target.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return; // typing
   // V held = the talk button (PC demo). e.code, not e.key: on a Greek layout V types "ω".

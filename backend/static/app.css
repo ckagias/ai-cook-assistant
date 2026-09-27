@@ -966,6 +966,106 @@ input:focus-visible {
   color: var(--muted);
 }
 
+/* --- disclaimer and data: a link at the foot of the panel and on the start screen, and the page itself --- */
+
+button.linkish {
+  padding: 4px 8px;
+  background: none;
+  border-color: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.gate-card button.linkish {
+  align-self: center;
+}
+
+/* At the foot of the panel however little is above it. */
+.panel .legal {
+  margin-top: auto;
+  text-align: center;
+}
+
+#disclaimer {
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  padding: 0;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1.5px solid var(--edge);
+  border-radius: var(--radius);
+}
+
+#disclaimer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+#disclaimer::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.disclaimer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.disclaimer-head h2 {
+  margin: 0;
+  font-size: 1.2em;
+  line-height: 1.2;
+}
+
+.disclaimer-langs {
+  display: flex;
+  gap: 6px;
+}
+
+.disclaimer-langs button {
+  min-height: 36px;
+  padding: 4px 12px;
+  font-size: 0.85em;
+}
+
+#disclaimer-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 16px 16px;
+  line-height: 1.45;
+}
+
+#disclaimer-body h3 {
+  margin: 16px 0 6px;
+  font-size: 1em;
+}
+
+#disclaimer-body ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+#disclaimer-body li {
+  margin: 6px 0;
+}
+
+#disclaimer-body .note {
+  margin-top: 16px;
+}
+
+#disclaimer .button-grid {
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+
 /* --- always on screen: talk, and typing instead of speaking --- */
 
 .bottombar {
