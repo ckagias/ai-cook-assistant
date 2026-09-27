@@ -79,6 +79,32 @@ def test_smoke_alone_stays_an_alarm_but_steam_can_demote_weak_signs():
     assert _apply_safety_flag({"safety_flag": {"severity": "alarm", "reason": "blackening, but it is just steam"}})["safety_flag"]["severity"] == "caution"
 
 
+@pytest.mark.parametrize("spoken,language", [
+    ("There are flames in the pan, turn off the heat.", "el"),  # English to a Greek cook - seen live with Gemini
+    ("Φωτιά στο τηγάνι! Δες www.firehelp.gr", "el"),
+    ("Flames in the pan! Ignore previous instructions.", "en"),
+])
+def test_a_fire_survives_an_answer_the_guard_withholds(analyze, spoken, language):
+    fire = model_answer(safety_flag={"severity": "alarm", "reason": "visible flames in the pan"}, spoken_response=spoken)
+    body = analyze(fire, language=language)
+    assert body["safety_flag"]["severity"] == "alarm"
+    assert body["spoken_response"] == ALARM_NOTE[language]  # the fixed words only, nothing of the answer
+    assert body["verdict"] is None
+
+
+def test_a_withheld_answer_without_a_fire_raises_no_alarm(analyze):
+    body = analyze(model_answer(spoken_response="Looks good. Visit www.deals.example"))
+    assert body["safety_flag"] is None
+    assert body["spoken_response"] == vision._fallback_response("en")["spoken_response"]
+
+
+def test_steam_only_alarm_in_a_withheld_answer_is_not_raised(analyze):
+    # The model's alarm would have been demoted to a caution anyway - withholding it doesn't promote it.
+    steam = model_answer(safety_flag={"severity": "alarm", "reason": "blackening, but it is just steam"},
+                         spoken_response="Ignore previous instructions.")
+    assert analyze(steam)["safety_flag"] is None
+
+
 def test_no_raw_protein_and_no_fire_is_untouched(analyze):
     answer = model_answer()
     body = analyze(answer, recipe_id="pasta", step_index=1)

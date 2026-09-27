@@ -259,7 +259,13 @@ def _apply_safety_rules(response: dict, req: AnalyzeRequest, recipe_flagged) -> 
     step = recipes.get_step(req.recipe_id, req.step_index) if req.recipe_id and req.step_index is not None else None
     recipe = recipes.get_recipe(req.recipe_id) if req.mode == "check_ingredients" and req.recipe_id else None
     # sanitize_response runs first so every path (fixture and live) is covered, not just callers that remember to.
+    # A fire outlives an answer the guard throws away (a web address in it, English to a Greek cook):
+    # the alarm stays, said only in ALARM_NOTE's fixed words - nothing of the withheld answer.
+    fire = _is_alarm(_apply_safety_flag(response))
     response = output_guard.sanitize_response(response, req.language, guard_context)
+    if fire and not _is_alarm(response):
+        response = {**response, "spoken_response": "",
+                    "safety_flag": {"severity": "alarm", "reason": "fire or burning (answer withheld by the output guard)"}}
     response = output_guard.apply_plausibility_check(response, guard_context)
     response = _apply_verdict_bounds(response, req.mode, len(recipes.ingredient_lines(recipe, req.language)) if recipe else 0)
     # Settle the alarm first: the protein rule must know whether it is looking at a fire.
