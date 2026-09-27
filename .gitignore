@@ -22,3 +22,12 @@ backend/certs/
 
 # Static QR codes for the slides (scripts/static_qr.py) - they carry the pairing token and Wi-Fi password
 qr/
+
+# Pitch materials stay local (only app documentation in git): decks, speech, Q&A notes, the deck builder
+*.pptx
+*.docx
+~$*
+/SayChef_QA_notes.pdf
+/SayChef_speech_el.md
+/presentation&notes.txt
+/deck/
