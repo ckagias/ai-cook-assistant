@@ -183,9 +183,8 @@ privacy liability.
 
 **Residual risk, stated plainly**: these are heuristic checks, not a
 guarantee. A sufficiently novel injection that avoids the marker list and
-produces plausible-looking confidence/evidence will not be caught. See
-`backend/SECURITY_THREAT_MODEL_vision.md` for the threat categories this
-targets. A genuinely stronger defense would be a second model call
+produces plausible-looking confidence/evidence will not be caught. A
+genuinely stronger defense would be a second model call
 specifically to classify the first model's output for injection/false
 claims, at roughly 2x the cost and latency per analysis - noted here as a
 future option, not built in this pass.
@@ -198,9 +197,7 @@ by default - a reasonable default for this app's actual deployment shapes
 It stops being reasonable the moment the self-signed-HTTPS-on-a-LAN
 fallback (#10) is reachable by anyone untrusted on that network: they could
 burn API credits via `/analyze` or use `/barcode/{code}` as an open,
-unauthenticated proxy to Open Food Facts. See
-`backend/SECURITY_THREAT_MODEL_network.md` for the full trust-boundary
-writeup.
+unauthenticated proxy to Open Food Facts.
 
 **`BACKEND_PAIRING_TOKEN`** (`backend/app/auth.py`) is off by default -
 blank/unset leaves every route working exactly as before, same "opt-in,

@@ -494,9 +494,8 @@ GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
 - **Pairing token**: unauthenticated by default, matching the `adb reverse`
   bring-up path. If the backend is reachable from more than the USB-tethered
   tablet (self-signed HTTPS on a LAN), set `BACKEND_PAIRING_TOKEN` in `.env`
-  - see the comment above it in `.env.example` for how to generate one. See
-  `backend/SECURITY_THREAT_MODEL_network.md` for the full trust-boundary
-  writeup.
+  - see the comment above it in `.env.example` for how to generate one.
+  `DESIGN.md` #15 has the reasoning.
 - **Rate limits and size caps**: `/analyze` and `/barcode` are rate-limited
   per client IP, and `/analyze` rejects oversized request bodies before and
   after base64 decoding. None of this requires configuration.
@@ -505,8 +504,8 @@ GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
   any known vulnerability (installs `pip-audit` into the current environment
   if it isn't already present). Run it periodically by hand - CI
   (`.github/workflows/tests.yml`) runs the tests, not this check.
-- **Prompt-injection defense**: `backend/SECURITY_THREAT_MODEL_vision.md`
-  and `DESIGN.md` #13 cover the heuristic output-injection guard on vision
+- **Prompt-injection defense**: `DESIGN.md` #13 covers the heuristic
+  output-injection guard on vision
   responses. Every spoken field is checked: injection phrasing in Greek and English (including
   paraphrases like "forget everything above" / «ξέχνα ό,τι…»), web addresses and short links,
   hidden characters. Text in a photo is never an instruction; what the cook said reaches the model
