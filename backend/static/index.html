@@ -33,6 +33,8 @@
       <button id="start" data-action="start" data-speak="start">ΞΕΚΙΝΑ</button>
       <p class="note">Χρειάζεται πρόσβαση στην κάμερα και στο μικρόφωνο.</p>
       <p id="gate-error" role="alert" hidden></p>
+      <!-- Before Start the language isn't known yet: named in both, and the page offers both. -->
+      <button class="linkish" data-action="disclaimer" data-speak="disclaimer">Αποποίηση ευθύνης · Disclaimer</button>
     </div>
   </section>
 
@@ -169,6 +171,10 @@
         <!-- Everything said, both ways, in writing. Not a live region: the status line above is. -->
         <div id="log" role="log" aria-live="off"></div>
       </section>
+
+      <p class="legal">
+        <button class="linkish" data-action="disclaimer" data-speak="disclaimer" data-label="disclaimer_link">Αποποίηση ευθύνης και δεδομένα</button>
+      </p>
     </main>
 
     <!-- Always on screen: hold to talk, the lock (listening on), "what is this?", and typing
@@ -185,6 +191,23 @@
       </form>
     </div>
   </div>
+
+  <!-- Disclaimer and data, over the start screen or the app. It opens in the app's language, and
+       the other is one tap away for whoever is helping. Filled in by app.js from strings.js. -->
+  <dialog id="disclaimer" aria-labelledby="disclaimer-title">
+    <div class="disclaimer-head">
+      <h2 id="disclaimer-title"></h2>
+      <div class="disclaimer-langs" role="group" aria-label="Γλώσσα / Language">
+        <button data-action="disclaimer-lang" data-lang="el" lang="el" aria-pressed="true">Ελληνικά</button>
+        <button data-action="disclaimer-lang" data-lang="en" lang="en" aria-pressed="false">English</button>
+      </div>
+    </div>
+    <div id="disclaimer-body"></div>
+    <div class="button-grid">
+      <button id="disclaimer-read" data-action="disclaimer-read" data-speak="disclaimer_read"></button>
+      <button id="disclaimer-close" class="primary" data-action="disclaimer-close" data-speak="disclaimer_close"></button>
+    </div>
+  </dialog>
 
   <div id="flash" aria-hidden="true" hidden></div>
 

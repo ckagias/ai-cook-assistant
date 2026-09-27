@@ -8,9 +8,10 @@ logger = logging.getLogger(__name__)
 
 
 def fold(text: str) -> str:
-    """Casefold and strip accents, so Greek markers match with or without tonos."""
+    """Casefold and strip accents, so Greek markers match with or without tonos - and drop invisible
+    format characters, so a zero-width space can't split "ig\u200bnore" past a marker."""
     decomposed = unicodedata.normalize("NFD", text.casefold())
-    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch) and unicodedata.category(ch) != "Cf")
 
 
 # Patterns that suggest the model is reporting on/responding to injected instructions rather
@@ -24,12 +25,18 @@ _MARKER_PATTERNS = tuple(
     for p in (
         # English
         r"ignore (all |the |any )?(previous|prior|above|earlier)",
+        r"\bdisregard (all |the |any |your )?(previous|prior|above|earlier|instructions)",
+        # "all"/"everything" required: "don't forget the previous step" is a cooking sentence.
+        r"\bforget (all|everything) (above|previous|prior|earlier|you were told)",
+        r"\bforget (all )?your (previous |prior )?instructions",
         r"\bas an ai\b",
         r"\b(i am|i'm|you are|you're) now (a|an)\b",
         r"system prompt",
         r"new instructions",
         # Greek (folded: no accents)
         r"(προηγουμεν\w*|παραπανω) οδηγι\w*",
+        # "ξέχνα ό,τι σου είπαν" - but not "μην ξεχάσεις ό,τι έκοψες" (ξεχασεις, not ξεχασε).
+        r"\b(ξεχνα|ξεχασε|αγνοησε) (ολα|οσα|ο,?τι)\b",
         r"\bνε(ες|α|ων) οδηγι\w*",
         r"\b(ειμαι|εισαι) (πλεον|τωρα) (ενας|μια|ενα)\b",
         r"(μηνυμα|οδηγιες|προτροπη) (του )?συστηματος",
@@ -38,8 +45,12 @@ _MARKER_PATTERNS = tuple(
 )
 
 # A cooking answer never needs to read out a web address - its only use would be to steer a
-# user who can't see the screen somewhere else (the off-task injection case).
-_URL_PATTERN = re.compile(r"https?://|www\.|\b[a-z0-9-]+\.(com|net|org|gr|io|info|biz|example)\b")
+# user who can't see the screen somewhere else (the off-task injection case). Link shorteners'
+# domains (bit.ly, t.co) and one spelled out to be heard ("deals dot com") included.
+_URL_PATTERN = re.compile(
+    r"https?://|www\.|\b[a-z0-9-]+\.(com|net|org|gr|io|info|biz|example|ly|co|me|link|app|eu|ai)\b"
+    r"|\bdot (com|net|org|gr)\b"
+)
 
 # Every field the client can speak aloud. safety_flag.reason is spoken for a "caution" in
 # English, so it's checked like the rest.

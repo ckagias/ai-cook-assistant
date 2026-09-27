@@ -27,7 +27,9 @@ class AnalyzeRequest(BaseModel):
     # The recipe session so far (the client's short-term memory: preferences, steps done, what
     # earlier checks saw). Data for the model, never instructions - capped so it can't crowd out the rest.
     prior_context: Optional[str] = Field(default=None, max_length=MEMORY_MAX_CHARS)
-    user_followup: Optional[str] = None
+    # What the cook said back (a yes/no answer, or their words after "Hey chef"): the same cap as
+    # VoiceTextRequest.text, since that is where it comes from.
+    user_followup: Optional[str] = Field(default=None, max_length=500)
     # Deliberately NO reference_image field - backend resolves it server-side.
     doneness_preference: Optional[Doneness] = None
     # The step timer the cook started (timers never start on their own): how far along it is
