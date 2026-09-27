@@ -89,6 +89,10 @@ export function createWakeListener({
   // ({ id, alternatives, isFinal, woke }) every raw result, for the "what I heard" view (?heard=1)
   onHeard = () => {},
   phrases = wakePhrases, // () => SpeechRecognitionPhrase[] | null
+  // Tuning (app.js passes ?alts= ?settle= ?arm= from the link, for tests): the defaults otherwise.
+  alternatives = MAX_ALTERNATIVES,
+  settleMs = SETTLE_MS,
+  armMs = ARM_MS,
 } = {}) {
   let rec = null;
   let enabled = false;
@@ -125,7 +129,7 @@ export function createWakeListener({
     r.lang = lang;
     r.continuous = true;
     r.interimResults = true;
-    r.maxAlternatives = MAX_ALTERNATIVES;
+    r.maxAlternatives = alternatives;
     session += 1;
     if (mode === "local") {
       r.processLocally = true;
@@ -162,7 +166,7 @@ export function createWakeListener({
     settleTimer = setTimer(() => {
       settleTimer = null;
       if (rec && running && (armed || wokeOn !== -1)) rec.stop();
-    }, SETTLE_MS);
+    }, settleMs);
   }
 
   function disarm() {
@@ -185,7 +189,7 @@ export function createWakeListener({
         report("idle", mode);
         endOneShot();
         onTimeout();
-      }, ARM_MS);
+      }, armMs);
     }
     report(locked ? "locked" : "armed", mode);
   }

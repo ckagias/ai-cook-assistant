@@ -198,7 +198,29 @@ function testSilenceDetector() {
     out = idle(0.001);
   }
   assert(out === "no_speech", "nobody said anything");
-  console.log("test h (silence detector) OK");
+
+  // Tuning from the link (?quiet= ?pause=): a quiet voice counts with a lower threshold, and a
+  // shorter pause ends it sooner.
+  const quietRun = (opts, level) => {
+    clock = 0;
+    const f = createSilenceDetector({ now: () => clock, ...opts });
+    let o;
+    for (let t = 0; t < CALIBRATE_MS + 600; t += 50) {
+      clock += 50;
+      o = f(t < CALIBRATE_MS ? 0.001 : level); // a silent room, then a soft voice
+    }
+    return { f, o };
+  };
+  assert(quietRun({}, 0.01).o === "waiting", "default: a soft voice (0.01) is below the 0.015 floor");
+  const soft = quietRun({ minThreshold: 0.005, silenceMs: 700 }, 0.01);
+  assert(soft.o === "speaking", "?quiet=0.005: the soft voice counts");
+  let end;
+  for (let t = 0; t < 750; t += 50) {
+    clock += 50;
+    end = soft.f(0.001);
+  }
+  assert(end === "done", "?pause=700: done after 0.7 s of quiet");
+  console.log("test h (silence detector, and its tuning) OK");
 }
 
 function fakeMeter(levels) {

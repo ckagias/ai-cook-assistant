@@ -19,7 +19,12 @@ export const SPEECH_MIN_MS = 150; // this long above the threshold = someone is 
 export const SILENCE_MS = 1800; // this long below it after speech = they've finished (a breath is not the end)
 export const NO_SPEECH_MS = 6000; // nothing said at all
 
-export function createSilenceDetector({ now = () => Date.now(), minThreshold = 0.015, factor = 2.5 } = {}) {
+export const QUIET_THRESHOLD = 0.015; // the least level that counts as speech, however quiet the room
+
+// minThreshold / silenceMs: tunable for tests (app.js passes ?quiet= and ?pause= from the link).
+export function createSilenceDetector({
+  now = () => Date.now(), minThreshold = QUIET_THRESHOLD, factor = 2.5, silenceMs = SILENCE_MS,
+} = {}) {
   const startedAt = now();
   let floorSum = 0;
   let floorCount = 0;
@@ -45,7 +50,7 @@ export function createSilenceDetector({ now = () => Date.now(), minThreshold = 0
       loudSince = null;
       if (quietSince === null) quietSince = t;
     }
-    if (heard) return quietSince !== null && t - quietSince >= SILENCE_MS ? "done" : "speaking";
+    if (heard) return quietSince !== null && t - quietSince >= silenceMs ? "done" : "speaking";
     return t - startedAt >= NO_SPEECH_MS ? "no_speech" : "waiting";
   };
 }
@@ -62,6 +67,7 @@ export function createPushToTalk({
   setTimer = (fn, ms) => setTimeout(fn, ms),
   clearTimer = (id) => clearTimeout(id),
   now = () => Date.now(),
+  silence = {}, // { minThreshold, silenceMs } for the silence detector (tests via the link)
 }) {
   let recorder = null;
   let chunks = [];
@@ -175,7 +181,7 @@ export function createPushToTalk({
     if (starting) await starting.catch(() => {});
     if (!recorder || watch) return;
     const gauge = meter(stream);
-    const feed = createSilenceDetector({ now });
+    const feed = createSilenceDetector({ now, ...silence });
     watch = { gauge, timer: null };
     const poll = () => {
       if (!watch || !recorder) return;

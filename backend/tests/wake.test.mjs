@@ -51,7 +51,7 @@ class FakeRecognition {
   }
 }
 
-async function setup({ cleanEcho, local = false, onHeard, phrases } = {}) {
+async function setup({ cleanEcho, local = false, onHeard, phrases, tuning = {} } = {}) {
   FakeRecognition.instances = [];
   const log = { woke: 0, commands: [], interim: [], timeouts: 0, states: [] };
   const timers = [];
@@ -74,6 +74,7 @@ async function setup({ cleanEcho, local = false, onHeard, phrases } = {}) {
     ...(cleanEcho ? { cleanEcho } : {}),
     ...(onHeard ? { onHeard } : {}),
     ...(phrases ? { phrases } : {}),
+    ...tuning,
   });
   const fire = (ms) => {
     for (const t of timers.splice(0)) if (t.live && (ms === undefined || t.ms === ms)) t.fn();
@@ -376,6 +377,22 @@ async function testMoreGuessesHintsAndWhatWasHeard() {
   console.log("test t (wake-name hints on-device, dropped if refused) OK");
 }
 await testMoreGuessesHintsAndWhatWasHeard();
+
+// Tuning from the link (?alts= ?settle= ?arm=): each takes effect; undefined keeps the default.
+async function testTuning() {
+  const s = await setup({ tuning: { alternatives: 8, settleMs: 900, armMs: 4000 } });
+  await s.listener.start();
+  assert(s.rec().maxAlternatives === 8, "alts");
+  s.rec().hear("σεφ", true, 0); // the wake name alone: armed, waiting armMs for the command
+  assert(s.timers.some((t) => t.live && t.ms === 4000) && !s.timers.some((t) => t.live && t.ms === ARM_MS), "arm");
+  s.rec().hear("πόση ώρα μένει", false, 1);
+  assert(s.timers.some((t) => t.live && t.ms === 900), "settle");
+  const d = await setup({ tuning: { alternatives: undefined, settleMs: undefined, armMs: undefined } });
+  await d.listener.start();
+  assert(d.rec().maxAlternatives === MAX_ALTERNATIVES, "undefined -> the default");
+  console.log("test u (tuning: alts, settle, arm; defaults when not given) OK");
+}
+await testTuning();
 await tick();
 
 console.log("all passed");

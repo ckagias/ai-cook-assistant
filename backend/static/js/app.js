@@ -13,8 +13,8 @@ import { createSession } from "./session.js";
 import { createTimers, formatClock } from "./timers.js";
 import { createDetector } from "./detect.js";
 import { installSpeakOnPress, setSpeakButtons } from "./a11y.js";
-import { createPushToTalk } from "./voice.js";
-import { createWakeListener, getRecognition } from "./wake.js";
+import { createPushToTalk, QUIET_THRESHOLD, SILENCE_MS } from "./voice.js";
+import { createWakeListener, getRecognition, MAX_ALTERNATIVES, SETTLE_MS, ARM_MS } from "./wake.js";
 import { matchLocal, splitWake } from "./commands.js";
 import { stripEcho } from "./echo.js";
 import { createMemory } from "./memory.js";
@@ -95,6 +95,16 @@ const params = new URLSearchParams(window.location.search);
 const HEARD_PARAM = params.get("heard");
 if (HEARD_PARAM === "0" || HEARD_PARAM === "1") savePref("heardView", HEARD_PARAM);
 const SHOW_HEARD = HEARD_PARAM === "1" || (HEARD_PARAM !== "0" && loadPref("heardView") === "1");
+// Listening, tuned from the link for tests - this load only, never remembered, clamped to sane
+// ranges: ?alts= guesses per phrase, ?settle= ms of quiet before acting, ?arm= ms to wait for the
+// command after the wake name, ?quiet= the least loudness that counts as speech and ?pause= ms of
+// quiet that ends a recording (both: the recorded path, e.g. Firefox).
+function tuned(name, min, max) {
+  const v = Number(params.get(name));
+  return params.has(name) && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined;
+}
+const WAKE_TUNING = { alternatives: tuned("alts", 1, 10), settleMs: tuned("settle", 500, 5000), armMs: tuned("arm", 3000, 30000) };
+const SILENCE_TUNING = { minThreshold: tuned("quiet", 0.002, 0.1), silenceMs: tuned("pause", 600, 5000) };
 const DEBUG = params.get("debug") === "1";
 if (DEBUG) document.documentElement.dataset.debug = "1"; // app.css shows the diagnostics line
 // Detection starts with the camera unless this device said otherwise: ?detect=0 / =1 is remembered
@@ -1632,6 +1642,7 @@ const wake = createWakeListener({
   lang: recognitionLang(),
   cleanEcho: (text) => stripEcho(text, recentSpeech()),
   onHeard: SHOW_HEARD ? logHeard : undefined,
+  ...WAKE_TUNING, // undefined = the default
   onWake: () => {
     stopForTheCook();
     earcon("ok");
@@ -1727,6 +1738,7 @@ function setRecordState(state) {
 }
 
 const talk = createPushToTalk({
+  silence: SILENCE_TUNING,
   getStream: getVoiceStream,
   meter: (stream) => levelMeter(stream),
   send: (blob, type) => api.voiceCommand(blob, type, voiceContext()),
@@ -1747,6 +1759,17 @@ const talk = createPushToTalk({
     voiceError(err);
   },
 });
+
+// ?heard=1: the listening settings in force, first in the log, so a test notes what it changed.
+if (SHOW_HEARD) {
+  const v = (value, fallback) => (value === undefined ? fallback : value);
+  const line = document.createElement("p");
+  line.className = "log-heard";
+  line.textContent = `${t("tuning_label", lang)}: alts=${v(WAKE_TUNING.alternatives, MAX_ALTERNATIVES)}`
+    + ` settle=${v(WAKE_TUNING.settleMs, SETTLE_MS)} arm=${v(WAKE_TUNING.armMs, ARM_MS)}`
+    + ` quiet=${v(SILENCE_TUNING.minThreshold, QUIET_THRESHOLD)} pause=${v(SILENCE_TUNING.silenceMs, SILENCE_MS)}`;
+  el.log.append(line);
+}
 
 let pressedAt = 0;
 let talkHeld = false;

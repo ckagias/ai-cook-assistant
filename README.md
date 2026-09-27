@@ -445,6 +445,18 @@ large - so the whole app works without hearing it.
 - **What it heard:** `?heard=1` (remembered; `?heard=0` off) shows every phrase the recognizer
   returned, with all its guesses and whether the wake name was among them - to add the
   mis-hearings of real voices to `static/js/commands.js`. Shown only, never stored.
+- **Tuning for tests** (from the link, this visit only; `?heard=1` prints the values in force):
+
+  | Option | Changes | Default | Range |
+  |---|---|---|---|
+  | `alts` | guesses per phrase from the recognizer | 5 | 1-10 |
+  | `settle` | ms of quiet before a command is acted on | 1800 | 500-5000 |
+  | `arm` | ms it waits for the command after the wake name alone | 8000 | 3000-30000 |
+  | `quiet` | least loudness that counts as speech - lower hears softer voices (recorded path, e.g. Firefox) | 0.015 | 0.002-0.1 |
+  | `pause` | ms of quiet that ends a recording (recorded path) | 1800 | 600-5000 |
+
+  For example `…/?token=…&heard=1&alts=8&settle=2500`. Chrome's own microphone level can't be
+  set from a web page; on a laptop, raise it in Windows (Sound > Input > volume, "Microphone boost").
 - **A sentence that itself says "Hey chef"** (the greeting, help) mutes listening while it plays,
   so the app can't wake itself.
 - **Common commands never leave the device** ("next", "yes", "timer", "check it", "σενιάν"...,
