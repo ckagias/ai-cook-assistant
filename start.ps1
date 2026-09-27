@@ -321,6 +321,9 @@ try {
         if ($LASTEXITCODE -ne 0) { Write-Host "      (QR skipped - qrcode not installed; re-run setup.ps1)" }
         if ($HotspotInfo -and $HotspotInfo.Ok) {
             & $VenvPython scripts\static_qr.py --ssid $HotspotInfo.Ssid --password $HotspotInfo.Password --ip $HotspotIp --port $LanPort --out (Join-Path $Root "qr")
+        } else {
+            # The slide's app code for this network: anyone on the same Wi-Fi scans it and is in.
+            & $VenvPython scripts\static_qr.py --ip $LanIp --port $LanPort --out (Join-Path $Root "qr")
         }
     }
     Write-Host "  Press the big Start button and allow the camera. Detection starts by itself (first frames: 'loading model')."

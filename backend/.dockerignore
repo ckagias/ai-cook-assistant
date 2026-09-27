@@ -1,0 +1,11 @@
+# The same allow-list as .gcloudignore: the image gets only what the app needs to run.
+# Never .env (keys), certs, the venvs, models or the local database.
+*
+!Dockerfile
+!requirements.txt
+!app/
+!static/
+!data/recipes.json
+!data/reference_images/
+**/__pycache__
+**/*.pyc

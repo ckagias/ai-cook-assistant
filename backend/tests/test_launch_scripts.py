@@ -94,6 +94,16 @@ def test_lan_ip_can_be_pinned_to_the_hotspot(monkeypatch):
     assert lan.lan_ip() == "192.168.137.1"
 
 
+def test_static_qr_codes_for_the_network_the_laptop_is_on(tmp_path):
+    static_qr = _load("static_qr")
+    (tmp_path / "1-wifi.png").write_bytes(b"old hotspot code")
+    info = static_qr.write(tmp_path, "192.168.1.15", 8443, "tok")
+    assert info["app"] == "https://192.168.1.15:8443/?token=tok&detect=1"
+    assert (tmp_path / "3-app.png").exists() and (tmp_path / "2-certificate.png").exists()
+    assert not (tmp_path / "1-wifi.png").exists()  # the hotspot's Wi-Fi code is no use on this network
+    assert "192.168.1.15" in (tmp_path / "README.txt").read_text(encoding="utf-8")
+
+
 def test_static_qr_codes_hold_the_hotspot_links(tmp_path):
     static_qr = _load("static_qr")
     # The standard Wi-Fi QR escapes \ ; , : " so an odd password can't end a field early.
