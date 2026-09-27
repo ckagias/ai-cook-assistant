@@ -1,0 +1,14 @@
+# `gcloud run deploy --source backend` uploads only what the container needs.
+# An allow-list: everything else (.env and its keys, certs, venvs, models, the local DB) stays here.
+/*
+!/Dockerfile
+!/.gcloudignore
+!/requirements.txt
+!/app/
+!/static/
+!/data/
+/data/*
+!/data/recipes.json
+!/data/reference_images/
+__pycache__/
+*.pyc
