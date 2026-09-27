@@ -1,12 +1,16 @@
 # AI Cooking Assistant
 
+Presented at Open Hackathon 2026 as **SayChef**. Try it: the QR on the pitch's last slide opens the
+online copy (see "Online: one fixed address" below).
+
 A voice-first cooking assistant for a tablet propped up in the kitchen. Point
 the camera at what you're cooking, get spoken feedback. No screen-reading
 required - it's built for someone whose hands are busy or who can't look at
 the screen while cooking.
 
 Python 3.10+, FastAPI serving both the API and a plain-HTML/JS client from
-the same origin. No Docker, no Node runtime dependency, no build step.
+the same origin. No Node runtime dependency, no build step; Docker only for the optional
+online copy (`deploy-cloud.ps1`).
 
 ## Quick start
 
@@ -166,15 +170,49 @@ backend/.venv/bin/python backend/scripts/check_providers.py [photo.jpg]
    as an app on your network**. iOS Add to Home Screen is out of scope for
    now.
 
-### Static QR codes for slides and demos
+### Online: one fixed address (Google Cloud Run)
+
+`.\deploy-cloud.ps1` puts the app online at **one address that never changes**:
+`https://readycheck-<project number>.europe-west1.run.app` (the event project's:
+`https://readycheck-406241909903.europe-west1.run.app`). Every redeploy lands on it, so the QR for it -
+`qr/main-app.png`, written by the script and used on the pitch's last slide - keeps working. Phones
+on any network open it with nothing to install: Cloud Run serves real HTTPS.
+
+- **First time:** install the Google Cloud CLI, `gcloud auth login` with the event account, and
+  accept the Google Cloud terms once at https://console.cloud.google.com.
+- **What it does:** turns on Cloud Run, Artifact Registry and Secret Manager; stores the OpenAI key
+  and a cloud pairing token (`CLOUD_PAIRING_TOKEN`, created once in `backend/.env`) in Secret
+  Manager - never printed; builds the image **here with Docker** (Windows, or WSL) and pushes it;
+  deploys with at most 2 instances; checks `/health`; writes `qr/main-app.png`.
+- **Why built here:** the event accounts can't grant project roles, so Cloud Build's account can't
+  read the upload. `-UseCloudBuild` builds in Google Cloud where a project allows it.
+- **What's in the image:** only what `backend/.dockerignore` lets through (`app/`, `static/`, the
+  recipes, the reference photos). The script refuses to push an image with `.env`, a venv or certs.
+- **Differences from the laptop copy:** no live detection (it needs the laptop's CPU and models);
+  photo checks are limited to 20 an hour per network address, so phones on one venue Wi-Fi share
+  them. Everything else is the same app.
+- The event deletes its projects 3-4 days after the event, and this address with them.
+
+### QR codes: which is which
+
+| QR | Opens | Works when |
+|---|---|---|
+| `qr/main-app.png` (the slide) | the online copy | always, on any network - the laptop can be off |
+| the one `.\start.ps1` prints | the laptop | the phone is on the laptop's network, `start.ps1` running |
+| `qr/2-certificate.png`, `qr/3-app.png` | the laptop, this network's address | written by every `.\start.ps1`; rebuild the deck after moving networks |
+| `qr/1-wifi.png` + the two above | the laptop's own hotspot, `192.168.137.1` | only with `.\start.ps1 -Hotspot` |
+
+### Static QR codes for the laptop's hotspot
 
 `.\start.ps1 -Hotspot` turns on the laptop's own Windows Mobile Hotspot (no admin rights). On it
 the laptop is always `192.168.137.1`, so a QR code for it never changes. Each such start writes
 `qr/slide.png`: three QR codes with Greek and English captions, each also a separate PNG for a
 presentation.
 
-Without `-Hotspot` (the default), phones use the network the laptop is already on, and the
-terminal QR follows its address.
+Without `-Hotspot` (the default), phones use the network the laptop is already on: the terminal
+QR, `qr/2-certificate.png` and `qr/3-app.png` follow its address, and `qr/1-wifi.png` is removed.
+Many venue and guest networks block devices from reaching each other; there, use the online copy
+or `-Hotspot`.
 
 | QR code | What it does |
 |---|---|
@@ -400,6 +438,13 @@ large - so the whole app works without hearing it.
   so when the mic catches the end of its sentence before yours ("2 αυγά… okay, τα έχω όλα"),
   that part is dropped by comparing the words (`static/js/echo.js`).
 - **It waits for you to finish:** 1.8 s of quiet ends a command (a breath in the middle doesn't).
+- **Hearing the wake name:** the browser's recognizer does the listening (we can't raise its
+  microphone gain). The app asks it for 5 guesses per phrase, so a «σεφ» it ranked lower still wakes
+  it, and where Chrome recognizes on-device it is told to expect «σεφ / Χέι σεφ». With a Greek
+  accent, «Σεφ, …» is heard more reliably than "Hey chef"; the phone close by helps most.
+- **What it heard:** `?heard=1` (remembered; `?heard=0` off) shows every phrase the recognizer
+  returned, with all its guesses and whether the wake name was among them - to add the
+  mis-hearings of real voices to `static/js/commands.js`. Shown only, never stored.
 - **A sentence that itself says "Hey chef"** (the greeting, help) mutes listening while it plays,
   so the app can't wake itself.
 - **Common commands never leave the device** ("next", "yes", "timer", "check it", "σενιάν"...,
@@ -450,7 +495,20 @@ GET  /reference/{recipe_id}/{step_index}  -> reference JPEG, 404 if none/missing
   (`.github/workflows/tests.yml`) runs the tests, not this check.
 - **Prompt-injection defense**: `backend/SECURITY_THREAT_MODEL_vision.md`
   and `DESIGN.md` #13 cover the heuristic output-injection guard on vision
-  responses.
+  responses. Every spoken field is checked: injection phrasing in Greek and English (including
+  paraphrases like "forget everything above" / «ξέχνα ό,τι…»), web addresses and short links,
+  hidden characters. Text in a photo is never an instruction; what the cook said reaches the model
+  as one line of data, and a request to play a character is refused. A fire alarm survives an
+  answer the guard withholds.
+- **Tested live (2026-09-27):** 12 attacks against the real models - instructions and links
+  written on things in photos, a "READY" label on raw pasta, "COOKED 75°C" printed next to
+  chicken, spoken/typed jailbreaks, requests for the system prompt or the API key, a
+  99,999-hour timer, "skip the thermometer", and a planted note in the session memory. 12/12
+  held (one partly worked at first - a persona request - and was fixed; `DESIGN.md` #37).
+- **Disclaimer and your data**: a page in Greek and English (start screen and app), read aloud on
+  request: what leaves the device and what doesn't, and that the answers can be wrong.
+- **The online copy**: HTTPS only, the pairing token in the QR (401 without it), the keys in
+  Secret Manager, at most 2 instances.
 
 ## What's still incomplete
 

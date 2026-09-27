@@ -7,7 +7,7 @@ Last updated: 2026-09-27, `main` = `integration`.
 
 ## Tests
 
-**355 passing** (Python + the Node `.test.mjs` suites, run through `test_client_js.py`). GitHub
+**375 passing** (Python + the Node `.test.mjs` suites, run through `test_client_js.py`). GitHub
 Actions runs both on every push to `main` and every pull request (`.github/workflows/tests.yml`).
 
 ## What works
@@ -58,6 +58,9 @@ Actions runs both on every push to `main` and every pull request (`.github/workf
   Greek; with none, the app says where to install one.
 
 **Running it**
+- **Online at one fixed address** (`deploy-cloud.ps1`, Google Cloud Run in the event project):
+  `https://readycheck-406241909903.europe-west1.run.app`. Its QR (`qr/main-app.png`) is on the
+  pitch's last slide and survives every redeploy. No detection there (laptop only).
 - `start.ps1` / `start.cmd` (Windows), `start.sh` (Linux, macOS, WSL). Setup runs only when
   something changed; a later start takes about 5 s, and every start closes the previous session.
 - One process serves `http://localhost:8000` and `https://<LAN IP>:8443`. Phones join the
@@ -67,10 +70,20 @@ Actions runs both on every push to `main` and every pull request (`.github/workf
 - Installable on Android as a PWA; the service worker keeps the app shell offline.
 
 **Security**: a pairing token (skipped only for the laptop itself), rate limits and size caps,
-an output guard on every model answer, voice actions from a closed list, and audio, transcripts
-and typed text never stored.
+an output guard on every model answer (paraphrased injections, short links, hidden characters),
+text in photos never taken as instructions, voice actions from a closed list, and audio,
+transcripts and typed text never stored. A "Disclaimer and your data" page in Greek and English.
+
+**Hearing the wake name:** 5 guesses per phrase, «σεφ» as a hint where Chrome supports it, and a
+"what I heard" view (`?heard=1`) to tune it to real voices.
 
 ## Verified live
+
+- **2026-09-27, the online copy:** the slide QR opened it on a phone on another network and on
+  the same Wi-Fi; through the QR link, all 26 app files load, 16 recipes, voice answers, and a
+  request without the token is refused.
+- **2026-09-27, prompt injection:** 12 attacks (text in photos, voice/typed, planted memory) against
+  the real models: 12/12 held after one fix. Normal answers pass the stricter guard (9/9 checked).
 
 - **On this laptop, by the user:** hands-free, hold to talk, the mic lock and the voice checklist
   work. "Hey chef" works but is still a bit hard to land with a Greek accent.
@@ -110,6 +123,9 @@ and typed text never stored.
   assistant is busy, and on-device commands keep working.
 
 ## What to test next
+
+0. **The "what I heard" view with our own voices** (`&heard=1` on the demo phone): say the wake
+   phrase 10-15 times from cooking distance and add what didn't wake to `commands.js`.
 
 1. A real Android phone on the same network: scan the QR, install the CA, then hands-free, hold
    to talk, the mic lock and a whole recipe.
