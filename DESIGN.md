@@ -535,7 +535,7 @@ reached. Finishing a recipe clears its memory.
 Not adopted:
 - Their second wake listener and `TextCommandRequest` endpoint: they need an OpenAI key,
   which is why every command answered "network trouble" on a Gemini-only machine.
-- `DOCUMENTATION-project.md`: it has factual errors. It was later rewritten with those errors
+- `DOCUMENTATION-project.md` (now `DOCUMENTATION.md`): it has factual errors. It was later rewritten with those errors
   fixed, at the merge (#31).
 - The `import_greek_demo.py` wrapper: it duplicates `import_recipes.py --url-file`. The URL list
   itself (`data/greek_demo_urls.txt`) came over at the merge.
