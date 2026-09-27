@@ -966,6 +966,13 @@ input:focus-visible {
   color: var(--muted);
 }
 
+/* ?heard=1: the speech recognizer's raw guesses, for tuning the wake word to real voices. */
+#log .log-heard {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-style: italic;
+}
+
 /* --- disclaimer and data: a link at the foot of the panel and on the start screen, and the page itself --- */
 
 button.linkish {

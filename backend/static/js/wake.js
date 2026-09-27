@@ -55,6 +55,25 @@ async function localAvailable(Recognition, lang) {
   }
 }
 
+// More of the recognizer's guesses per result: a wake name misheard in the first guess is often
+// right in the fourth or fifth (a Greek accent on "chef", a quiet voice across the kitchen).
+export const MAX_ALTERNATIVES = 5;
+
+// Contextual biasing (newer Chrome, on-device recognition only): the recognizer is told to expect
+// the wake name. Dropped for good if the browser refuses it ("phrases-not-supported").
+export const WAKE_PHRASES = ["σεφ", "χέι σεφ", "γεια σου σεφ", "chef", "hey chef"];
+export const PHRASE_BOOST = 5;
+
+function wakePhrases(g = globalThis) {
+  const Phrase = g.SpeechRecognitionPhrase;
+  if (typeof Phrase !== "function") return null;
+  try {
+    return WAKE_PHRASES.map((p) => new Phrase(p, PHRASE_BOOST));
+  } catch {
+    return null;
+  }
+}
+
 export function createWakeListener({
   Recognition = getRecognition(),
   lang = "el-GR",
@@ -67,6 +86,9 @@ export function createWakeListener({
   clearTimer = (id) => clearTimeout(id),
   probeLocal = localAvailable,
   cleanEcho = (text) => text, // takes the app's own words out of what was heard (echo.js)
+  // ({ id, alternatives, isFinal, woke }) every raw result, for the "what I heard" view (?heard=1)
+  onHeard = () => {},
+  phrases = wakePhrases, // () => SpeechRecognitionPhrase[] | null
 } = {}) {
   let rec = null;
   let enabled = false;
@@ -91,6 +113,8 @@ export function createWakeListener({
   // The lock: commands without the wake word, one after another, until it's unlocked.
   let locked = false;
   let lockTurnedOn = false; // the lock started the recognizer (hands-free was off)
+  let biasing = true; // off once the browser says it can't take phrases
+  let session = 0; // one per recognizer built: result indexes restart with each
 
   function report(state, detail) {
     onState(state, detail);
@@ -101,8 +125,19 @@ export function createWakeListener({
     r.lang = lang;
     r.continuous = true;
     r.interimResults = true;
-    r.maxAlternatives = 3;
-    if (mode === "local") r.processLocally = true;
+    r.maxAlternatives = MAX_ALTERNATIVES;
+    session += 1;
+    if (mode === "local") {
+      r.processLocally = true;
+      const list = biasing && "phrases" in r ? phrases() : null;
+      if (list && list.length) {
+        try {
+          r.phrases = list;
+        } catch {
+          biasing = false;
+        }
+      }
+    }
     r.onstart = () => {
       starting = false;
       running = true;
@@ -204,6 +239,7 @@ export function createWakeListener({
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       const alternatives = Array.from({ length: result.length }, (_, k) => (result[k] && result[k].transcript) || "");
+      onHeard({ id: `${session}:${i}`, alternatives, isFinal: Boolean(result.isFinal), woke: Boolean(bestWake(alternatives)) });
       if (!armed) {
         const hit = bestWake(alternatives);
         if (!hit) continue;
@@ -256,6 +292,9 @@ export function createWakeListener({
       report("error", code);
     } else if (code === "network") {
       failures += 1;
+    } else if (code === "phrases-not-supported") {
+      biasing = false; // listen without them: the next session is built plain
+      rec = null;
     }
     // "no-speech" and "aborted" are routine: onend follows and restarts.
   }

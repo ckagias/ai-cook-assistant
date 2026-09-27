@@ -2,7 +2,7 @@
 // same breath, nothing acted on without it, the app's own speech ignored, restarts after the
 // browser ends a session, a blocked microphone, and the talk button's one-shot listening.
 
-const { createWakeListener, ARM_MS, SETTLE_MS, RELEASE_FINAL_MS } = await import("../static/js/wake.js");
+const { createWakeListener, ARM_MS, SETTLE_MS, RELEASE_FINAL_MS, MAX_ALTERNATIVES } = await import("../static/js/wake.js");
 
 function assert(cond, message) {
   if (!cond) throw new Error("assertion failed: " + message);
@@ -16,6 +16,7 @@ class FakeRecognition {
     this.aborted = 0;
     this.stopped = 0;
     this.active = false;
+    this.phrases = null; // newer Chrome has the property; a list is set only for on-device recognition
     FakeRecognition.instances.push(this);
   }
   start() {
@@ -50,7 +51,7 @@ class FakeRecognition {
   }
 }
 
-async function setup({ cleanEcho } = {}) {
+async function setup({ cleanEcho, local = false, onHeard, phrases } = {}) {
   FakeRecognition.instances = [];
   const log = { woke: 0, commands: [], interim: [], timeouts: 0, states: [] };
   const timers = [];
@@ -69,8 +70,10 @@ async function setup({ cleanEcho } = {}) {
     clearTimer: (id) => {
       if (timers[id]) timers[id].live = false;
     },
-    probeLocal: async () => false,
+    probeLocal: async () => local,
     ...(cleanEcho ? { cleanEcho } : {}),
+    ...(onHeard ? { onHeard } : {}),
+    ...(phrases ? { phrases } : {}),
   });
   const fire = (ms) => {
     for (const t of timers.splice(0)) if (t.live && (ms === undefined || t.ms === ms)) t.fn();
@@ -345,6 +348,34 @@ await testBlockedMicrophoneTurnsItOff();
 await testTalkButtonWithHandsFreeOff();
 await testStopEndsEverything();
 await testUnsupportedBrowser();
+
+// Sensitivity: more guesses per result, the wake name as a hint where the browser takes one, and
+// every raw result reported for the "what I heard" view.
+async function testMoreGuessesHintsAndWhatWasHeard() {
+  const heard = [];
+  const s = await setup({ onHeard: (h) => heard.push(h) });
+  await s.listener.start();
+  assert(s.rec().maxAlternatives === MAX_ALTERNATIVES && MAX_ALTERNATIVES === 5, "five guesses per result");
+  assert(s.rec().phrases === null, "cloud recognition: no phrase list (on-device only)");
+  s.rec().hear(["χέρι σε φ", "κερί", "τι κάνεις", "σεφ πόση ώρα", "σε"], false, 0);
+  assert(s.log.woke === 1, "the wake name in the fourth guess still wakes it");
+  assert(heard[0].alternatives.length === 5 && heard[0].woke && heard[0].isFinal === false && heard[0].id === "1:0",
+    `raw result reported: ${JSON.stringify(heard[0])}`);
+  console.log("test s (five guesses; what was heard is reported) OK");
+
+  const t = await setup({ local: true, phrases: () => ["σεφ", "χέι σεφ"] });
+  await t.listener.start();
+  assert(t.log.states.includes("idle:local"), "on-device recognition");
+  assert(JSON.stringify(t.rec().phrases) === '["σεφ","χέι σεφ"]', `hints set on-device: ${t.rec().phrases}`);
+  t.rec().fail("phrases-not-supported");
+  t.fire(); // the restart after a session ends
+  await tick();
+  const next = FakeRecognition.instances.at(-1);
+  assert(next !== t.rec() && next.phrases === null && next.active, "refused: listening again, without hints");
+  assert(!t.log.states.some((x) => x.startsWith("error")), "not an error for the cook");
+  console.log("test t (wake-name hints on-device, dropped if refused) OK");
+}
+await testMoreGuessesHintsAndWhatWasHeard();
 await tick();
 
 console.log("all passed");

@@ -89,6 +89,12 @@ const el = {
 };
 
 const params = new URLSearchParams(window.location.search);
+// "What I heard": ?heard=1 puts every raw result of the speech recognizer in the conversation log
+// (all its guesses, and whether the wake name was among them), to tune the wake word to real voices
+// and accents. Remembered on this device; ?heard=0 turns it off. Shown only, never stored.
+const HEARD_PARAM = params.get("heard");
+if (HEARD_PARAM === "0" || HEARD_PARAM === "1") savePref("heardView", HEARD_PARAM);
+const SHOW_HEARD = HEARD_PARAM === "1" || (HEARD_PARAM !== "0" && loadPref("heardView") === "1");
 const DEBUG = params.get("debug") === "1";
 if (DEBUG) document.documentElement.dataset.debug = "1"; // app.css shows the diagnostics line
 // Detection starts with the camera unless this device said otherwise: ?detect=0 / =1 is remembered
@@ -232,6 +238,24 @@ function logLine(who, text) {
   line.append(name, text); // text node - never HTML, some of it comes from the server
   el.log.append(line);
   while (el.log.childElementCount > LOG_MAX) el.log.firstElementChild.remove();
+  el.log.scrollTop = el.log.scrollHeight;
+}
+
+// One line per thing said, updated as the recognizer's guesses change (?heard=1).
+const heardLines = new Map(); // result id -> its line in the log
+function logHeard({ id, alternatives, isFinal, woke }) {
+  const guesses = alternatives.map((a) => a.trim()).filter(Boolean);
+  if (!guesses.length) return;
+  let line = heardLines.get(id);
+  if (!line) {
+    line = document.createElement("p");
+    line.className = "log-heard";
+    el.log.append(line);
+    heardLines.set(id, line);
+    if (heardLines.size > 60) heardLines.delete(heardLines.keys().next().value);
+    while (el.log.childElementCount > LOG_MAX) el.log.firstElementChild.remove();
+  }
+  line.textContent = `${t("heard_label", lang)}${woke ? " (σεφ ✓)" : ""}${isFinal ? "" : " …"}: ${guesses.join("  |  ")}`;
   el.log.scrollTop = el.log.scrollHeight;
 }
 
@@ -1607,6 +1631,7 @@ function renderWakeState(state, detail) {
 const wake = createWakeListener({
   lang: recognitionLang(),
   cleanEcho: (text) => stripEcho(text, recentSpeech()),
+  onHeard: SHOW_HEARD ? logHeard : undefined,
   onWake: () => {
     stopForTheCook();
     earcon("ok");

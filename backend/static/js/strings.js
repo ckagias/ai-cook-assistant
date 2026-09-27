@@ -140,6 +140,7 @@ export const STRINGS = {
 
   // --- push-to-talk voice commands, see voice.js ---
   talk: { en: "Talk", el: "Μίλα" },
+  heard_label: { en: "Heard", el: "Άκουσα" }, // ?heard=1: the recognizer's raw guesses in the log
   lock: { en: "Lock", el: "Κλείδωμα" },
   wake_locked: { en: "Listening - just say it", el: "Σε ακούω - πες το απλά" },
   lock_on_said: {
